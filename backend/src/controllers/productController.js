@@ -1,0 +1,418 @@
+const { query, transaction } = require('../config/database');
+const { logActivity } = require('../middleware/activityLogger');
+
+// @desc    Get all products with filters
+// @route   GET /api/products
+// @access  Public
+exports.getProducts = async (req, res) => {
+  try {
+    const {
+      category,
+      fitting,
+      size,
+      min_price,
+      max_price,
+      search,
+      sort = 'created_at',
+      order = 'DESC',
+      page = 1,
+      limit = 12
+    } = req.query;
+
+    const offset = (page - 1) * limit;
+    let whereConditions = ['p.is_active = true'];
+    let params = [];
+
+    // Build WHERE conditions
+    if (category) {
+      whereConditions.push('p.category_id = ?');
+      params.push(category);
+    }
+
+    if (fitting) {
+      whereConditions.push('p.fitting_id = ?');
+      params.push(fitting);
+    }
+
+    if (size) {
+      whereConditions.push('EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND pv.size_id = ? AND pv.is_active = true)');
+      params.push(size);
+    }
+
+    if (min_price) {
+      whereConditions.push('p.base_price >= ?');
+      params.push(min_price);
+    }
+
+    if (max_price) {
+      whereConditions.push('p.base_price <= ?');
+      params.push(max_price);
+    }
+
+    if (search) {
+      whereConditions.push('(p.name LIKE ? OR p.description LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // Get total count
+    const countResult = await query(
+      `SELECT COUNT(DISTINCT p.id) as total FROM products p ${whereClause}`,
+      params
+    );
+    const total = countResult[0].total;
+
+    // Get products
+    const products = await query(
+      `SELECT 
+        p.id, p.name, p.slug, p.description, p.short_description,
+        p.base_price, p.sku, p.weight, p.is_featured,
+        c.name as category_name, c.slug as category_slug,
+        f.name as fitting_name, f.slug as fitting_slug,
+        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as primary_image,
+        (SELECT COUNT(*) FROM product_variants WHERE product_id = p.id AND is_active = true) as variants_count,
+        (SELECT SUM(stock_quantity) FROM product_variants WHERE product_id = p.id AND is_active = true) as total_stock
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN fittings f ON p.fitting_id = f.id
+      ${whereClause}
+      GROUP BY p.id
+      ORDER BY p.${sort} ${order}
+      LIMIT ? OFFSET ?`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    res.json({
+      success: true,
+      data: products,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get products error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching products',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get single product
+// @route   GET /api/products/:slug
+// @access  Public
+exports.getProduct = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    // Get product details
+    const products = await query(
+      `SELECT 
+        p.*, 
+        c.name as category_name, c.slug as category_slug,
+        f.name as fitting_name, f.slug as fitting_slug
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN fittings f ON p.fitting_id = f.id
+      WHERE p.slug = ? AND p.is_active = true`,
+      [slug]
+    );
+
+    if (products.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    const product = products[0];
+
+    // Get product images
+    const images = await query(
+      'SELECT id, image_url, is_primary, alt_text FROM product_images WHERE product_id = ? ORDER BY sort_order, is_primary DESC',
+      [product.id]
+    );
+
+    // Get product variants with sizes
+    const variants = await query(
+      `SELECT 
+        pv.id, pv.sku_variant, pv.additional_price, pv.stock_quantity, pv.is_active,
+        s.id as size_id, s.name as size_name
+      FROM product_variants pv
+      LEFT JOIN sizes s ON pv.size_id = s.id
+      WHERE pv.product_id = ? AND pv.is_active = true
+      ORDER BY s.sort_order`,
+      [product.id]
+    );
+
+    // Update view count
+    await query('UPDATE products SET view_count = view_count + 1 WHERE id = ?', [product.id]);
+
+    res.json({
+      success: true,
+      data: {
+        ...product,
+        images,
+        variants
+      }
+    });
+  } catch (error) {
+    console.error('Get product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching product',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Create product
+// @route   POST /api/products
+// @access  Private (Admin)
+exports.createProduct = async (req, res) => {
+  try {
+    const {
+      name, slug, category_id, fitting_id, description, short_description,
+      base_price, master_cost_price, sku, weight, is_featured,
+      meta_title, meta_description, meta_keywords, variants
+    } = req.body;
+
+    // Validation
+    if (!name || !slug || !base_price) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide name, slug, and base price'
+      });
+    }
+
+    // Check if slug exists
+    const existingProduct = await query('SELECT id FROM products WHERE slug = ?', [slug]);
+    if (existingProduct.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Product slug already exists'
+      });
+    }
+
+    const result = await transaction(async (conn) => {
+      // Insert product
+      const [productResult] = await conn.execute(
+        `INSERT INTO products 
+        (name, slug, category_id, fitting_id, description, short_description, 
+         base_price, master_cost_price, sku, weight, is_featured,
+         meta_title, meta_description, meta_keywords)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [name, slug, category_id || null, fitting_id || null, description || null,
+         short_description || null, base_price, master_cost_price || null, sku || null,
+         weight || 0, is_featured || false, meta_title || name,
+         meta_description || short_description, meta_keywords || null]
+      );
+
+      const productId = productResult.insertId;
+
+      // Insert variants if provided
+      if (variants && Array.isArray(variants) && variants.length > 0) {
+        for (const variant of variants) {
+          await conn.execute(
+            `INSERT INTO product_variants 
+            (product_id, size_id, sku_variant, additional_price, stock_quantity)
+            VALUES (?, ?, ?, ?, ?)`,
+            [productId, variant.size_id, variant.sku_variant,
+             variant.additional_price || 0, variant.stock_quantity || 0]
+          );
+
+          // Log inventory movement if stock > 0
+          if (variant.stock_quantity > 0) {
+            const [variantResult] = await conn.execute(
+              'SELECT id FROM product_variants WHERE product_id = ? AND size_id = ?',
+              [productId, variant.size_id]
+            );
+
+            await conn.execute(
+              `INSERT INTO inventory_movements 
+              (product_variant_id, type, quantity, reference_type, notes, created_by)
+              VALUES (?, 'in', ?, 'initial_stock', 'Initial stock', ?)`,
+              [variantResult[0].id, variant.stock_quantity, req.user.id]
+            );
+          }
+        }
+      }
+
+      return productId;
+    });
+
+    await logActivity(req.user.id, 'create_product', 'product', result, `Created product: ${name}`, req);
+
+    res.status(201).json({
+      success: true,
+      message: 'Product created successfully',
+      data: { id: result }
+    });
+  } catch (error) {
+    console.error('Create product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating product',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update product
+// @route   PUT /api/products/:id
+// @access  Private (Admin)
+exports.updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = [];
+    const values = [];
+
+    const allowedFields = [
+      'name', 'slug', 'category_id', 'fitting_id', 'description', 'short_description',
+      'base_price', 'master_cost_price', 'sku', 'weight', 'is_active', 'is_featured',
+      'meta_title', 'meta_description', 'meta_keywords'
+    ];
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updates.push(`${field} = ?`);
+        values.push(req.body[field]);
+      }
+    });
+
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No fields to update'
+      });
+    }
+
+    values.push(id);
+
+    await query(
+      `UPDATE products SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    await logActivity(req.user.id, 'update_product', 'product', id, 'Updated product', req);
+
+    res.json({
+      success: true,
+      message: 'Product updated successfully'
+    });
+  } catch (error) {
+    console.error('Update product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating product',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete product
+// @route   DELETE /api/products/:id
+// @access  Private (Admin)
+exports.deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await query('DELETE FROM products WHERE id = ?', [id]);
+
+    await logActivity(req.user.id, 'delete_product', 'product', id, 'Deleted product', req);
+
+    res.json({
+      success: true,
+      message: 'Product deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting product',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Bulk upload products
+// @route   POST /api/products/bulk-upload
+// @access  Private (Admin)
+exports.bulkUpload = async (req, res) => {
+  try {
+    const { products } = req.body;
+
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide an array of products'
+      });
+    }
+
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+
+    for (const product of products) {
+      try {
+        await transaction(async (conn) => {
+          // Insert product
+          const [result] = await conn.execute(
+            `INSERT INTO products 
+            (name, slug, category_id, fitting_id, description, base_price, sku)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [product.name, product.slug, product.category_id || null,
+             product.fitting_id || null, product.description || null,
+             product.base_price, product.sku || null]
+          );
+
+          const productId = result.insertId;
+
+          // Insert variants if provided
+          if (product.variants && Array.isArray(product.variants)) {
+            for (const variant of product.variants) {
+              await conn.execute(
+                `INSERT INTO product_variants 
+                (product_id, size_id, sku_variant, additional_price, stock_quantity)
+                VALUES (?, ?, ?, ?, ?)`,
+                [productId, variant.size_id, variant.sku_variant,
+                 variant.additional_price || 0, variant.stock_quantity || 0]
+              );
+            }
+          }
+        });
+
+        results.success++;
+      } catch (error) {
+        results.failed++;
+        results.errors.push({
+          product: product.name,
+          error: error.message
+        });
+      }
+    }
+
+    await logActivity(req.user.id, 'bulk_upload_products', 'product', null,
+      `Bulk uploaded ${results.success} products`, req);
+
+    res.json({
+      success: true,
+      message: 'Bulk upload completed',
+      data: results
+    });
+  } catch (error) {
+    console.error('Bulk upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error during bulk upload',
+      error: error.message
+    });
+  }
+};
