@@ -12,8 +12,12 @@ dotenv.config();
 // Import routes
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
+const homeRoutes = require('./src/routes/homeRoutes');
 const productRoutes = require('./src/routes/productRoutes');
 const categoryRoutes = require('./src/routes/categoryRoutes');
+const fittingRoutes = require('./src/routes/fittingRoutes');
+const sizeRoutes = require('./src/routes/sizeRoutes');
+const bannerRoutes = require('./src/routes/bannerRoutes');
 const cartRoutes = require('./src/routes/cartRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
 const inventoryRoutes = require('./src/routes/inventoryRoutes');
@@ -60,10 +64,14 @@ app.use('/api/', rateLimiter);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API Routes
+app.use('/api/home', homeRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/fittings', fittingRoutes);
+app.use('/api/sizes', sizeRoutes);
+app.use('/api/banners', bannerRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/inventory', inventoryRoutes);

@@ -4,43 +4,71 @@ import { Helmet } from 'react-helmet-async';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProducts } from '../redux/slices/productSlice';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { apiClient } from '../services/api';
 
 const Home = () => {
   const dispatch = useDispatch();
   const { products, isLoading } = useSelector((state) => state.products);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [homeData, setHomeData] = useState(null);
+  const [homeLoading, setHomeLoading] = useState(true);
+  const [homeError, setHomeError] = useState('');
 
   useEffect(() => {
     dispatch(fetchProducts({ limit: 12, is_featured: true }));
+    fetchHomeData();
   }, [dispatch]);
 
-  // Hero carousel slides
-  const heroSlides = [
-    {
-      id: 1,
-      image: '/images/hero/banner-1.jpg',
-      title: 'KOLEKSI MUSIM INI',
-      subtitle: 'Tampil percaya diri dengan denim terbaru',
-      link: '/products?category=new-arrivals',
-      linkText: 'BELANJA SEKARANG'
-    },
-    {
-      id: 2,
-      image: '/images/hero/banner-2.jpg',
-      title: 'BAGGY JEANS',
-      subtitle: 'Gaya santai yang tetap stylish',
-      link: '/products?fitting=baggy',
-      linkText: 'TEMUKAN FITTING ANDA'
-    },
-    {
-      id: 3,
-      image: '/images/hero/banner-3.jpg',
-      title: 'DISKON HINGGA 40%',
-      subtitle: 'Dapatkan koleksi favorit dengan harga spesial',
-      link: '/products?discount=true',
-      linkText: 'LIHAT PROMO'
+  const fetchHomeData = async () => {
+    try {
+      setHomeLoading(true);
+      const response = await apiClient.get('/home');
+      setHomeData(response.data.data);
+      setHomeError('');
+    } catch (err) {
+      console.error('Error fetching home data:', err);
+      setHomeError('Failed to load homepage data');
+    } finally {
+      setHomeLoading(false);
     }
-  ];
+  };
+
+  // Hero carousel slides - use backend banners or fallback to defaults
+  const heroSlides = (homeData?.banners && homeData.banners.length > 0)
+    ? homeData.banners.map((banner) => ({
+        id: banner.id,
+        image: banner.image_url,
+        title: banner.title,
+        subtitle: banner.subtitle,
+        link: banner.link || '/products',
+        linkText: 'BELANJA SEKARANG'
+      }))
+    : [
+        {
+          id: 1,
+          image: '/images/hero/banner-1.jpg',
+          title: 'KOLEKSI MUSIM INI',
+          subtitle: 'Tampil percaya diri dengan denim terbaru',
+          link: '/products?category=new-arrivals',
+          linkText: 'BELANJA SEKARANG'
+        },
+        {
+          id: 2,
+          image: '/images/hero/banner-2.jpg',
+          title: 'BAGGY JEANS',
+          subtitle: 'Gaya santai yang tetap stylish',
+          link: '/products?fitting=baggy',
+          linkText: 'TEMUKAN FITTING ANDA'
+        },
+        {
+          id: 3,
+          image: '/images/hero/banner-3.jpg',
+          title: 'DISKON HINGGA 40%',
+          subtitle: 'Dapatkan koleksi favorit dengan harga spesial',
+          link: '/products?discount=true',
+          linkText: 'LIHAT PROMO'
+        }
+      ];
 
   // Category cards
   const categories = [

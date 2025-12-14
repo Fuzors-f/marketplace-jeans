@@ -27,10 +27,14 @@ import OrderDetail from './pages/OrderDetail';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminProducts from './pages/admin/Products';
 import AdminOrders from './pages/admin/Orders';
+import AdminBanners from './pages/admin/Banners';
 import AdminInventory from './pages/admin/Inventory';
 import AdminReports from './pages/admin/Reports';
 import AdminUsers from './pages/admin/Users';
 import AdminSettings from './pages/admin/Settings';
+import AdminCategories from './pages/admin/Categories';
+import AdminFittings from './pages/admin/Fittings';
+import AdminSizes from './pages/admin/Sizes';
 
 // Components
 import PrivateRoute from './components/PrivateRoute';
@@ -71,6 +75,11 @@ function App() {
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
         <Route index element={<AdminDashboard />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="categories" element={<AdminCategories />} />
+        <Route path="fittings" element={<AdminFittings />} />
+        <Route path="sizes" element={<AdminSizes />} />
+        <Route path="banners" element={<AdminBanners />} />
         <Route path="products" element={<AdminProducts />} />
         <Route path="orders" element={<AdminOrders />} />
         <Route path="inventory" element={<AdminInventory />} />

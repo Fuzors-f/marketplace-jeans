@@ -56,6 +56,11 @@ exports.getProducts = async (req, res) => {
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
+    // Validate sort column (prevent SQL injection)
+    const validSortColumns = ['id', 'name', 'base_price', 'created_at', 'updated_at', 'view_count'];
+    const sortColumn = validSortColumns.includes(sort) ? sort : 'created_at';
+    const sortOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
     // Get total count
     const countResult = await query(
       `SELECT COUNT(DISTINCT p.id) as total FROM products p ${whereClause}`,
@@ -78,7 +83,7 @@ exports.getProducts = async (req, res) => {
       LEFT JOIN fittings f ON p.fitting_id = f.id
       ${whereClause}
       GROUP BY p.id
-      ORDER BY p.${sort} ${order}
+      ORDER BY p.${sortColumn} ${sortOrder}
       LIMIT ? OFFSET ?`,
       [...params, parseInt(limit), parseInt(offset)]
     );

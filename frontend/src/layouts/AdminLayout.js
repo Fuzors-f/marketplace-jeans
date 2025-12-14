@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { FaHome, FaBox, FaShoppingBag, FaWarehouse, FaChartBar, FaUsers, FaCog, FaSignOutAlt } from 'react-icons/fa';
+import { FaHome, FaBox, FaShoppingBag, FaWarehouse, FaChartBar, FaUsers, FaCog, FaSignOutAlt, FaImages, FaTags, FaRuler } from 'react-icons/fa';
 import { logout } from '../redux/slices/authSlice';
 
 const AdminLayout = () => {
@@ -16,6 +16,10 @@ const AdminLayout = () => {
   const menuItems = [
     { path: '/admin', icon: FaHome, label: 'Dashboard' },
     { path: '/admin/products', icon: FaBox, label: 'Products' },
+    { path: '/admin/categories', icon: FaTags, label: 'Categories' },
+    { path: '/admin/fittings', icon: FaRuler, label: 'Fittings' },
+    { path: '/admin/sizes', icon: FaRuler, label: 'Sizes' },
+    { path: '/admin/banners', icon: FaImages, label: 'Banners' },
     { path: '/admin/orders', icon: FaShoppingBag, label: 'Orders' },
     { path: '/admin/inventory', icon: FaWarehouse, label: 'Inventory' },
     { path: '/admin/reports', icon: FaChartBar, label: 'Reports' },
