@@ -16,12 +16,18 @@ exports.getProducts = async (req, res) => {
       sort = 'created_at',
       order = 'DESC',
       page = 1,
-      limit = 12
+      limit = 12,
+      show_all // Admin flag to show all products including inactive
     } = req.query;
 
     const offset = (page - 1) * limit;
-    let whereConditions = ['p.is_active = true'];
+    let whereConditions = [];
     let params = [];
+
+    // Only filter by active if not admin or not requesting all
+    if (show_all !== 'true') {
+      whereConditions.push('p.is_active = true');
+    }
 
     // Build WHERE conditions
     if (category) {
@@ -72,7 +78,8 @@ exports.getProducts = async (req, res) => {
     const products = await query(
       `SELECT 
         p.id, p.name, p.slug, p.description, p.short_description,
-        p.base_price, p.sku, p.weight, p.is_featured,
+        p.base_price, p.master_cost_price, p.sku, p.weight, p.is_active, p.is_featured,
+        p.category_id, p.fitting_id,
         c.name as category_name, c.slug as category_slug,
         f.name as fitting_name, f.slug as fitting_slug,
         (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as primary_image,
@@ -417,6 +424,209 @@ exports.bulkUpload = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error during bulk upload',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get product variants
+// @route   GET /api/products/:productId/variants
+// @access  Public
+exports.getProductVariants = async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    const variants = await query(
+      `SELECT 
+        pv.id, pv.sku_variant, pv.additional_price, pv.stock_quantity, pv.is_active,
+        s.id as size_id, s.name as size_name
+      FROM product_variants pv
+      LEFT JOIN sizes s ON pv.size_id = s.id
+      WHERE pv.product_id = ?
+      ORDER BY s.sort_order`,
+      [productId]
+    );
+
+    res.json({
+      success: true,
+      data: variants
+    });
+  } catch (error) {
+    console.error('Get product variants error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching product variants',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Add product variant
+// @route   POST /api/products/:productId/variants
+// @access  Private (Admin)
+exports.addProductVariant = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { size_id, sku_variant, additional_price, stock_quantity } = req.body;
+
+    if (!size_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide size_id'
+      });
+    }
+
+    // Check if variant with same size exists
+    const existing = await query(
+      'SELECT id FROM product_variants WHERE product_id = ? AND size_id = ?',
+      [productId, size_id]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Variant with this size already exists'
+      });
+    }
+
+    const result = await transaction(async (conn) => {
+      const [variantResult] = await conn.execute(
+        `INSERT INTO product_variants 
+        (product_id, size_id, sku_variant, additional_price, stock_quantity)
+        VALUES (?, ?, ?, ?, ?)`,
+        [productId, size_id, sku_variant || null, additional_price || 0, stock_quantity || 0]
+      );
+
+      // Log inventory movement if stock > 0
+      if (stock_quantity > 0) {
+        await conn.execute(
+          `INSERT INTO inventory_movements 
+          (product_variant_id, type, quantity, reference_type, notes, created_by)
+          VALUES (?, 'in', ?, 'initial_stock', 'Initial stock for new variant', ?)`,
+          [variantResult.insertId, stock_quantity, req.user.id]
+        );
+      }
+
+      return variantResult.insertId;
+    });
+
+    await logActivity(req.user.id, 'add_product_variant', 'product_variant', result, 'Added product variant', req);
+
+    res.status(201).json({
+      success: true,
+      message: 'Variant added successfully',
+      data: { id: result }
+    });
+  } catch (error) {
+    console.error('Add product variant error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adding product variant',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update product variant
+// @route   PUT /api/products/variants/:variantId
+// @access  Private (Admin)
+exports.updateProductVariant = async (req, res) => {
+  try {
+    const { variantId } = req.params;
+    const { sku_variant, additional_price, stock_quantity, is_active } = req.body;
+
+    const updates = [];
+    const values = [];
+
+    if (sku_variant !== undefined) {
+      updates.push('sku_variant = ?');
+      values.push(sku_variant);
+    }
+    if (additional_price !== undefined) {
+      updates.push('additional_price = ?');
+      values.push(additional_price);
+    }
+    if (is_active !== undefined) {
+      updates.push('is_active = ?');
+      values.push(is_active);
+    }
+
+    // Handle stock update with inventory movement
+    if (stock_quantity !== undefined) {
+      const currentVariant = await query(
+        'SELECT stock_quantity FROM product_variants WHERE id = ?',
+        [variantId]
+      );
+
+      if (currentVariant.length > 0) {
+        const currentStock = currentVariant[0].stock_quantity;
+        const stockDiff = stock_quantity - currentStock;
+
+        if (stockDiff !== 0) {
+          updates.push('stock_quantity = ?');
+          values.push(stock_quantity);
+
+          // Log inventory movement
+          await query(
+            `INSERT INTO inventory_movements 
+            (product_variant_id, type, quantity, reference_type, notes, created_by)
+            VALUES (?, ?, ?, 'adjustment', 'Manual stock adjustment', ?)`,
+            [variantId, stockDiff > 0 ? 'in' : 'out', Math.abs(stockDiff), req.user.id]
+          );
+        }
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No fields to update'
+      });
+    }
+
+    values.push(variantId);
+
+    await query(
+      `UPDATE product_variants SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    await logActivity(req.user.id, 'update_product_variant', 'product_variant', variantId, 'Updated product variant', req);
+
+    res.json({
+      success: true,
+      message: 'Variant updated successfully'
+    });
+  } catch (error) {
+    console.error('Update product variant error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating product variant',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete product variant
+// @route   DELETE /api/products/variants/:variantId
+// @access  Private (Admin)
+exports.deleteProductVariant = async (req, res) => {
+  try {
+    const { variantId } = req.params;
+
+    await query('DELETE FROM product_variants WHERE id = ?', [variantId]);
+
+    await logActivity(req.user.id, 'delete_product_variant', 'product_variant', variantId, 'Deleted product variant', req);
+
+    res.json({
+      success: true,
+      message: 'Variant deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete product variant error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting product variant',
       error: error.message
     });
   }

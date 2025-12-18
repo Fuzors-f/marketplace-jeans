@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Helmet } from 'react-helmet-async';
-import { apiClient } from '../services/api';
+import apiClient from '../services/api';
 
 const Checkout = () => {
   const navigate = useNavigate();

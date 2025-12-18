@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { apiClient } from '../../services/api';
+import apiClient from '../../services/api';
 
 const AdminOrders = () => {
   const [orders, setOrders] = useState([]);

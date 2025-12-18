@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProducts } from '../redux/slices/productSlice';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { apiClient } from '../services/api';
+import apiClient from '../services/api';
 
 const Home = () => {
   const dispatch = useDispatch();

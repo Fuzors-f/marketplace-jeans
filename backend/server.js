@@ -26,6 +26,10 @@ const paymentRoutes = require('./src/routes/paymentRoutes');
 const shippingRoutes = require('./src/routes/shippingRoutes');
 const discountRoutes = require('./src/routes/discountRoutes');
 const settingRoutes = require('./src/routes/settingRoutes');
+const adminRoutes = require('./src/routes/adminRoutes');
+const officeRoutes = require('./src/routes/officeRoutes');
+const positionRoutes = require('./src/routes/positionRoutes');
+const sizeChartRoutes = require('./src/routes/sizeChartRoutes');
 
 // Import middleware
 const errorHandler = require('./src/middleware/errorHandler');
@@ -80,6 +84,10 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/discounts', discountRoutes);
 app.use('/api/settings', settingRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/offices', officeRoutes);
+app.use('/api/positions', positionRoutes);
+app.use('/api/size-charts', sizeChartRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

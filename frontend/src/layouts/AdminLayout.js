@@ -1,57 +1,153 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { FaHome, FaBox, FaShoppingBag, FaWarehouse, FaChartBar, FaUsers, FaCog, FaSignOutAlt, FaImages, FaTags, FaRuler } from 'react-icons/fa';
+import { 
+  FaHome, FaBox, FaShoppingBag, FaWarehouse, FaChartBar, FaUsers, FaCog, 
+  FaSignOutAlt, FaImages, FaTags, FaRuler, FaBuilding, FaUserTie, 
+  FaChevronDown, FaChevronRight, FaTable
+} from 'react-icons/fa';
 import { logout } from '../redux/slices/authSlice';
 
 const AdminLayout = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const { user } = useSelector((state) => state.auth);
+  const [openSubmenus, setOpenSubmenus] = useState(['master']);
 
   const handleLogout = () => {
     dispatch(logout());
   };
 
+  const toggleSubmenu = (key) => {
+    setOpenSubmenus(prev => 
+      prev.includes(key) 
+        ? prev.filter(k => k !== key)
+        : [...prev, key]
+    );
+  };
+
   const menuItems = [
     { path: '/admin', icon: FaHome, label: 'Dashboard' },
-    { path: '/admin/products', icon: FaBox, label: 'Products' },
-    { path: '/admin/categories', icon: FaTags, label: 'Categories' },
-    { path: '/admin/fittings', icon: FaRuler, label: 'Fittings' },
-    { path: '/admin/sizes', icon: FaRuler, label: 'Sizes' },
-    { path: '/admin/banners', icon: FaImages, label: 'Banners' },
-    { path: '/admin/orders', icon: FaShoppingBag, label: 'Orders' },
-    { path: '/admin/inventory', icon: FaWarehouse, label: 'Inventory' },
-    { path: '/admin/reports', icon: FaChartBar, label: 'Reports' },
-    { path: '/admin/users', icon: FaUsers, label: 'Users', adminOnly: true },
-    { path: '/admin/settings', icon: FaCog, label: 'Settings', adminOnly: true },
+    { 
+      key: 'master',
+      icon: FaTable, 
+      label: 'Master Data',
+      children: [
+        { path: '/admin/products', icon: FaBox, label: 'Produk' },
+        { path: '/admin/categories', icon: FaTags, label: 'Kategori' },
+        { path: '/admin/fittings', icon: FaRuler, label: 'Fitting' },
+        { path: '/admin/sizes', icon: FaRuler, label: 'Ukuran' },
+        { path: '/admin/size-chart', icon: FaRuler, label: 'Size Chart' },
+        { path: '/admin/banners', icon: FaImages, label: 'Banner' },
+      ]
+    },
+    {
+      key: 'organization',
+      icon: FaBuilding,
+      label: 'Organisasi',
+      children: [
+        { path: '/admin/offices', icon: FaBuilding, label: 'Kantor' },
+        { path: '/admin/positions', icon: FaUserTie, label: 'Jabatan' },
+      ]
+    },
+    { path: '/admin/orders', icon: FaShoppingBag, label: 'Pesanan' },
+    { path: '/admin/inventory', icon: FaWarehouse, label: 'Inventori' },
+    { path: '/admin/reports', icon: FaChartBar, label: 'Laporan' },
+    { path: '/admin/users', icon: FaUsers, label: 'Pengguna', adminOnly: true },
+    { path: '/admin/settings', icon: FaCog, label: 'Pengaturan', adminOnly: true },
   ];
 
-  const filteredMenu = menuItems.filter(item => {
-    if (item.adminOnly && user?.role !== 'admin') return false;
-    return true;
-  });
+  const filterMenu = (items) => {
+    return items.filter(item => {
+      if (item.adminOnly && user?.role !== 'admin') return false;
+      return true;
+    }).map(item => {
+      if (item.children) {
+        return { ...item, children: filterMenu(item.children) };
+      }
+      return item;
+    });
+  };
+
+  const filteredMenu = filterMenu(menuItems);
+
+  const isPathActive = (path) => location.pathname === path;
+  const isSubmenuActive = (children) => children?.some(child => location.pathname === child.path);
+
+  const getCurrentLabel = () => {
+    for (const item of menuItems) {
+      if (item.path === location.pathname) return item.label;
+      if (item.children) {
+        const child = item.children.find(c => c.path === location.pathname);
+        if (child) return child.label;
+      }
+    }
+    return 'Dashboard';
+  };
 
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-white">
-        <div className="p-4">
+      <aside className="w-64 bg-gray-900 text-white overflow-y-auto">
+        <div className="p-4 border-b border-gray-800">
           <h2 className="text-xl font-bold">Admin Panel</h2>
           <p className="text-sm text-gray-400">{user?.full_name}</p>
         </div>
 
-        <nav className="mt-4">
+        <nav className="mt-2 pb-4">
           {filteredMenu.map((item) => {
+            if (item.children) {
+              const isOpen = openSubmenus.includes(item.key);
+              const isActive = isSubmenuActive(item.children);
+              const Icon = item.icon;
+              
+              return (
+                <div key={item.key}>
+                  <button
+                    onClick={() => toggleSubmenu(item.key)}
+                    className={`flex items-center justify-between w-full px-6 py-3 hover:bg-gray-800 transition ${
+                      isActive ? 'bg-gray-800 text-blue-400' : ''
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Icon />
+                      <span>{item.label}</span>
+                    </div>
+                    {isOpen ? <FaChevronDown size={12} /> : <FaChevronRight size={12} />}
+                  </button>
+                  
+                  {isOpen && (
+                    <div className="bg-gray-950">
+                      {item.children.map(child => {
+                        const ChildIcon = child.icon;
+                        return (
+                          <Link
+                            key={child.path}
+                            to={child.path}
+                            className={`flex items-center space-x-3 pl-12 pr-6 py-2 text-sm hover:bg-gray-800 transition ${
+                              isPathActive(child.path) ? 'bg-gray-800 text-blue-400 border-l-4 border-blue-400' : 'text-gray-400'
+                            }`}
+                          >
+                            <ChildIcon size={14} />
+                            <span>{child.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = isPathActive(item.path);
 
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 className={`flex items-center space-x-3 px-6 py-3 hover:bg-gray-800 transition ${
-                  isActive ? 'bg-gray-800 border-l-4 border-primary-500' : ''
+                  isActive ? 'bg-gray-800 border-l-4 border-blue-400 text-blue-400' : ''
                 }`}
               >
                 <Icon />
@@ -62,7 +158,7 @@ const AdminLayout = () => {
 
           <button
             onClick={handleLogout}
-            className="flex items-center space-x-3 px-6 py-3 w-full hover:bg-gray-800 transition text-red-400"
+            className="flex items-center space-x-3 px-6 py-3 w-full hover:bg-gray-800 transition text-red-400 mt-4 border-t border-gray-800 pt-4"
           >
             <FaSignOutAlt />
             <span>Logout</span>
@@ -72,23 +168,23 @@ const AdminLayout = () => {
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        <header className="bg-white shadow-sm">
+        <header className="bg-white shadow-sm sticky top-0 z-10">
           <div className="px-6 py-4">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-semibold text-gray-800">
-                {filteredMenu.find(item => item.path === location.pathname)?.label || 'Dashboard'}
+                {getCurrentLabel()}
               </h1>
               <Link
                 to="/"
-                className="text-sm text-primary-600 hover:text-primary-700"
+                className="text-sm text-blue-600 hover:text-blue-700"
               >
-                Back to Store
+                ← Kembali ke Toko
               </Link>
             </div>
           </div>
         </header>
 
-        <main className="p-6">
+        <main>
           <Outlet />
         </main>
       </div>

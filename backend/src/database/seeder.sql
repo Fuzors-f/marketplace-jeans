@@ -312,10 +312,23 @@ INSERT INTO product_images (product_id, image_url, is_primary, sort_order, alt_t
 INSERT INTO discounts (code, type, value, min_purchase, start_date, end_date, usage_limit, is_active, applicable_to, description) VALUES
 ('WELCOME10', 'percentage', 10.00, 100000, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 100, true, 'all', 'Diskon selamat datang 10%'),
 ('MEMBER20', 'percentage', 20.00, 0, NOW(), DATE_ADD(NOW(), INTERVAL 90 DAY), NULL, true, 'all', 'Diskon member 20%'),
-('BULK50K', 'fixed', 50000, 500000, NOW(), DATE_ADD(NOW(), INTERVAL 60 DAY), 50, true, 'all', 'Diskon pembelian minimal 500rb');
+('BULK50K', 'fixed', 50000, 500000, NOW(), DATE_ADD(NOW(), INTERVAL 60 DAY), 50, true, 'all', 'Diskon pembelian minimal 500rb'),
+('NEWYEAR25', 'percentage', 25.00, 200000, NOW(), DATE_ADD(NOW(), INTERVAL 14 DAY), 200, true, 'all', 'Promo Tahun Baru diskon 25%'),
+('FLASH30', 'percentage', 30.00, 300000, NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY), 50, true, 'all', 'Flash Sale diskon 30%');
 
 -- ================================================
--- 9. SETTINGS
+-- 9. BANNERS
+-- ================================================
+
+INSERT INTO banners (title, subtitle, image_url, link_url, position, is_active, start_date, end_date, sort_order) VALUES
+('New Collection 2025', 'Koleksi terbaru jeans premium', '/images/banners/banner-new-collection.jpg', '/products?featured=true', 'hero', true, NOW(), DATE_ADD(NOW(), INTERVAL 60 DAY), 1),
+('Flash Sale', 'Diskon hingga 50%', '/images/banners/banner-flash-sale.jpg', '/products?sale=true', 'hero', true, NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), 2),
+('Member Exclusive', 'Daftar dan dapatkan diskon 20%', '/images/banners/banner-member.jpg', '/register', 'hero', true, NOW(), DATE_ADD(NOW(), INTERVAL 90 DAY), 3),
+('Promo Slim Fit', 'Koleksi Slim Fit terlengkap', '/images/banners/banner-slim.jpg', '/products?category=1', 'sidebar', true, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 1),
+('Free Shipping', 'Gratis ongkir minimal pembelian 500rb', '/images/banners/banner-freeship.jpg', '/products', 'footer', true, NOW(), DATE_ADD(NOW(), INTERVAL 60 DAY), 1);
+
+-- ================================================
+-- 10. SETTINGS
 -- ================================================
 
 INSERT INTO settings (setting_key, setting_value, setting_type, is_public) VALUES
@@ -323,11 +336,185 @@ INSERT INTO settings (setting_key, setting_value, setting_type, is_public) VALUE
 ('shop_email', 'admin@jeans.com', 'text', true),
 ('shop_phone', '081234567890', 'text', true),
 ('shop_address', 'Jl. Fashion Street No. 123, Jakarta', 'text', true),
+('shop_logo', '/images/logo.png', 'text', true),
 ('currency', 'IDR', 'text', true),
-('tax_rate', '10', 'number', false),
-('shipping_flat_rate', '50000', 'number', false),
+('currency_symbol', 'Rp', 'text', true),
+('tax_rate', '11', 'number', false),
+('shipping_flat_rate', '20000', 'number', false),
 ('min_order_amount', '50000', 'number', false),
-('max_upload_size', '5242880', 'number', false);
+('max_upload_size', '5242880', 'number', false),
+('order_prefix', 'ORD', 'text', false),
+('meta_title', 'Marketplace Jeans - Jeans Premium Indonesia', 'text', true),
+('meta_description', 'Toko jeans premium terlengkap di Indonesia dengan berbagai pilihan fitting dan ukuran', 'text', true);
+
+-- ================================================
+-- 11. USER ADDRESSES (Sample for member users)
+-- ================================================
+
+INSERT INTO user_addresses (user_id, label, recipient_name, phone, address, city, province, postal_code, is_default) VALUES
+(2, 'Rumah', 'John Doe', '081234567891', 'Jl. Merdeka No. 100, RT 01/RW 02, Kelurahan Kebayoran', 'Jakarta Selatan', 'DKI Jakarta', '12130', true),
+(2, 'Kantor', 'John Doe', '081234567891', 'Gedung ABC Lt. 5, Jl. Sudirman No. 50', 'Jakarta Pusat', 'DKI Jakarta', '10210', false),
+(3, 'Rumah', 'Jane Smith', '081234567892', 'Jl. Gatot Subroto No. 88, Komplek Indah', 'Bandung', 'Jawa Barat', '40123', true);
+
+-- ================================================
+-- 12. SAMPLE ORDERS (Optional - for testing)
+-- ================================================
+
+-- Order 1: John Doe orders 2 items
+INSERT INTO orders (user_id, status, payment_status, payment_method, subtotal, shipping_cost, tax, total, 
+  customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_province, 
+  shipping_postal_code, shipping_method, notes, created_at) VALUES
+(2, 'delivered', 'paid', 'bank_transfer', 578000, 20000, 63580, 661580,
+  'John Doe', 'john@example.com', '081234567891', 'Jl. Merdeka No. 100, RT 01/RW 02, Kelurahan Kebayoran',
+  'Jakarta Selatan', 'DKI Jakarta', '12130', 'JNE Regular', 'Tolong kirim secepatnya', DATE_SUB(NOW(), INTERVAL 7 DAY));
+
+-- Order items for Order 1
+INSERT INTO order_items (order_id, product_id, product_variant_id, size_id, quantity, price, total) VALUES
+(1, 1, 3, 3, 1, 299000, 299000),
+(1, 2, 9, 5, 1, 289000, 289000);
+
+-- Payment for Order 1
+INSERT INTO payments (order_id, payment_method, amount, status, paid_at) VALUES
+(1, 'bank_transfer', 661580, 'paid', DATE_SUB(NOW(), INTERVAL 6 DAY));
+
+-- Order 2: Jane Smith pending order
+INSERT INTO orders (user_id, status, payment_status, payment_method, subtotal, shipping_cost, tax, total, 
+  customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_province, 
+  shipping_postal_code, shipping_method, created_at) VALUES
+(3, 'confirmed', 'paid', 'bank_transfer', 319000, 20000, 35090, 374090,
+  'Jane Smith', 'jane@example.com', '081234567892', 'Jl. Gatot Subroto No. 88, Komplek Indah',
+  'Bandung', 'Jawa Barat', '40123', 'JNE Regular', DATE_SUB(NOW(), INTERVAL 2 DAY));
+
+-- Order items for Order 2
+INSERT INTO order_items (order_id, product_id, product_variant_id, size_id, quantity, price, total) VALUES
+(2, 7, 39, 4, 1, 319000, 319000);
+
+-- Payment for Order 2
+INSERT INTO payments (order_id, payment_method, amount, status, paid_at) VALUES
+(2, 'bank_transfer', 374090, 'paid', DATE_SUB(NOW(), INTERVAL 1 DAY));
+
+-- Order 3: Guest checkout (pending)
+INSERT INTO orders (status, payment_status, payment_method, subtotal, shipping_cost, tax, total, 
+  customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_province, 
+  shipping_postal_code, shipping_method, created_at) VALUES
+('pending', 'pending', 'cod', 558000, 20000, 61380, 639380,
+  'Budi Santoso', 'budi@email.com', '08198765432', 'Jl. Pahlawan No. 77',
+  'Surabaya', 'Jawa Timur', '60123', 'JNE Regular', DATE_SUB(NOW(), INTERVAL 1 DAY));
+
+-- Order items for Order 3
+INSERT INTO order_items (order_id, product_id, product_variant_id, size_id, quantity, price, total) VALUES
+(3, 3, 13, 2, 2, 279000, 558000);
+
+-- Payment for Order 3
+INSERT INTO payments (order_id, payment_method, amount, status) VALUES
+(3, 'cod', 639380, 'pending');
+
+-- ================================================
+-- 13. INVENTORY MOVEMENTS (Sample)
+-- ================================================
+
+INSERT INTO inventory_movements (product_variant_id, type, quantity, reference_type, reference_id, notes, created_by, created_at) VALUES
+(3, 'out', 1, 'order', 1, 'Order #1', 1, DATE_SUB(NOW(), INTERVAL 7 DAY)),
+(9, 'out', 1, 'order', 1, 'Order #1', 1, DATE_SUB(NOW(), INTERVAL 7 DAY)),
+(39, 'out', 1, 'order', 2, 'Order #2', 1, DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(13, 'out', 2, 'order', 3, 'Order #3', 1, DATE_SUB(NOW(), INTERVAL 1 DAY));
+
+-- ================================================
+-- 14. OFFICES (Kantor/Cabang)
+-- ================================================
+
+INSERT INTO offices (name, code, address, city, province, phone, email, is_headquarters, is_active) VALUES
+('Kantor Pusat Jakarta', 'HQ', 'Jl. Sudirman No. 123, Gedung Jeans Tower Lt. 5', 'Jakarta Selatan', 'DKI Jakarta', '021-5551234', 'hq@jeans.com', true, true),
+('Cabang Bandung', 'BDG', 'Jl. Braga No. 88', 'Bandung', 'Jawa Barat', '022-4561234', 'bandung@jeans.com', false, true),
+('Cabang Surabaya', 'SBY', 'Jl. Tunjungan No. 45', 'Surabaya', 'Jawa Timur', '031-7891234', 'surabaya@jeans.com', false, true),
+('Cabang Yogyakarta', 'YGY', 'Jl. Malioboro No. 12', 'Yogyakarta', 'DI Yogyakarta', '0274-567890', 'yogya@jeans.com', false, true);
+
+-- ================================================
+-- 15. POSITIONS (Jabatan)
+-- ================================================
+
+INSERT INTO positions (name, code, office_id, parent_id, level, description, is_active) VALUES
+-- Level 1: Top Management
+('Direktur Utama', 'DIR', 1, NULL, 1, 'Pimpinan tertinggi perusahaan', true),
+-- Level 2: Directors
+('Direktur Operasional', 'DIR-OPS', 1, 1, 2, 'Bertanggung jawab atas operasional perusahaan', true),
+('Direktur Keuangan', 'DIR-FIN', 1, 1, 2, 'Bertanggung jawab atas keuangan perusahaan', true),
+('Direktur Marketing', 'DIR-MKT', 1, 1, 2, 'Bertanggung jawab atas pemasaran', true),
+-- Level 3: Managers
+('Manager Produksi', 'MGR-PRD', 1, 2, 3, 'Mengelola produksi jeans', true),
+('Manager Gudang', 'MGR-WH', 1, 2, 3, 'Mengelola warehouse dan inventory', true),
+('Manager Penjualan', 'MGR-SLS', 1, 4, 3, 'Mengelola tim sales', true),
+('Manager IT', 'MGR-IT', 1, 2, 3, 'Mengelola infrastruktur IT', true),
+-- Level 4: Supervisors
+('Supervisor Produksi', 'SPV-PRD', 1, 5, 4, 'Mengawasi proses produksi', true),
+('Supervisor Gudang', 'SPV-WH', 1, 6, 4, 'Mengawasi operasional gudang', true),
+('Supervisor Sales', 'SPV-SLS', 1, 7, 4, 'Mengawasi tim sales', true),
+-- Level 5: Staff
+('Staff Produksi', 'STF-PRD', 1, 9, 5, 'Staff bagian produksi', true),
+('Staff Gudang', 'STF-WH', 1, 10, 5, 'Staff bagian gudang', true),
+('Sales Representative', 'SLS-REP', 1, 11, 5, 'Sales lapangan', true),
+('Staff IT', 'STF-IT', 1, 8, 5, 'Staff bagian IT', true),
+-- Branch positions
+('Kepala Cabang Bandung', 'KC-BDG', 2, 2, 3, 'Pimpinan cabang Bandung', true),
+('Kepala Cabang Surabaya', 'KC-SBY', 3, 2, 3, 'Pimpinan cabang Surabaya', true),
+('Kepala Cabang Yogyakarta', 'KC-YGY', 4, 2, 3, 'Pimpinan cabang Yogyakarta', true);
+
+-- ================================================
+-- 16. SIZE CHARTS (Panduan Ukuran)
+-- ================================================
+
+-- Standard measurements for all categories (size 28-40)
+INSERT INTO size_charts (size_id, category_id, fitting_id, waist_cm, hip_cm, inseam_cm, thigh_cm, knee_cm, leg_opening_cm, front_rise_cm, back_rise_cm, notes, is_active) VALUES
+-- Size 28
+(1, NULL, NULL, 71.0, 86.0, 76.0, 48.0, 35.0, 33.0, 24.0, 33.0, 'Ukuran paling kecil', true),
+-- Size 29
+(2, NULL, NULL, 73.5, 89.0, 76.0, 49.5, 36.0, 34.0, 24.5, 33.5, NULL, true),
+-- Size 30
+(3, NULL, NULL, 76.0, 91.5, 76.0, 51.0, 37.0, 35.0, 25.0, 34.0, 'Ukuran populer', true),
+-- Size 31
+(4, NULL, NULL, 78.5, 94.0, 78.0, 52.5, 38.0, 36.0, 25.5, 34.5, NULL, true),
+-- Size 32
+(5, NULL, NULL, 81.0, 96.5, 78.0, 54.0, 39.0, 37.0, 26.0, 35.0, 'Ukuran populer', true),
+-- Size 33
+(6, NULL, NULL, 83.5, 99.0, 78.0, 55.5, 40.0, 38.0, 26.5, 35.5, NULL, true),
+-- Size 34
+(7, NULL, NULL, 86.0, 101.5, 80.0, 57.0, 41.0, 39.0, 27.0, 36.0, NULL, true),
+-- Size 35
+(8, NULL, NULL, 88.5, 104.0, 80.0, 58.5, 42.0, 40.0, 27.5, 36.5, NULL, true),
+-- Size 36
+(9, NULL, NULL, 91.0, 106.5, 80.0, 60.0, 43.0, 41.0, 28.0, 37.0, NULL, true),
+-- Size 38
+(11, NULL, NULL, 96.0, 111.5, 82.0, 63.0, 45.0, 43.0, 29.0, 38.0, 'Ukuran besar', true),
+-- Size 40
+(13, NULL, NULL, 101.0, 116.5, 82.0, 66.0, 47.0, 45.0, 30.0, 39.0, 'Ukuran ekstra besar', true);
+
+-- Slim fit specific measurements (narrower leg opening and thigh)
+INSERT INTO size_charts (size_id, category_id, fitting_id, waist_cm, hip_cm, inseam_cm, thigh_cm, knee_cm, leg_opening_cm, front_rise_cm, back_rise_cm, notes, is_active) VALUES
+(3, 1, 2, 76.0, 91.5, 76.0, 49.0, 35.0, 32.0, 25.0, 34.0, 'Slim fit - potongan lebih ketat', true),
+(4, 1, 2, 78.5, 94.0, 78.0, 50.5, 36.0, 33.0, 25.5, 34.5, 'Slim fit - potongan lebih ketat', true),
+(5, 1, 2, 81.0, 96.5, 78.0, 52.0, 37.0, 34.0, 26.0, 35.0, 'Slim fit - potongan lebih ketat', true);
+
+-- Skinny specific measurements (extra narrow)
+INSERT INTO size_charts (size_id, category_id, fitting_id, waist_cm, hip_cm, inseam_cm, thigh_cm, knee_cm, leg_opening_cm, front_rise_cm, back_rise_cm, notes, is_active) VALUES
+(3, 3, 1, 76.0, 91.5, 76.0, 47.0, 33.0, 28.0, 25.0, 34.0, 'Skinny - potongan extra ketat', true),
+(4, 3, 1, 78.5, 94.0, 78.0, 48.5, 34.0, 29.0, 25.5, 34.5, 'Skinny - potongan extra ketat', true),
+(5, 3, 1, 81.0, 96.5, 78.0, 50.0, 35.0, 30.0, 26.0, 35.0, 'Skinny - potongan extra ketat', true);
+
+-- ================================================
+-- 17. SETTINGS (Pengaturan Aplikasi)
+-- ================================================
+
+INSERT INTO settings (setting_key, setting_value, setting_type, description, is_public) VALUES
+('store_name', 'Marketplace Jeans', 'text', 'Nama toko', true),
+('store_email', 'info@jeans.com', 'text', 'Email toko', true),
+('store_phone', '021-5551234', 'text', 'Nomor telepon toko', true),
+('store_address', 'Jl. Sudirman No. 123, Jakarta', 'text', 'Alamat toko', true),
+('currency', 'IDR', 'text', 'Mata uang', true),
+('tax_rate', '11', 'number', 'Persentase pajak (%)', false),
+('free_shipping_min', '500000', 'number', 'Minimum belanja untuk gratis ongkir', false),
+('default_shipping_cost', '15000', 'number', 'Ongkir default', false),
+('max_order_quantity', '10', 'number', 'Maksimum quantity per item', false),
+('member_discount_rate', '5', 'number', 'Diskon member (%)', false);
 
 -- ================================================
 -- END OF SEEDER

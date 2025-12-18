@@ -5,12 +5,15 @@ const { query } = require('../config/database');
 // @access  Public
 exports.getHomeData = async (req, res) => {
   try {
-    // Get banners
+    // Get hero banners (main carousel)
     const bannersQuery = `
-      SELECT id, title, subtitle, image_url, link
+      SELECT id, title, subtitle, image_url, link_url as link
       FROM banners
-      WHERE is_active = true
-      ORDER BY position ASC
+      WHERE is_active = true 
+        AND position = 'hero'
+        AND (start_date IS NULL OR start_date <= NOW())
+        AND (end_date IS NULL OR end_date >= NOW())
+      ORDER BY sort_order ASC
     `;
 
     // Get featured products

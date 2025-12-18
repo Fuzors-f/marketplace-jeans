@@ -1,0 +1,3 @@
+📝 Credentials:
+   Admin: admin@marketplacejeans.com / admin123
+   Member: member@test.com / member123

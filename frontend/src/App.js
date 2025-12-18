@@ -35,6 +35,9 @@ import AdminSettings from './pages/admin/Settings';
 import AdminCategories from './pages/admin/Categories';
 import AdminFittings from './pages/admin/Fittings';
 import AdminSizes from './pages/admin/Sizes';
+import AdminOffices from './pages/admin/Offices';
+import AdminPositions from './pages/admin/Positions';
+import AdminSizeChart from './pages/admin/SizeChart';
 
 // Components
 import PrivateRoute from './components/PrivateRoute';
@@ -79,8 +82,11 @@ function App() {
         <Route path="categories" element={<AdminCategories />} />
         <Route path="fittings" element={<AdminFittings />} />
         <Route path="sizes" element={<AdminSizes />} />
+        <Route path="size-chart" element={<AdminSizeChart />} />
         <Route path="banners" element={<AdminBanners />} />
         <Route path="products" element={<AdminProducts />} />
+        <Route path="offices" element={<AdminOffices />} />
+        <Route path="positions" element={<AdminPositions />} />
         <Route path="orders" element={<AdminOrders />} />
         <Route path="inventory" element={<AdminInventory />} />
         <Route path="reports" element={<AdminReports />} />

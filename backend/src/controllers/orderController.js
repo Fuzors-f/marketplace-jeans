@@ -211,31 +211,61 @@ exports.getOrders = async (req, res) => {
     const { status, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
-    let whereClause = 'WHERE user_id = ?';
+    let whereClause = 'WHERE o.user_id = ?';
     let params = [userId];
 
-    if (status) {
-      whereClause += ' AND status = ?';
+    if (status && status !== 'all') {
+      whereClause += ' AND o.status = ?';
       params.push(status);
     }
 
+    // Get total count
+    const countResult = await query(
+      `SELECT COUNT(*) as total FROM orders o ${whereClause}`,
+      params
+    );
+    const total = countResult[0].total;
+
     const orders = await query(
       `SELECT 
-        o.id, o.order_number, o.status, o.payment_status,
-        o.subtotal, o.discount_amount, o.member_discount_amount,
-        o.shipping_cost, o.total_amount, o.created_at,
-        os.tracking_number, os.shipped_at
+        o.id, o.order_number, o.status, o.payment_status, o.payment_method,
+        o.subtotal, o.discount_amount, o.shipping_cost, o.tax, o.total,
+        o.customer_name, o.customer_email, o.customer_phone,
+        o.shipping_address, o.shipping_city, o.shipping_province,
+        o.shipping_method, o.tracking_number, o.notes, o.created_at
       FROM orders o
-      LEFT JOIN order_shipping os ON o.id = os.order_id
       ${whereClause}
       ORDER BY o.created_at DESC
       LIMIT ? OFFSET ?`,
       [...params, parseInt(limit), parseInt(offset)]
     );
 
+    // Get items for each order
+    for (let order of orders) {
+      const items = await query(
+        `SELECT 
+          oi.id, oi.quantity, oi.price, oi.total,
+          p.name as product_name, p.slug as product_slug,
+          s.name as size_name,
+          (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image
+        FROM order_items oi
+        LEFT JOIN products p ON oi.product_id = p.id
+        LEFT JOIN sizes s ON oi.size_id = s.id
+        WHERE oi.order_id = ?`,
+        [order.id]
+      );
+      order.items = items;
+    }
+
     res.json({
       success: true,
-      data: orders
+      data: orders,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / limit)
+      }
     });
   } catch (error) {
     console.error('Get orders error:', error);
@@ -249,7 +279,7 @@ exports.getOrders = async (req, res) => {
 
 // @desc    Get single order
 // @route   GET /api/orders/:id
-// @access  Private
+// @access  Private/Public (with order number)
 exports.getOrder = async (req, res) => {
   try {
     const { id } = req.params;
@@ -257,11 +287,15 @@ exports.getOrder = async (req, res) => {
 
     // Get order
     const orders = await query(
-      `SELECT o.*, os.* 
-       FROM orders o
-       LEFT JOIN order_shipping os ON o.id = os.order_id
-       WHERE o.id = ? AND (o.user_id = ? OR o.user_id IS NULL)`,
-      [id, userId]
+      `SELECT 
+        o.id, o.order_number, o.user_id, o.status, o.payment_status, o.payment_method,
+        o.subtotal, o.discount_amount, o.shipping_cost, o.tax, o.total,
+        o.customer_name, o.customer_email, o.customer_phone,
+        o.shipping_address, o.shipping_city, o.shipping_province, o.shipping_postal_code,
+        o.shipping_method, o.tracking_number, o.notes, o.created_at, o.updated_at
+      FROM orders o
+      WHERE o.id = ? ${userId ? 'AND (o.user_id = ? OR o.user_id IS NULL)' : ''}`,
+      userId ? [id, userId] : [id]
     );
 
     if (orders.length === 0) {
@@ -271,9 +305,19 @@ exports.getOrder = async (req, res) => {
       });
     }
 
-    // Get order items
+    const order = orders[0];
+
+    // Get order items with product details
     const items = await query(
-      `SELECT * FROM order_items WHERE order_id = ?`,
+      `SELECT 
+        oi.id, oi.quantity, oi.price, oi.total,
+        p.id as product_id, p.name as product_name, p.slug as product_slug,
+        s.id as size_id, s.name as size_name,
+        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image
+      FROM order_items oi
+      LEFT JOIN products p ON oi.product_id = p.id
+      LEFT JOIN sizes s ON oi.size_id = s.id
+      WHERE oi.order_id = ?`,
       [id]
     );
 
@@ -286,7 +330,7 @@ exports.getOrder = async (req, res) => {
     res.json({
       success: true,
       data: {
-        ...orders[0],
+        ...order,
         items,
         payment: payments.length > 0 ? payments[0] : null
       }
