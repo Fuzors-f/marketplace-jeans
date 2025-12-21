@@ -80,6 +80,95 @@ exports.getStocks = async (req, res) => {
   }
 };
 
+// Create initial stock for new product variant
+exports.createVariantStock = async (req, res) => {
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    const { product_variant_id, warehouse_id, quantity = 0, min_stock = 5, cost_price = 0 } = req.body;
+    const created_by = req.user.id;
+    
+    if (!product_variant_id || !warehouse_id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Product variant ID dan warehouse ID harus diisi' 
+      });
+    }
+    
+    // Get variant details to get product, size, and fitting info
+    const variantSql = `
+      SELECT pv.product_id, pv.size_id, p.fitting_id 
+      FROM product_variants pv
+      JOIN products p ON pv.product_id = p.id
+      WHERE pv.id = ?
+    `;
+    const [variantData] = await connection.query(variantSql, [product_variant_id]);
+    
+    if (variantData.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Varian produk tidak ditemukan' 
+      });
+    }
+    
+    const { product_id, size_id, fitting_id } = variantData[0];
+    
+    // Check if stock already exists for this combination
+    const [existingStock] = await connection.query(
+      'SELECT id FROM stocks WHERE warehouse_id = ? AND product_id = ? AND size_id = ?',
+      [warehouse_id, product_id, size_id]
+    );
+    
+    if (existingStock.length > 0) {
+      await connection.rollback();
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Stok untuk kombinasi gudang dan varian ini sudah ada' 
+      });
+    }
+    
+    // Insert initial stock
+    const stockSql = `
+      INSERT INTO stocks (warehouse_id, product_id, fitting_id, size_id, quantity, avg_cost_price, last_cost_price, min_stock)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    const [stockResult] = await connection.query(stockSql, [
+      warehouse_id, product_id, fitting_id || null, size_id, 
+      quantity, cost_price, cost_price, min_stock
+    ]);
+    
+    // Record stock movement if quantity > 0
+    if (quantity > 0) {
+      const movementSql = `
+        INSERT INTO stock_movements (warehouse_id, product_id, fitting_id, size_id, movement_type,
+          quantity_before, quantity_change, quantity_after, cost_price, notes, created_by)
+        VALUES (?, ?, ?, ?, 'in', 0, ?, ?, ?, ?, ?)
+      `;
+      await connection.query(movementSql, [
+        warehouse_id, product_id, fitting_id || null, size_id,
+        quantity, quantity, cost_price, 'Stok awal dari pembuatan varian', created_by
+      ]);
+    }
+    
+    await connection.commit();
+    
+    res.status(201).json({
+      success: true,
+      message: 'Stok varian berhasil dibuat',
+      data: { id: stockResult.insertId }
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Create variant stock error:', error);
+    res.status(500).json({ success: false, message: 'Gagal membuat stok varian', error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
 // Add opening stock
 exports.addOpeningStock = async (req, res) => {
   const connection = await db.getConnection();

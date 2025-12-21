@@ -7,6 +7,7 @@ const AdminProducts = () => {
   const [categories, setCategories] = useState([]);
   const [fittings, setFittings] = useState([]);
   const [sizes, setSizes] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -21,6 +22,12 @@ const AdminProducts = () => {
   const [selectedImages, setSelectedImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
+  
+  // Size selection state for product creation
+  const [selectedSizes, setSelectedSizes] = useState([]);
+  
+  // Warehouse selection for variants
+  const [selectedWarehouses, setSelectedWarehouses] = useState([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -52,6 +59,7 @@ const AdminProducts = () => {
     fetchCategories();
     fetchFittings();
     fetchSizes();
+    fetchWarehouses();
   }, [currentPage]);
 
   const fetchProducts = async () => {
@@ -95,6 +103,15 @@ const AdminProducts = () => {
     }
   };
 
+  const fetchWarehouses = async () => {
+    try {
+      const response = await apiClient.get('/warehouses');
+      setWarehouses(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching warehouses:', err);
+    }
+  };
+
   const fetchProductVariants = async (productId) => {
     try {
       const response = await apiClient.get(`/products/${productId}/variants`);
@@ -109,6 +126,26 @@ const AdminProducts = () => {
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-');
+  };
+
+  const handleSizeToggle = (sizeId) => {
+    setSelectedSizes(prev => {
+      if (prev.includes(sizeId)) {
+        return prev.filter(id => id !== sizeId);
+      } else {
+        return [...prev, sizeId];
+      }
+    });
+  };
+
+  const handleWarehouseToggle = (warehouseId) => {
+    setSelectedWarehouses(prev => {
+      if (prev.includes(warehouseId)) {
+        return prev.filter(id => id !== warehouseId);
+      } else {
+        return [...prev, warehouseId];
+      }
+    });
   };
 
   const handleChange = (e) => {
@@ -198,7 +235,46 @@ const AdminProducts = () => {
         fetchProducts();
       }
 
-      // Handle image uploads if any
+      // Handle size variant creation
+      if (selectedSizes.length > 0) {
+        const productId = editingProduct ? editingProduct.id : productResponse.data.data.id;
+        
+        try {
+          for (const sizeId of selectedSizes) {
+            // Check if variant already exists (for edit case)
+            const variantExists = productVariants.some(v => v.size_id == sizeId);
+            if (!variantExists) {
+              const variantRes = await apiClient.post(`/products/${productId}/variants`, {
+                size_id: sizeId,
+                sku_variant: `${formData.sku}-${sizeId}`,
+                additional_price: 0,
+                stock_quantity: 0
+              });
+              
+              // Create stock entries for selected warehouses
+              if (selectedWarehouses.length > 0) {
+                const variantId = variantRes.data.data?.id || variantRes.data.data;
+                for (const warehouseId of selectedWarehouses) {
+                  try {
+                    await apiClient.post('/stock/variant', {
+                      product_variant_id: variantId,
+                      warehouse_id: warehouseId,
+                      quantity: 0,
+                      min_stock: 5,
+                      cost_price: formData.master_cost_price || 0
+                    });
+                  } catch (stockErr) {
+                    console.error(`Error creating stock for warehouse ${warehouseId}:`, stockErr);
+                  }
+                }
+              }
+            }
+          }
+        } catch (varErr) {
+          console.error('Error creating variants:', varErr);
+          // Don't fail the whole operation if variants fail
+        }
+      }
       if (selectedImages.length > 0) {
         const productId = editingProduct ? editingProduct.id : productResponse.data.data.id;
         const imageFormData = new FormData();
@@ -284,6 +360,9 @@ const AdminProducts = () => {
     setImagePreviews([]);
     setExistingImages([]);
     
+    // Fetch existing variants to show selected sizes
+    fetchProductVariants(product.id);
+    
     fetchProductImages(product.id);
     setShowForm(true);
   };
@@ -322,10 +401,12 @@ const AdminProducts = () => {
       is_featured: false
     });
     
-    // Clear image states
+    // Clear image states and selected sizes
     setSelectedImages([]);
     setImagePreviews([]);
     setExistingImages([]);
+    setSelectedSizes([]);
+    setSelectedWarehouses([]);
     
     setEditingProduct(null);
     setShowForm(false);
@@ -419,6 +500,67 @@ const AdminProducts = () => {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                {/* Size Selection */}
+                <div>
+                  <label className="block text-sm font-semibold mb-3">Pilih Ukuran (Size)</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    {sizes.map(size => (
+                      <label key={size.id} className="flex items-center cursor-pointer p-3 border rounded hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={selectedSizes.includes(size.id)}
+                          onChange={() => handleSizeToggle(size.id)}
+                          className="mr-2 w-4 h-4 rounded"
+                        />
+                        <span className="text-sm font-medium">{size.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {selectedSizes.length > 0 && (
+                    <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
+                      <p className="text-sm text-blue-800">
+                        ✓ Terpilih: <strong>{selectedSizes.length} ukuran</strong> akan dibuat variannya
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Warehouse Selection */}
+                <div>
+                  <label className="block text-sm font-semibold mb-3">Pilih Gudang untuk Stok (Optional)</label>
+                  <p className="text-xs text-gray-600 mb-3">Pilih gudang tempat varian ini akan di-track untuk stok</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {warehouses && warehouses.length > 0 ? (
+                      warehouses.map(warehouse => (
+                        <label key={warehouse.id} className="flex items-center cursor-pointer p-3 border rounded hover:bg-gray-50">
+                          <input
+                            type="checkbox"
+                            checked={selectedWarehouses.includes(warehouse.id)}
+                            onChange={() => handleWarehouseToggle(warehouse.id)}
+                            className="mr-2 w-4 h-4 rounded"
+                          />
+                          <div>
+                            <span className="text-sm font-medium">{warehouse.name}</span>
+                            <p className="text-xs text-gray-500">{warehouse.location || 'Lokasi tidak tersedia'}</p>
+                          </div>
+                        </label>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">Tidak ada gudang tersedia</p>
+                    )}
+                  </div>
+                  {selectedWarehouses.length > 0 && (
+                    <div className="mt-3 p-3 bg-green-50 rounded border border-green-200">
+                      <p className="text-sm text-green-800">
+                        ✓ Terpilih: <strong>{selectedWarehouses.length} gudang</strong> akan dibuat stoknya
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold mb-2">Harga Jual *</label>
                     <input
@@ -442,6 +584,7 @@ const AdminProducts = () => {
                       className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                     />
                   </div>
+                
                   <div>
                     <label className="block text-sm font-semibold mb-2">SKU</label>
                     <input

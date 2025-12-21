@@ -12,5 +12,6 @@ router.get('/summary', stockController.getStockSummary);
 router.get('/movements', stockController.getStockMovements);
 router.post('/opening', authorize('admin', 'admin_stok'), stockController.addOpeningStock);
 router.post('/adjustment', authorize('admin', 'admin_stok'), stockController.adjustStock);
+router.post('/variant', authorize('admin', 'admin_stok'), stockController.createVariantStock);
 
 module.exports = router;
