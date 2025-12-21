@@ -90,10 +90,11 @@ const migrations = [
     slug VARCHAR(255) UNIQUE NOT NULL,
     category_id INT,
     fitting_id INT,
+    gender ENUM('male', 'female', 'unisex') DEFAULT 'unisex',
     description TEXT,
     short_description VARCHAR(500),
     base_price DECIMAL(12,2) NOT NULL,
-    master_cost_price DECIMAL(12,2),
+    cost_price DECIMAL(12,2),
     sku VARCHAR(100) UNIQUE,
     weight DECIMAL(8,2) DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
@@ -109,6 +110,7 @@ const migrations = [
     INDEX idx_slug (slug),
     INDEX idx_category (category_id),
     INDEX idx_fitting (fitting_id),
+    INDEX idx_gender (gender),
     INDEX idx_sku (sku),
     FULLTEXT idx_search (name, description)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
@@ -366,42 +368,7 @@ const migrations = [
     INDEX idx_key (setting_key)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-  // 21. Offices/Branches table (Kantor)
-  `CREATE TABLE IF NOT EXISTS offices (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    code VARCHAR(20) UNIQUE,
-    address TEXT,
-    city VARCHAR(100),
-    province VARCHAR(100),
-    phone VARCHAR(20),
-    email VARCHAR(255),
-    is_headquarters BOOLEAN DEFAULT false,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_code (code),
-    INDEX idx_active (is_active)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-  // 22. Positions/Jabatan table
-  `CREATE TABLE IF NOT EXISTS positions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    code VARCHAR(20) UNIQUE,
-    office_id INT,
-    parent_id INT,
-    level INT DEFAULT 1,
-    description TEXT,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE SET NULL,
-    FOREIGN KEY (parent_id) REFERENCES positions(id) ON DELETE SET NULL,
-    INDEX idx_office (office_id),
-    INDEX idx_parent (parent_id),
-    INDEX idx_active (is_active)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
   // 23. Size Chart table (detailed measurements)
   `CREATE TABLE IF NOT EXISTS size_charts (
@@ -428,6 +395,166 @@ const migrations = [
     INDEX idx_size (size_id),
     INDEX idx_category (category_id),
     INDEX idx_fitting (fitting_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 21. Warehouses table
+  `CREATE TABLE IF NOT EXISTS warehouses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    code VARCHAR(20) UNIQUE,
+    location TEXT,
+    address TEXT,
+    city VARCHAR(100),
+    province VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(255),
+    is_main BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_code (code),
+    INDEX idx_active (is_active)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 22. Stock table (replaces simple product_variants stock)
+  `CREATE TABLE IF NOT EXISTS stocks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    warehouse_id INT NOT NULL,
+    product_id INT NOT NULL,
+    fitting_id INT,
+    size_id INT,
+    quantity INT DEFAULT 0,
+    reserved_quantity INT DEFAULT 0,
+    available_quantity INT GENERATED ALWAYS AS (quantity - reserved_quantity) STORED,
+    avg_cost_price DECIMAL(12,2) DEFAULT 0,
+    last_cost_price DECIMAL(12,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (fitting_id) REFERENCES fittings(id) ON DELETE SET NULL,
+    FOREIGN KEY (size_id) REFERENCES sizes(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_stock (warehouse_id, product_id, fitting_id, size_id),
+    INDEX idx_warehouse (warehouse_id),
+    INDEX idx_product (product_id),
+    INDEX idx_fitting (fitting_id),
+    INDEX idx_size (size_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 23. Stock movements table (enhanced inventory movements)
+  `CREATE TABLE IF NOT EXISTS stock_movements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    warehouse_id INT NOT NULL,
+    product_id INT NOT NULL,
+    fitting_id INT,
+    size_id INT,
+    movement_type ENUM('in', 'out', 'adjustment', 'opname', 'transfer') NOT NULL,
+    reference_type VARCHAR(50),
+    reference_id INT,
+    quantity_before INT NOT NULL,
+    quantity_change INT NOT NULL,
+    quantity_after INT NOT NULL,
+    cost_price DECIMAL(12,2),
+    notes TEXT,
+    created_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (fitting_id) REFERENCES fittings(id) ON DELETE SET NULL,
+    FOREIGN KEY (size_id) REFERENCES sizes(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_warehouse (warehouse_id),
+    INDEX idx_product (product_id),
+    INDEX idx_type (movement_type),
+    INDEX idx_created (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 24. Stock opname table
+  `CREATE TABLE IF NOT EXISTS stock_opnames (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    warehouse_id INT NOT NULL,
+    opname_date DATE NOT NULL,
+    status ENUM('draft', 'completed', 'cancelled') DEFAULT 'draft',
+    notes TEXT,
+    created_by INT,
+    completed_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_warehouse (warehouse_id),
+    INDEX idx_date (opname_date),
+    INDEX idx_status (status)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 25. Stock opname details
+  `CREATE TABLE IF NOT EXISTS stock_opname_details (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    opname_id INT NOT NULL,
+    product_id INT NOT NULL,
+    fitting_id INT,
+    size_id INT,
+    system_qty INT NOT NULL,
+    physical_qty INT NOT NULL,
+    difference INT GENERATED ALWAYS AS (physical_qty - system_qty) STORED,
+    notes TEXT,
+    FOREIGN KEY (opname_id) REFERENCES stock_opnames(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (fitting_id) REFERENCES fittings(id) ON DELETE SET NULL,
+    FOREIGN KEY (size_id) REFERENCES sizes(id) ON DELETE SET NULL,
+    INDEX idx_opname (opname_id),
+    INDEX idx_product (product_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 26. Roles table
+  `CREATE TABLE IF NOT EXISTS roles (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_name (name)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 27. Permissions table
+  `CREATE TABLE IF NOT EXISTS permissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    resource VARCHAR(50) NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_resource (resource),
+    INDEX idx_action (action)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 28. Role permissions pivot table
+  `CREATE TABLE IF NOT EXISTS role_permissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    role_id INT NOT NULL,
+    permission_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_role_permission (role_id, permission_id),
+    INDEX idx_role (role_id),
+    INDEX idx_permission (permission_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 29. User roles pivot table (users can have multiple roles)  
+  `CREATE TABLE IF NOT EXISTS user_roles (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    role_id INT NOT NULL,
+    assigned_by INT,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+    FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_user_role (user_id, role_id),
+    INDEX idx_user (user_id),
+    INDEX idx_role (role_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`
 ];
 

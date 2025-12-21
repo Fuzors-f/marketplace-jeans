@@ -17,6 +17,11 @@ const AdminProducts = () => {
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
 
+  // Image upload states
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -127,6 +132,44 @@ const AdminProducts = () => {
     }));
   };
 
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    setSelectedImages(prev => [...prev, ...files]);
+    
+    // Create previews
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreviews(prev => [...prev, {
+          file: file,
+          url: e.target.result,
+          isNew: true
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImage = (index, isExisting = false) => {
+    if (isExisting) {
+      setExistingImages(prev => prev.filter((_, i) => i !== index));
+    } else {
+      setSelectedImages(prev => prev.filter((_, i) => i !== index));
+      setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const fetchProductImages = async (productId) => {
+    try {
+      const response = await apiClient.get(`/products/${productId}/images`);
+      if (response.data.success) {
+        setExistingImages(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching product images:', err);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -142,16 +185,38 @@ const AdminProducts = () => {
         fitting_id: formData.fitting_id || null
       };
 
+      let productResponse;
       if (editingProduct) {
-        await apiClient.put(`/products/${editingProduct.id}`, payload);
+        productResponse = await apiClient.put(`/products/${editingProduct.id}`, payload);
         setSuccess('Produk berhasil diupdate!');
         setProducts(products.map(p =>
           p.id === editingProduct.id ? { ...p, ...payload } : p
         ));
       } else {
-        const response = await apiClient.post('/products', payload);
+        productResponse = await apiClient.post('/products', payload);
         setSuccess('Produk berhasil dibuat!');
         fetchProducts();
+      }
+
+      // Handle image uploads if any
+      if (selectedImages.length > 0) {
+        const productId = editingProduct ? editingProduct.id : productResponse.data.data.id;
+        const imageFormData = new FormData();
+        
+        selectedImages.forEach((image, index) => {
+          imageFormData.append('images', image);
+        });
+
+        try {
+          await apiClient.post(`/products/${productId}/images`, imageFormData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+        } catch (imgErr) {
+          console.error('Error uploading images:', imgErr);
+          setError('Produk berhasil disimpan, tetapi gagal mengupload gambar');
+        }
       }
 
       resetForm();
@@ -213,6 +278,13 @@ const AdminProducts = () => {
       is_active: product.is_active,
       is_featured: product.is_featured
     });
+    
+    // Clear image states and fetch existing images
+    setSelectedImages([]);
+    setImagePreviews([]);
+    setExistingImages([]);
+    
+    fetchProductImages(product.id);
     setShowForm(true);
   };
 
@@ -249,6 +321,12 @@ const AdminProducts = () => {
       is_active: true,
       is_featured: false
     });
+    
+    // Clear image states
+    setSelectedImages([]);
+    setImagePreviews([]);
+    setExistingImages([]);
+    
     setEditingProduct(null);
     setShowForm(false);
   };
@@ -409,6 +487,73 @@ const AdminProducts = () => {
                     rows="4"
                     className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                   />
+                </div>
+
+                {/* Image Upload Section */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Gambar Produk</label>
+                  
+                  {/* Existing Images */}
+                  {existingImages.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium mb-2 text-gray-600">Gambar yang sudah ada:</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {existingImages.map((image, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={image.url || `/uploads/products/${image.filename}`}
+                              alt={`Product ${index + 1}`}
+                              className="w-full h-24 object-cover rounded border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index, true)}
+                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* New Images Preview */}
+                  {imagePreviews.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium mb-2 text-gray-600">Gambar baru:</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {imagePreviews.map((preview, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={preview.url}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-24 object-cover rounded border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index, false)}
+                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* File Input */}
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Pilih beberapa gambar sekaligus. Format: JPG, PNG, JPEG (Max 5MB per gambar)
+                  </p>
                 </div>
 
                 <div className="flex gap-6">
@@ -572,6 +717,7 @@ const AdminProducts = () => {
                   <tr>
                     <th className="px-6 py-3 text-left text-sm font-semibold">Produk</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold">Kategori</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold">Fitting</th>
                     <th className="px-6 py-3 text-right text-sm font-semibold">Harga</th>
                     <th className="px-6 py-3 text-right text-sm font-semibold">Stok</th>
                     <th className="px-6 py-3 text-center text-sm font-semibold">Status</th>
@@ -593,14 +739,35 @@ const AdminProducts = () => {
                           <div>
                             <p className="font-semibold">{product.name}</p>
                             <p className="text-xs text-gray-500">SKU: {product.sku || '-'}</p>
+                            {product.short_description && (
+                              <p className="text-xs text-gray-400 mt-1">{product.short_description.substring(0, 50)}...</p>
+                            )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">{product.category_name || '-'}</td>
-                      <td className="px-6 py-4 text-right font-semibold">
-                        Rp {parseFloat(product.base_price).toLocaleString('id-ID')}
+                      <td className="px-6 py-4">
+                        <span className="text-sm">{product.category_name || '-'}</span>
                       </td>
-                      <td className="px-6 py-4 text-right">{product.total_stock || 0}</td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm">{product.fitting_name || '-'}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right font-semibold">
+                        <div>
+                          <p>Rp {parseFloat(product.base_price).toLocaleString('id-ID')}</p>
+                          {product.master_cost_price && (
+                            <p className="text-xs text-gray-500">
+                              Modal: Rp {parseFloat(product.master_cost_price).toLocaleString('id-ID')}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className={`font-medium ${
+                          (product.total_stock || 0) <= 5 ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                          {product.total_stock || 0}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`px-3 py-1 rounded text-xs font-semibold ${
                           product.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'

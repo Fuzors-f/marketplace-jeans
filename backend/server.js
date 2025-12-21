@@ -27,9 +27,11 @@ const shippingRoutes = require('./src/routes/shippingRoutes');
 const discountRoutes = require('./src/routes/discountRoutes');
 const settingRoutes = require('./src/routes/settingRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
-const officeRoutes = require('./src/routes/officeRoutes');
-const positionRoutes = require('./src/routes/positionRoutes');
 const sizeChartRoutes = require('./src/routes/sizeChartRoutes');
+const warehouseRoutes = require('./src/routes/warehouseRoutes');
+const stockRoutes = require('./src/routes/stockRoutes');
+const opnameRoutes = require('./src/routes/opnameRoutes');
+const roleRoutes = require('./src/routes/roleRoutes');
 
 // Import middleware
 const errorHandler = require('./src/middleware/errorHandler');
@@ -85,9 +87,11 @@ app.use('/api/shipping', shippingRoutes);
 app.use('/api/discounts', discountRoutes);
 app.use('/api/settings', settingRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/offices', officeRoutes);
-app.use('/api/positions', positionRoutes);
 app.use('/api/size-charts', sizeChartRoutes);
+app.use('/api/warehouses', warehouseRoutes);
+app.use('/api/stock', stockRoutes);
+app.use('/api/opname', opnameRoutes);
+app.use('/api/roles', roleRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -112,14 +116,14 @@ app.use(errorHandler);
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`\n🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-  console.log(`📡 API: http://localhost:${PORT}/api`);
-  console.log(`💚 Health check: http://localhost:${PORT}/api/health\n`);
+  console.log('\n Server running in ' + process.env.NODE_ENV + ' mode on port ' + PORT);
+  console.log(' API: http://localhost:' + PORT + '/api');
+  console.log(' Health check: http://localhost:' + PORT + '/api/health\n');
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
-  console.log('UNHANDLED REJECTION! 💥 Shutting down...');
+  console.log('UNHANDLED REJECTION!  Shutting down...');
   console.log(err.name, err.message);
   process.exit(1);
 });

@@ -631,3 +631,121 @@ exports.deleteProductVariant = async (req, res) => {
     });
   }
 };
+
+// @desc    Add product images
+// @route   POST /api/products/:productId/images
+// @access  Private/Admin
+exports.addProductImages = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    
+    // Check if product exists
+    const checkProduct = await query('SELECT id FROM products WHERE id = ?', [productId]);
+    if (checkProduct.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No images provided'
+      });
+    }
+
+    const savedImages = [];
+    for (const file of req.files) {
+      const imagePath = `/uploads/products/${file.filename}`;
+      
+      // Save to database
+      await query(
+        'INSERT INTO product_images (product_id, image_url, filename, is_primary) VALUES (?, ?, ?, ?)',
+        [productId, imagePath, file.filename, savedImages.length === 0 ? 1 : 0]
+      );
+      
+      savedImages.push({
+        filename: file.filename,
+        url: imagePath
+      });
+    }
+
+    await logActivity(req.user?.id, 'ADD_PRODUCT_IMAGES', `Added ${savedImages.length} images to product ${productId}`);
+
+    res.json({
+      success: true,
+      message: 'Images uploaded successfully',
+      data: savedImages
+    });
+  } catch (error) {
+    console.error('Add product images error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading images',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get product images
+// @route   GET /api/products/:productId/images
+// @access  Public
+exports.getProductImages = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    
+    const images = await query(
+      'SELECT id, image_url as url, filename, is_primary FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, created_at ASC',
+      [productId]
+    );
+
+    res.json({
+      success: true,
+      data: images
+    });
+  } catch (error) {
+    console.error('Get product images error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching product images',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete product image
+// @route   DELETE /api/products/:productId/images/:imageId
+// @access  Private/Admin
+exports.deleteProductImage = async (req, res) => {
+  try {
+    const { productId, imageId } = req.params;
+    
+    // Get image details
+    const image = await query('SELECT filename FROM product_images WHERE id = ? AND product_id = ?', [imageId, productId]);
+    
+    if (image.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Image not found'
+      });
+    }
+
+    // Delete from database
+    await query('DELETE FROM product_images WHERE id = ?', [imageId]);
+
+    await logActivity(req.user?.id, 'DELETE_PRODUCT_IMAGE', `Deleted image from product ${productId}`);
+
+    res.json({
+      success: true,
+      message: 'Image deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete product image error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting image',
+      error: error.message
+    });
+  }
+};

@@ -3,8 +3,8 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   FaHome, FaBox, FaShoppingBag, FaWarehouse, FaChartBar, FaUsers, FaCog, 
-  FaSignOutAlt, FaImages, FaTags, FaRuler, FaBuilding, FaUserTie, 
-  FaChevronDown, FaChevronRight, FaTable
+  FaSignOutAlt, FaImages, FaTags, FaRuler, FaUserShield, 
+  FaChevronDown, FaChevronRight, FaTable, FaClipboardList, FaBoxes
 } from 'react-icons/fa';
 import { logout } from '../redux/slices/authSlice';
 
@@ -12,7 +12,7 @@ const AdminLayout = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const { user } = useSelector((state) => state.auth);
-  const [openSubmenus, setOpenSubmenus] = useState(['master']);
+  const [openSubmenus, setOpenSubmenus] = useState(['master', 'inventory']);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -41,19 +41,28 @@ const AdminLayout = () => {
         { path: '/admin/banners', icon: FaImages, label: 'Banner' },
       ]
     },
-    {
-      key: 'organization',
-      icon: FaBuilding,
-      label: 'Organisasi',
+    { path: '/admin/orders', icon: FaShoppingBag, label: 'Pesanan' },
+    { 
+      key: 'inventory',
+      icon: FaWarehouse, 
+      label: 'Inventori',
       children: [
-        { path: '/admin/offices', icon: FaBuilding, label: 'Kantor' },
-        { path: '/admin/positions', icon: FaUserTie, label: 'Jabatan' },
+        { path: '/admin/inventory', icon: FaBoxes, label: 'Stok Produk' },
+        { path: '/admin/warehouses', icon: FaWarehouse, label: 'Gudang' },
+        { path: '/admin/stock/opname', icon: FaClipboardList, label: 'Stock Opname' },
       ]
     },
-    { path: '/admin/orders', icon: FaShoppingBag, label: 'Pesanan' },
-    { path: '/admin/inventory', icon: FaWarehouse, label: 'Inventori' },
     { path: '/admin/reports', icon: FaChartBar, label: 'Laporan' },
-    { path: '/admin/users', icon: FaUsers, label: 'Pengguna', adminOnly: true },
+    { 
+      key: 'users',
+      icon: FaUsers, 
+      label: 'Pengguna',
+      adminOnly: true,
+      children: [
+        { path: '/admin/users', icon: FaUsers, label: 'Daftar User' },
+        { path: '/admin/roles', icon: FaUserShield, label: 'Role & Permission' },
+      ]
+    },
     { path: '/admin/settings', icon: FaCog, label: 'Pengaturan', adminOnly: true },
   ];
 

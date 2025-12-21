@@ -3,16 +3,21 @@ const router = express.Router();
 const {
   getSalesReport,
   getProductReport,
-  getCategoryReport,
+  getInventoryReport,
   exportSalesReport,
-  getDashboardStats
+  exportInventoryReport
 } = require('../controllers/reportController');
 const { protect, authorize } = require('../middleware/auth');
 
+// Sales reports
 router.get('/sales', protect, authorize('admin'), getSalesReport);
+router.get('/sales/export', protect, authorize('admin'), exportSalesReport);
+
+// Product reports
 router.get('/products', protect, authorize('admin'), getProductReport);
-router.get('/categories', protect, authorize('admin'), getCategoryReport);
-router.get('/export/sales', protect, authorize('admin'), exportSalesReport);
-router.get('/dashboard', protect, authorize('admin', 'admin_stok'), getDashboardStats);
+
+// Inventory reports
+router.get('/inventory', protect, authorize('admin', 'admin_stok'), getInventoryReport);
+router.get('/inventory/export', protect, authorize('admin', 'admin_stok'), exportInventoryReport);
 
 module.exports = router;
