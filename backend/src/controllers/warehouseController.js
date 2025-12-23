@@ -3,14 +3,25 @@ const db = require('../config/database');
 // Get all warehouses
 exports.getAllWarehouses = async (req, res) => {
   try {
-    const sql = `
+    const { active_only } = req.query;
+    
+    let sql = `
       SELECT id, name, code, location, address, city, province, phone, email, 
              is_main, is_active, created_at
       FROM warehouses 
-      ORDER BY is_main DESC, name ASC
     `;
-    const [warehouses] = await db.query(sql);
     
+    // Only filter by active status if explicitly requested (active_only=true)
+    if (active_only === 'true') {
+      sql += ` WHERE is_active = 1 `;
+    }
+    
+    sql += ` ORDER BY is_main DESC, name ASC`;
+    
+    const warehouses = await db.query(sql);
+    
+    console.log('Warehouses found:', warehouses.length);
+   
     res.json({
       success: true,
       data: warehouses

@@ -49,7 +49,7 @@ const AdminLayout = () => {
       children: [
         { path: '/admin/inventory', icon: FaBoxes, label: 'Stok Produk' },
         { path: '/admin/warehouses', icon: FaWarehouse, label: 'Gudang' },
-        { path: '/admin/stock/opname', icon: FaClipboardList, label: 'Stock Opname' },
+        // { path: '/admin/stock/opname', icon: FaClipboardList, label: 'Stock Opname' }, // DISABLED - Using variant-based inventory
       ]
     },
     { path: '/admin/reports', icon: FaChartBar, label: 'Laporan' },

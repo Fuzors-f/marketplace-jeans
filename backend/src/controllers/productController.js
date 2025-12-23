@@ -232,10 +232,10 @@ exports.createProduct = async (req, res) => {
         for (const variant of variants) {
           await conn.execute(
             `INSERT INTO product_variants 
-            (product_id, size_id, sku_variant, additional_price, stock_quantity)
-            VALUES (?, ?, ?, ?, ?)`,
-            [productId, variant.size_id, variant.sku_variant,
-             variant.additional_price || 0, variant.stock_quantity || 0]
+            (product_id, size_id, warehouse_id, sku_variant, additional_price, stock_quantity, minimum_stock, cost_price)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [productId, variant.size_id, variant.warehouse_id || 1, variant.sku_variant,
+             variant.additional_price || 0, variant.stock_quantity || 0, variant.minimum_stock || 5, variant.cost_price || 0]
           );
 
           // Log inventory movement if stock > 0
@@ -392,10 +392,10 @@ exports.bulkUpload = async (req, res) => {
             for (const variant of product.variants) {
               await conn.execute(
                 `INSERT INTO product_variants 
-                (product_id, size_id, sku_variant, additional_price, stock_quantity)
-                VALUES (?, ?, ?, ?, ?)`,
-                [productId, variant.size_id, variant.sku_variant,
-                 variant.additional_price || 0, variant.stock_quantity || 0]
+                (product_id, size_id, warehouse_id, sku_variant, additional_price, stock_quantity, minimum_stock, cost_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [productId, variant.size_id, variant.warehouse_id || 1, variant.sku_variant,
+                 variant.additional_price || 0, variant.stock_quantity || 0, variant.minimum_stock || 5, variant.cost_price || 0]
               );
             }
           }
@@ -438,12 +438,14 @@ exports.getProductVariants = async (req, res) => {
 
     const variants = await query(
       `SELECT 
-        pv.id, pv.sku_variant, pv.additional_price, pv.stock_quantity, pv.is_active,
-        s.id as size_id, s.name as size_name
+        pv.id, pv.sku_variant, pv.additional_price, pv.stock_quantity, pv.minimum_stock, pv.cost_price, pv.is_active,
+        s.id as size_id, s.name as size_name,
+        w.id as warehouse_id, w.name as warehouse_name
       FROM product_variants pv
       LEFT JOIN sizes s ON pv.size_id = s.id
+      LEFT JOIN warehouses w ON pv.warehouse_id = w.id
       WHERE pv.product_id = ?
-      ORDER BY s.sort_order`,
+      ORDER BY s.sort_order, w.name`,
       [productId]
     );
 
@@ -467,34 +469,34 @@ exports.getProductVariants = async (req, res) => {
 exports.addProductVariant = async (req, res) => {
   try {
     const { productId } = req.params;
-    const { size_id, sku_variant, additional_price, stock_quantity } = req.body;
+    const { size_id, warehouse_id, sku_variant, additional_price, stock_quantity, minimum_stock, cost_price } = req.body;
 
-    if (!size_id) {
+    if (!size_id || !warehouse_id) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide size_id'
+        message: 'Please provide size_id and warehouse_id'
       });
     }
 
-    // Check if variant with same size exists
+    // Check if variant with same size and warehouse exists
     const existing = await query(
-      'SELECT id FROM product_variants WHERE product_id = ? AND size_id = ?',
-      [productId, size_id]
+      'SELECT id FROM product_variants WHERE product_id = ? AND size_id = ? AND warehouse_id = ?',
+      [productId, size_id, warehouse_id]
     );
 
     if (existing.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Variant with this size already exists'
+        message: 'Variant with this size and warehouse already exists'
       });
     }
 
     const result = await transaction(async (conn) => {
       const [variantResult] = await conn.execute(
         `INSERT INTO product_variants 
-        (product_id, size_id, sku_variant, additional_price, stock_quantity)
-        VALUES (?, ?, ?, ?, ?)`,
-        [productId, size_id, sku_variant || null, additional_price || 0, stock_quantity || 0]
+        (product_id, size_id, warehouse_id, sku_variant, additional_price, stock_quantity, minimum_stock, cost_price)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [productId, size_id, warehouse_id, sku_variant || null, additional_price || 0, stock_quantity || 0, minimum_stock || 5, cost_price || 0]
       );
 
       // Log inventory movement if stock > 0

@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const {
+  getVariantInventory,
+  updateVariantStock,
   getInventoryOverview,
   getMovements,
   getLowStockAlerts,
@@ -21,5 +23,9 @@ router.get('/low-stock', protect, authorize('admin', 'admin_stok'), getLowStockA
 
 // Stock operations
 router.post('/adjust', protect, authorize('admin', 'admin_stok'), createAdjustment);
+
+// Variant-based inventory
+router.get('/variants', protect, getVariantInventory);
+router.put('/variants/:variantId', protect, authorize('admin', 'admin_stok'), updateVariantStock);
 
 module.exports = router;

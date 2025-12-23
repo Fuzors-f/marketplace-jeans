@@ -177,86 +177,198 @@ INSERT INTO products (name, slug, category_id, fitting_id, description, short_de
   true,
   false
 );
+-- ================================================
+-- 6. WAREHOUSES
+-- ================================================
+
+INSERT INTO warehouses (name, code, location, address, city, province, phone, email, is_main, is_active) VALUES
+('Jakarta Warehouse', 'JKT', 'Jakarta Selatan', 'Jl. Sudirman No. 123, Gedung Jeans Tower', 'Jakarta Selatan', 'DKI Jakarta', '021-5551234', 'wh-jakarta@jeans.com', true, true),
+('Bandung Warehouse', 'BDG', 'Bandung', 'Jl. Braga No. 88, Komplek Industri', 'Bandung', 'Jawa Barat', '022-4561234', 'wh-bandung@jeans.com', false, true),
+('Surabaya Warehouse', 'SBY', 'Surabaya', 'Jl. Tunjungan No. 45', 'Surabaya', 'Jawa Timur', '031-7891234', 'wh-surabaya@jeans.com', false, true);
 
 -- ================================================
--- 6. PRODUCT VARIANTS (Size + Stock)
+-- 7. PRODUCT VARIANTS (Size + Warehouse + Stock)
 -- ================================================
 
--- Classic Blue Slim Fit Jeans (Product ID 1)
-INSERT INTO product_variants (product_id, size_id, sku_variant, additional_price, stock_quantity, is_active) VALUES
-(1, 1, 'JEAN-001-28', 0, 15, true),
-(1, 2, 'JEAN-001-29', 0, 20, true),
-(1, 3, 'JEAN-001-30', 0, 25, true),
-(1, 4, 'JEAN-001-31', 0, 22, true),
-(1, 5, 'JEAN-001-32', 0, 18, true),
-(1, 6, 'JEAN-001-33', 0, 16, true),
-(1, 7, 'JEAN-001-34', 0, 14, true);
+-- Classic Blue Slim Fit Jeans (Product ID 1) - All sizes, all warehouses
+INSERT INTO product_variants (product_id, size_id, warehouse_id, sku_variant, additional_price, stock_quantity, min_stock, cost_price, is_active) VALUES
+(1, 1, 1, 'JEAN-001-28-JKT', 0, 15, 5, 150000, true),
+(1, 1, 2, 'JEAN-001-28-BDG', 0, 12, 5, 150000, true),
+(1, 1, 3, 'JEAN-001-28-SBY', 0, 10, 5, 150000, true),
+(1, 2, 1, 'JEAN-001-29-JKT', 0, 20, 5, 150000, true),
+(1, 2, 2, 'JEAN-001-29-BDG', 0, 16, 5, 150000, true),
+(1, 2, 3, 'JEAN-001-29-SBY', 0, 14, 5, 150000, true),
+(1, 3, 1, 'JEAN-001-30-JKT', 0, 25, 5, 150000, true),
+(1, 3, 2, 'JEAN-001-30-BDG', 0, 20, 5, 150000, true),
+(1, 3, 3, 'JEAN-001-30-SBY', 0, 18, 5, 150000, true),
+(1, 4, 1, 'JEAN-001-31-JKT', 0, 22, 5, 150000, true),
+(1, 4, 2, 'JEAN-001-31-BDG', 0, 18, 5, 150000, true),
+(1, 4, 3, 'JEAN-001-31-SBY', 0, 16, 5, 150000, true),
+(1, 5, 1, 'JEAN-001-32-JKT', 0, 18, 5, 150000, true),
+(1, 5, 2, 'JEAN-001-32-BDG', 0, 15, 5, 150000, true),
+(1, 5, 3, 'JEAN-001-32-SBY', 0, 12, 5, 150000, true),
+(1, 6, 1, 'JEAN-001-33-JKT', 0, 16, 5, 150000, true),
+(1, 6, 2, 'JEAN-001-33-BDG', 0, 14, 5, 150000, true),
+(1, 6, 3, 'JEAN-001-33-SBY', 0, 10, 5, 150000, true),
+(1, 7, 1, 'JEAN-001-34-JKT', 0, 14, 5, 150000, true),
+(1, 7, 2, 'JEAN-001-34-BDG', 0, 12, 5, 150000, true),
+(1, 7, 3, 'JEAN-001-34-SBY', 0, 8, 5, 150000, true);
 
 -- Black Regular Jeans (Product ID 2)
-INSERT INTO product_variants (product_id, size_id, sku_variant, additional_price, stock_quantity, is_active) VALUES
-(2, 3, 'JEAN-002-30', 0, 20, true),
-(2, 4, 'JEAN-002-31', 0, 25, true),
-(2, 5, 'JEAN-002-32', 0, 30, true),
-(2, 6, 'JEAN-002-33', 0, 28, true),
-(2, 7, 'JEAN-002-34', 0, 22, true),
-(2, 8, 'JEAN-002-35', 0, 18, true);
+INSERT INTO product_variants (product_id, size_id, warehouse_id, sku_variant, additional_price, stock_quantity, min_stock, cost_price, is_active) VALUES
+(2, 3, 1, 'JEAN-002-30-JKT', 0, 20, 5, 145000, true),
+(2, 3, 2, 'JEAN-002-30-BDG', 0, 16, 5, 145000, true),
+(2, 3, 3, 'JEAN-002-30-SBY', 0, 14, 5, 145000, true),
+(2, 4, 1, 'JEAN-002-31-JKT', 0, 25, 5, 145000, true),
+(2, 4, 2, 'JEAN-002-31-BDG', 0, 20, 5, 145000, true),
+(2, 4, 3, 'JEAN-002-31-SBY', 0, 18, 5, 145000, true),
+(2, 5, 1, 'JEAN-002-32-JKT', 0, 30, 5, 145000, true),
+(2, 5, 2, 'JEAN-002-32-BDG', 0, 25, 5, 145000, true),
+(2, 5, 3, 'JEAN-002-32-SBY', 0, 20, 5, 145000, true),
+(2, 6, 1, 'JEAN-002-33-JKT', 0, 28, 5, 145000, true),
+(2, 6, 2, 'JEAN-002-33-BDG', 0, 22, 5, 145000, true),
+(2, 6, 3, 'JEAN-002-33-SBY', 0, 18, 5, 145000, true),
+(2, 7, 1, 'JEAN-002-34-JKT', 0, 22, 5, 145000, true),
+(2, 7, 2, 'JEAN-002-34-BDG', 0, 18, 5, 145000, true),
+(2, 7, 3, 'JEAN-002-34-SBY', 0, 15, 5, 145000, true),
+(2, 8, 1, 'JEAN-002-35-JKT', 0, 18, 5, 145000, true),
+(2, 8, 2, 'JEAN-002-35-BDG', 0, 14, 5, 145000, true),
+(2, 8, 3, 'JEAN-002-35-SBY', 0, 12, 5, 145000, true);
 
 -- Dark Blue Skinny Jeans (Product ID 3)
-INSERT INTO product_variants (product_id, size_id, sku_variant, additional_price, stock_quantity, is_active) VALUES
-(3, 1, 'JEAN-003-28', 0, 18, true),
-(3, 2, 'JEAN-003-29', 0, 22, true),
-(3, 3, 'JEAN-003-30', 0, 25, true),
-(3, 4, 'JEAN-003-31', 0, 20, true),
-(3, 5, 'JEAN-003-32', 0, 15, true);
+INSERT INTO product_variants (product_id, size_id, warehouse_id, sku_variant, additional_price, stock_quantity, min_stock, cost_price, is_active) VALUES
+(3, 1, 1, 'JEAN-003-28-JKT', 0, 18, 5, 140000, true),
+(3, 1, 2, 'JEAN-003-28-BDG', 0, 14, 5, 140000, true),
+(3, 1, 3, 'JEAN-003-28-SBY', 0, 12, 5, 140000, true),
+(3, 2, 1, 'JEAN-003-29-JKT', 0, 22, 5, 140000, true),
+(3, 2, 2, 'JEAN-003-29-BDG', 0, 18, 5, 140000, true),
+(3, 2, 3, 'JEAN-003-29-SBY', 0, 15, 5, 140000, true),
+(3, 3, 1, 'JEAN-003-30-JKT', 0, 25, 5, 140000, true),
+(3, 3, 2, 'JEAN-003-30-BDG', 0, 20, 5, 140000, true),
+(3, 3, 3, 'JEAN-003-30-SBY', 0, 18, 5, 140000, true),
+(3, 4, 1, 'JEAN-003-31-JKT', 0, 20, 5, 140000, true),
+(3, 4, 2, 'JEAN-003-31-BDG', 0, 16, 5, 140000, true),
+(3, 4, 3, 'JEAN-003-31-SBY', 0, 14, 5, 140000, true),
+(3, 5, 1, 'JEAN-003-32-JKT', 0, 15, 5, 140000, true),
+(3, 5, 2, 'JEAN-003-32-BDG', 0, 12, 5, 140000, true),
+(3, 5, 3, 'JEAN-003-32-SBY', 0, 10, 5, 140000, true);
 
 -- Light Blue Loose Fit Jeans (Product ID 4)
-INSERT INTO product_variants (product_id, size_id, sku_variant, additional_price, stock_quantity, is_active) VALUES
-(4, 3, 'JEAN-004-30', 0, 12, true),
-(4, 4, 'JEAN-004-31', 0, 14, true),
-(4, 5, 'JEAN-004-32', 0, 16, true),
-(4, 6, 'JEAN-004-33', 0, 18, true),
-(4, 7, 'JEAN-004-34', 0, 20, true),
-(4, 8, 'JEAN-004-35', 0, 15, true),
-(4, 9, 'JEAN-004-36', 0, 10, true);
+INSERT INTO product_variants (product_id, size_id, warehouse_id, sku_variant, additional_price, stock_quantity, min_stock, cost_price, is_active) VALUES
+(4, 3, 1, 'JEAN-004-30-JKT', 0, 12, 5, 155000, true),
+(4, 3, 2, 'JEAN-004-30-BDG', 0, 10, 5, 155000, true),
+(4, 3, 3, 'JEAN-004-30-SBY', 0, 8, 5, 155000, true),
+(4, 4, 1, 'JEAN-004-31-JKT', 0, 14, 5, 155000, true),
+(4, 4, 2, 'JEAN-004-31-BDG', 0, 12, 5, 155000, true),
+(4, 4, 3, 'JEAN-004-31-SBY', 0, 10, 5, 155000, true),
+(4, 5, 1, 'JEAN-004-32-JKT', 0, 16, 5, 155000, true),
+(4, 5, 2, 'JEAN-004-32-BDG', 0, 14, 5, 155000, true),
+(4, 5, 3, 'JEAN-004-32-SBY', 0, 12, 5, 155000, true),
+(4, 6, 1, 'JEAN-004-33-JKT', 0, 18, 5, 155000, true),
+(4, 6, 2, 'JEAN-004-33-BDG', 0, 15, 5, 155000, true),
+(4, 6, 3, 'JEAN-004-33-SBY', 0, 13, 5, 155000, true),
+(4, 7, 1, 'JEAN-004-34-JKT', 0, 20, 5, 155000, true),
+(4, 7, 2, 'JEAN-004-34-BDG', 0, 16, 5, 155000, true),
+(4, 7, 3, 'JEAN-004-34-SBY', 0, 14, 5, 155000, true),
+(4, 8, 1, 'JEAN-004-35-JKT', 0, 15, 5, 155000, true),
+(4, 8, 2, 'JEAN-004-35-BDG', 0, 12, 5, 155000, true),
+(4, 8, 3, 'JEAN-004-35-SBY', 0, 10, 5, 155000, true),
+(4, 9, 1, 'JEAN-004-36-JKT', 0, 10, 5, 155000, true),
+(4, 9, 2, 'JEAN-004-36-BDG', 0, 8, 5, 155000, true),
+(4, 9, 3, 'JEAN-004-36-SBY', 0, 6, 5, 155000, true);
 
 -- Classic Black Bootcut Jeans (Product ID 5)
-INSERT INTO product_variants (product_id, size_id, sku_variant, additional_price, stock_quantity, is_active) VALUES
-(5, 4, 'JEAN-005-31', 0, 16, true),
-(5, 5, 'JEAN-005-32', 0, 20, true),
-(5, 6, 'JEAN-005-33', 0, 18, true),
-(5, 7, 'JEAN-005-34', 0, 22, true),
-(5, 8, 'JEAN-005-35', 0, 16, true),
-(5, 9, 'JEAN-005-36', 0, 12, true);
+INSERT INTO product_variants (product_id, size_id, warehouse_id, sku_variant, additional_price, stock_quantity, min_stock, cost_price, is_active) VALUES
+(5, 4, 1, 'JEAN-005-31-JKT', 0, 16, 5, 160000, true),
+(5, 4, 2, 'JEAN-005-31-BDG', 0, 13, 5, 160000, true),
+(5, 4, 3, 'JEAN-005-31-SBY', 0, 11, 5, 160000, true),
+(5, 5, 1, 'JEAN-005-32-JKT', 0, 20, 5, 160000, true),
+(5, 5, 2, 'JEAN-005-32-BDG', 0, 16, 5, 160000, true),
+(5, 5, 3, 'JEAN-005-32-SBY', 0, 14, 5, 160000, true),
+(5, 6, 1, 'JEAN-005-33-JKT', 0, 18, 5, 160000, true),
+(5, 6, 2, 'JEAN-005-33-BDG', 0, 14, 5, 160000, true),
+(5, 6, 3, 'JEAN-005-33-SBY', 0, 12, 5, 160000, true),
+(5, 7, 1, 'JEAN-005-34-JKT', 0, 22, 5, 160000, true),
+(5, 7, 2, 'JEAN-005-34-BDG', 0, 18, 5, 160000, true),
+(5, 7, 3, 'JEAN-005-34-SBY', 0, 15, 5, 160000, true),
+(5, 8, 1, 'JEAN-005-35-JKT', 0, 16, 5, 160000, true),
+(5, 8, 2, 'JEAN-005-35-BDG', 0, 13, 5, 160000, true),
+(5, 8, 3, 'JEAN-005-35-SBY', 0, 11, 5, 160000, true),
+(5, 9, 1, 'JEAN-005-36-JKT', 0, 12, 5, 160000, true),
+(5, 9, 2, 'JEAN-005-36-BDG', 0, 10, 5, 160000, true),
+(5, 9, 3, 'JEAN-005-36-SBY', 0, 8, 5, 160000, true);
 
 -- Dark Indigo Straight Leg Jeans (Product ID 6)
-INSERT INTO product_variants (product_id, size_id, sku_variant, additional_price, stock_quantity, is_active) VALUES
-(6, 3, 'JEAN-006-30', 0, 15, true),
-(6, 4, 'JEAN-006-31', 0, 18, true),
-(6, 5, 'JEAN-006-32', 0, 20, true),
-(6, 6, 'JEAN-006-33', 0, 22, true),
-(6, 7, 'JEAN-006-34', 0, 20, true),
-(6, 8, 'JEAN-006-35', 0, 16, true),
-(6, 9, 'JEAN-006-36', 0, 12, true),
-(6, 10, 'JEAN-006-37', 0, 8, true);
+INSERT INTO product_variants (product_id, size_id, warehouse_id, sku_variant, additional_price, stock_quantity, min_stock, cost_price, is_active) VALUES
+(6, 3, 1, 'JEAN-006-30-JKT', 0, 15, 5, 148000, true),
+(6, 3, 2, 'JEAN-006-30-BDG', 0, 12, 5, 148000, true),
+(6, 3, 3, 'JEAN-006-30-SBY', 0, 10, 5, 148000, true),
+(6, 4, 1, 'JEAN-006-31-JKT', 0, 18, 5, 148000, true),
+(6, 4, 2, 'JEAN-006-31-BDG', 0, 14, 5, 148000, true),
+(6, 4, 3, 'JEAN-006-31-SBY', 0, 12, 5, 148000, true),
+(6, 5, 1, 'JEAN-006-32-JKT', 0, 20, 5, 148000, true),
+(6, 5, 2, 'JEAN-006-32-BDG', 0, 16, 5, 148000, true),
+(6, 5, 3, 'JEAN-006-32-SBY', 0, 14, 5, 148000, true),
+(6, 6, 1, 'JEAN-006-33-JKT', 0, 22, 5, 148000, true),
+(6, 6, 2, 'JEAN-006-33-BDG', 0, 18, 5, 148000, true),
+(6, 6, 3, 'JEAN-006-33-SBY', 0, 16, 5, 148000, true),
+(6, 7, 1, 'JEAN-006-34-JKT', 0, 20, 5, 148000, true),
+(6, 7, 2, 'JEAN-006-34-BDG', 0, 16, 5, 148000, true),
+(6, 7, 3, 'JEAN-006-34-SBY', 0, 14, 5, 148000, true),
+(6, 8, 1, 'JEAN-006-35-JKT', 0, 16, 5, 148000, true),
+(6, 8, 2, 'JEAN-006-35-BDG', 0, 13, 5, 148000, true),
+(6, 8, 3, 'JEAN-006-35-SBY', 0, 11, 5, 148000, true),
+(6, 9, 1, 'JEAN-006-36-JKT', 0, 12, 5, 148000, true),
+(6, 9, 2, 'JEAN-006-36-BDG', 0, 10, 5, 148000, true),
+(6, 9, 3, 'JEAN-006-36-SBY', 0, 8, 5, 148000, true),
+(6, 10, 1, 'JEAN-006-37-JKT', 0, 8, 5, 148000, true),
+(6, 10, 2, 'JEAN-006-37-BDG', 0, 6, 5, 148000, true),
+(6, 10, 3, 'JEAN-006-37-SBY', 0, 5, 5, 148000, true);
 
 -- Vintage Blue Mom Jeans (Product ID 7)
-INSERT INTO product_variants (product_id, size_id, sku_variant, additional_price, stock_quantity, is_active) VALUES
-(7, 2, 'JEAN-007-29', 0, 10, true),
-(7, 3, 'JEAN-007-30', 0, 14, true),
-(7, 4, 'JEAN-007-31', 0, 16, true),
-(7, 5, 'JEAN-007-32', 0, 18, true),
-(7, 6, 'JEAN-007-33', 0, 15, true),
-(7, 7, 'JEAN-007-34', 0, 12, true);
+INSERT INTO product_variants (product_id, size_id, warehouse_id, sku_variant, additional_price, stock_quantity, min_stock, cost_price, is_active) VALUES
+(7, 2, 1, 'JEAN-007-29-JKT', 0, 10, 5, 152000, true),
+(7, 2, 2, 'JEAN-007-29-BDG', 0, 8, 5, 152000, true),
+(7, 2, 3, 'JEAN-007-29-SBY', 0, 6, 5, 152000, true),
+(7, 3, 1, 'JEAN-007-30-JKT', 0, 14, 5, 152000, true),
+(7, 3, 2, 'JEAN-007-30-BDG', 0, 11, 5, 152000, true),
+(7, 3, 3, 'JEAN-007-30-SBY', 0, 9, 5, 152000, true),
+(7, 4, 1, 'JEAN-007-31-JKT', 0, 16, 5, 152000, true),
+(7, 4, 2, 'JEAN-007-31-BDG', 0, 13, 5, 152000, true),
+(7, 4, 3, 'JEAN-007-31-SBY', 0, 11, 5, 152000, true),
+(7, 5, 1, 'JEAN-007-32-JKT', 0, 18, 5, 152000, true),
+(7, 5, 2, 'JEAN-007-32-BDG', 0, 14, 5, 152000, true),
+(7, 5, 3, 'JEAN-007-32-SBY', 0, 12, 5, 152000, true),
+(7, 6, 1, 'JEAN-007-33-JKT', 0, 15, 5, 152000, true),
+(7, 6, 2, 'JEAN-007-33-BDG', 0, 12, 5, 152000, true),
+(7, 6, 3, 'JEAN-007-33-SBY', 0, 10, 5, 152000, true),
+(7, 7, 1, 'JEAN-007-34-JKT', 0, 12, 5, 152000, true),
+(7, 7, 2, 'JEAN-007-34-BDG', 0, 10, 5, 152000, true),
+(7, 7, 3, 'JEAN-007-34-SBY', 0, 8, 5, 152000, true);
 
 -- Distressed Black Jeans (Product ID 8)
-INSERT INTO product_variants (product_id, size_id, sku_variant, additional_price, stock_quantity, is_active) VALUES
-(8, 1, 'JEAN-008-28', 0, 12, true),
-(8, 2, 'JEAN-008-29', 0, 14, true),
-(8, 3, 'JEAN-008-30', 0, 16, true),
-(8, 4, 'JEAN-008-31', 0, 18, true),
-(8, 5, 'JEAN-008-32', 0, 16, true),
-(8, 6, 'JEAN-008-33', 0, 14, true),
-(8, 7, 'JEAN-008-34', 0, 12, true);
+INSERT INTO product_variants (product_id, size_id, warehouse_id, sku_variant, additional_price, stock_quantity, min_stock, cost_price, is_active) VALUES
+(8, 1, 1, 'JEAN-008-28-JKT', 0, 12, 5, 158000, true),
+(8, 1, 2, 'JEAN-008-28-BDG', 0, 10, 5, 158000, true),
+(8, 1, 3, 'JEAN-008-28-SBY', 0, 8, 5, 158000, true),
+(8, 2, 1, 'JEAN-008-29-JKT', 0, 14, 5, 158000, true),
+(8, 2, 2, 'JEAN-008-29-BDG', 0, 11, 5, 158000, true),
+(8, 2, 3, 'JEAN-008-29-SBY', 0, 9, 5, 158000, true),
+(8, 3, 1, 'JEAN-008-30-JKT', 0, 16, 5, 158000, true),
+(8, 3, 2, 'JEAN-008-30-BDG', 0, 13, 5, 158000, true),
+(8, 3, 3, 'JEAN-008-30-SBY', 0, 11, 5, 158000, true),
+(8, 4, 1, 'JEAN-008-31-JKT', 0, 18, 5, 158000, true),
+(8, 4, 2, 'JEAN-008-31-BDG', 0, 14, 5, 158000, true),
+(8, 4, 3, 'JEAN-008-31-SBY', 0, 12, 5, 158000, true),
+(8, 5, 1, 'JEAN-008-32-JKT', 0, 16, 5, 158000, true),
+(8, 5, 2, 'JEAN-008-32-BDG', 0, 13, 5, 158000, true),
+(8, 5, 3, 'JEAN-008-32-SBY', 0, 11, 5, 158000, true),
+(8, 6, 1, 'JEAN-008-33-JKT', 0, 14, 5, 158000, true),
+(8, 6, 2, 'JEAN-008-33-BDG', 0, 11, 5, 158000, true),
+(8, 6, 3, 'JEAN-008-33-SBY', 0, 9, 5, 158000, true),
+(8, 7, 1, 'JEAN-008-34-JKT', 0, 12, 5, 158000, true),
+(8, 7, 2, 'JEAN-008-34-BDG', 0, 10, 5, 158000, true),
+(8, 7, 3, 'JEAN-008-34-SBY', 0, 8, 5, 158000, true);
 
 -- ================================================
 -- 7. PRODUCT IMAGES
@@ -519,3 +631,4 @@ INSERT INTO settings (setting_key, setting_value, setting_type, description, is_
 -- ================================================
 -- END OF SEEDER
 -- ================================================
+

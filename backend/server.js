@@ -63,8 +63,9 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('combined'));
 }
 
-// Rate limiting
-app.use('/api/', rateLimiter);
+// Rate limiting - Only apply to specific routes to prevent login issues
+// Disabled globally to prevent blocking all APIs
+// app.use('/api/', rateLimiter);
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

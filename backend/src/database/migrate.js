@@ -115,22 +115,27 @@ const migrations = [
     FULLTEXT idx_search (name, description)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-  // 7. Product variants (Product + Fitting + Size)
+  // 7. Product variants (Product + Fitting + Size + Warehouse)
   `CREATE TABLE IF NOT EXISTS product_variants (
     id INT AUTO_INCREMENT PRIMARY KEY,
     product_id INT NOT NULL,
     size_id INT NOT NULL,
+    warehouse_id INT,
     sku_variant VARCHAR(100) UNIQUE NOT NULL,
     additional_price DECIMAL(12,2) DEFAULT 0.00,
     stock_quantity INT DEFAULT 0,
+    min_stock INT DEFAULT 5,
+    cost_price DECIMAL(12,2) DEFAULT 0.00,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
     FOREIGN KEY (size_id) REFERENCES sizes(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_variant (product_id, size_id),
+    FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_variant (product_id, size_id, warehouse_id),
     INDEX idx_product (product_id),
     INDEX idx_size (size_id),
+    INDEX idx_warehouse (warehouse_id),
     INDEX idx_sku (sku_variant)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 

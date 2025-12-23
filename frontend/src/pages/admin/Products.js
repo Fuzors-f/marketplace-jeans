@@ -8,6 +8,7 @@ const AdminProducts = () => {
   const [fittings, setFittings] = useState([]);
   const [sizes, setSizes] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
+  const [warehousesLoading, setWarehousesLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -48,19 +49,26 @@ const AdminProducts = () => {
   // Variant form state
   const [variantForm, setVariantForm] = useState({
     size_id: '',
+    warehouse_id: '',
     sku_variant: '',
     additional_price: 0,
-    stock_quantity: 0
+    stock_quantity: 0,
+    minimum_stock: 5,
+    cost_price: 0
   });
   const [productVariants, setProductVariants] = useState([]);
 
   useEffect(() => {
     fetchProducts();
+  }, [currentPage]);
+
+  useEffect(() => {
+    // Fetch master data only once on mount
     fetchCategories();
     fetchFittings();
     fetchSizes();
     fetchWarehouses();
-  }, [currentPage]);
+  }, []); // Empty dependency array = runs once on mount
 
   const fetchProducts = async () => {
     try {
@@ -103,12 +111,53 @@ const AdminProducts = () => {
     }
   };
 
-  const fetchWarehouses = async () => {
+  const fetchWarehouses = async (force = false) => {
+    // Prevent duplicate calls unless forced
+    if (warehousesLoading && !force) {
+      console.log('Warehouse fetch already in progress, skipping...');
+      return;
+    }
+
     try {
+      setWarehousesLoading(true);
       const response = await apiClient.get('/warehouses');
-      setWarehouses(response.data.data || []);
+      console.log('Warehouses API Response:', response);
+      console.log('Response data:', response.data);
+      
+      // Handle different response structures
+      let warehouseData = [];
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          // Direct array response
+          warehouseData = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          // { data: [...] } structure
+          warehouseData = response.data.data;
+        } else if (response.data.warehouses && Array.isArray(response.data.warehouses)) {
+          // { warehouses: [...] } structure
+          warehouseData = response.data.warehouses;
+        } else if (typeof response.data === 'object' && !Array.isArray(response.data)) {
+          // Single object or object with unknown structure - check for array-like properties
+          const possibleArrays = Object.values(response.data).filter(v => Array.isArray(v));
+          if (possibleArrays.length > 0) {
+            warehouseData = possibleArrays[0];
+          }
+        }
+      }
+      
+      console.log('Extracted warehouse data:', warehouseData);
+      console.log('Is array?', Array.isArray(warehouseData));
+      console.log('Length:', warehouseData.length);
+      setWarehouses(warehouseData);
+      console.log('Warehouses state updated');
     } catch (err) {
       console.error('Error fetching warehouses:', err);
+      if (err.response?.status === 429) {
+        setError('Terlalu banyak request. Silakan tunggu beberapa detik dan refresh halaman.');
+      }
+      setWarehouses([]); // Ensure it's always an array even on error
+    } finally {
+      setWarehousesLoading(false);
     }
   };
 
@@ -236,43 +285,52 @@ const AdminProducts = () => {
       }
 
       // Handle size variant creation
-      if (selectedSizes.length > 0) {
+      if (selectedSizes.length > 0 && selectedWarehouses.length > 0) {
         const productId = editingProduct ? editingProduct.id : productResponse.data.data.id;
         
         try {
           for (const sizeId of selectedSizes) {
-            // Check if variant already exists (for edit case)
-            const variantExists = productVariants.some(v => v.size_id == sizeId);
-            if (!variantExists) {
-              const variantRes = await apiClient.post(`/products/${productId}/variants`, {
-                size_id: sizeId,
-                sku_variant: `${formData.sku}-${sizeId}`,
-                additional_price: 0,
-                stock_quantity: 0
-              });
-              
-              // Create stock entries for selected warehouses
-              if (selectedWarehouses.length > 0) {
-                const variantId = variantRes.data.data?.id || variantRes.data.data;
-                for (const warehouseId of selectedWarehouses) {
-                  try {
-                    await apiClient.post('/stock/variant', {
-                      product_variant_id: variantId,
-                      warehouse_id: warehouseId,
-                      quantity: 0,
-                      min_stock: 5,
-                      cost_price: formData.master_cost_price || 0
-                    });
-                  } catch (stockErr) {
-                    console.error(`Error creating stock for warehouse ${warehouseId}:`, stockErr);
-                  }
-                }
+            for (const warehouseId of selectedWarehouses) {
+              // Check if variant already exists (for edit case)
+              const variantExists = productVariants.some(v => v.size_id == sizeId && v.warehouse_id == warehouseId);
+              if (!variantExists) {
+                await apiClient.post(`/products/${productId}/variants`, {
+                  size_id: sizeId,
+                  warehouse_id: warehouseId,
+                  sku_variant: `${formData.sku}-${sizeId}-W${warehouseId}`,
+                  additional_price: parseFloat(formData.additional_price) || 0,
+                  stock_quantity: parseInt(formData.stock_quantity) || 0,
+                  minimum_stock:  parseInt(formData.minimum_stock) || 5,
+                  cost_price: parseFloat(formData.cost_price) || 0
+                });
               }
             }
           }
         } catch (varErr) {
           console.error('Error creating variants:', varErr);
           // Don't fail the whole operation if variants fail
+        }
+      } else if (selectedSizes.length > 0) {
+        // Fallback: create variants with default warehouse (id=1) if no warehouse selected
+        const productId = editingProduct ? editingProduct.id : productResponse.data.data.id;
+        
+        try {
+          for (const sizeId of selectedSizes) {
+            const variantExists = productVariants.some(v => v.size_id == sizeId);
+            if (!variantExists) {
+              await apiClient.post(`/products/${productId}/variants`, {
+                size_id: sizeId,
+                warehouse_id: 1, // Default warehouse
+                sku_variant: `${formData.sku}-${sizeId}`,
+                additional_price: 0,
+                stock_quantity: 0,
+                minimum_stock: 5,
+                cost_price: parseFloat(formData.master_cost_price) || 0
+              });
+            }
+          }
+        } catch (varErr) {
+          console.error('Error creating variants:', varErr);
         }
       }
       if (selectedImages.length > 0) {
@@ -305,19 +363,31 @@ const AdminProducts = () => {
   const handleAddVariant = async () => {
     if (!selectedProduct) return;
     
+    if (!variantForm.size_id || !variantForm.warehouse_id) {
+      setError('Size dan Warehouse harus dipilih');
+      return;
+    }
+    
     try {
       await apiClient.post(`/products/${selectedProduct.id}/variants`, {
         ...variantForm,
+        size_id: parseInt(variantForm.size_id),
+        warehouse_id: parseInt(variantForm.warehouse_id),
         additional_price: parseFloat(variantForm.additional_price) || 0,
-        stock_quantity: parseInt(variantForm.stock_quantity) || 0
+        stock_quantity: parseInt(variantForm.stock_quantity) || 0,
+        minimum_stock: parseInt(variantForm.minimum_stock) || 5,
+        cost_price: parseFloat(variantForm.cost_price) || 0
       });
       setSuccess('Varian berhasil ditambahkan!');
       fetchProductVariants(selectedProduct.id);
       setVariantForm({
         size_id: '',
+        warehouse_id: '',
         sku_variant: '',
         additional_price: 0,
-        stock_quantity: 0
+        stock_quantity: 0,
+        minimum_stock: 5,
+        cost_price: 0
       });
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -380,9 +450,11 @@ const AdminProducts = () => {
     }
   };
 
-  const handleManageVariants = (product) => {
+  const handleManageVariants = async (product) => {
     setSelectedProduct(product);
     fetchProductVariants(product.id);
+    // Always re-fetch warehouses to ensure data is available and fresh
+    await fetchWarehouses(true);
   };
 
   const resetForm = () => {
@@ -743,8 +815,8 @@ const AdminProducts = () => {
 
           {/* Modal Kelola Varian */}
           {selectedProduct && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[95vh] overflow-y-auto">
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold">Kelola Varian - {selectedProduct.name}</h2>
@@ -757,51 +829,162 @@ const AdminProducts = () => {
                   </div>
 
                   {/* Form Tambah Varian */}
-                  <div className="mb-6 p-4 bg-gray-50 rounded">
-                    <h3 className="font-semibold mb-3">Tambah Varian Baru</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <select
-                        name="size_id"
-                        value={variantForm.size_id}
-                        onChange={handleVariantChange}
-                        className="px-3 py-2 border rounded"
-                      >
-                        <option value="">Pilih Size</option>
-                        {sizes.map(size => (
-                          <option key={size.id} value={size.id}>{size.name}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="text"
-                        name="sku_variant"
-                        value={variantForm.sku_variant}
-                        onChange={handleVariantChange}
-                        placeholder="SKU Varian"
-                        className="px-3 py-2 border rounded"
-                      />
-                      <input
-                        type="number"
-                        name="additional_price"
-                        value={variantForm.additional_price}
-                        onChange={handleVariantChange}
-                        placeholder="Tambahan Harga"
-                        className="px-3 py-2 border rounded"
-                      />
-                      <input
-                        type="number"
-                        name="stock_quantity"
-                        value={variantForm.stock_quantity}
-                        onChange={handleVariantChange}
-                        placeholder="Stok"
-                        className="px-3 py-2 border rounded"
-                      />
+                  <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                    <h3 className="font-bold text-lg mb-4 text-gray-800">Tambah Varian Baru</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      
+                      {/* Size Input */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Size <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          name="size_id"
+                          value={variantForm.size_id}
+                          onChange={handleVariantChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        >
+                          <option value="">-- Pilih Size --</option>
+                          {Array.isArray(sizes) && sizes.map(size => (
+                            <option key={size.id} value={size.id}>{size.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Warehouse Input */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Warehouse <span className="text-red-500">*</span>
+                        </label>
+                        {warehousesLoading ? (
+                          <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                            Loading warehouses...
+                          </div>
+                        ) : (
+                          <select
+                            name="warehouse_id"
+                            value={variantForm.warehouse_id}
+                            onChange={handleVariantChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                          >
+                            <option value="">-- Pilih Warehouse --</option>
+                            {Array.isArray(warehouses) && warehouses.length > 0 ? (
+                              warehouses.map(warehouse => (
+                                <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+                              ))
+                            ) : (
+                              <option value="" disabled>Tidak ada warehouse tersedia</option>
+                            )}
+                          </select>
+                        )}
+                        {!warehousesLoading && (!warehouses || warehouses.length === 0) && (
+                          <button
+                            type="button"
+                            onClick={() => fetchWarehouses(true)}
+                            className="mt-2 text-sm text-blue-600 hover:underline"
+                          >
+                            Muat ulang warehouse
+                          </button>
+                        )}
+                      </div>
+
+                      {/* SKU Input */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          SKU Varian
+                        </label>
+                        <input
+                          type="text"
+                          name="sku_variant"
+                          value={variantForm.sku_variant}
+                          onChange={handleVariantChange}
+                          placeholder="Contoh: JEAN-001-28-JKT"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+
+                      {/* Additional Price Input */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Tambahan Harga (Rp)
+                        </label>
+                        <input
+                          type="number"
+                          name="additional_price"
+                          value={variantForm.additional_price}
+                          onChange={handleVariantChange}
+                          placeholder="0"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          min="0"
+                        />
+                      </div>
+
+                      {/* Stock Quantity Input */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Stok Awal
+                        </label>
+                        <input
+                          type="number"
+                          name="stock_quantity"
+                          value={variantForm.stock_quantity}
+                          onChange={handleVariantChange}
+                          placeholder="0"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          min="0"
+                        />
+                      </div>
+
+                      {/* Min Stock Input */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Minimum Stok
+                        </label>
+                        <input
+                          type="number"
+                          name="minimum_stock"
+                          value={variantForm.minimum_stock}
+                          onChange={handleVariantChange}
+                          placeholder="5"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          min="0"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Default: 5</p>
+                      </div>
+
+                      {/* Cost Price Input */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Harga Modal (Rp)
+                        </label>
+                        <input
+                          type="number"
+                          name="cost_price"
+                          value={variantForm.cost_price}
+                          onChange={handleVariantChange}
+                          placeholder="0"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+
                     </div>
-                    <button
-                      onClick={handleAddVariant}
-                      className="mt-3 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                    >
-                      Tambah Varian
-                    </button>
+                    
+                    <div className="mt-4 flex items-center gap-3">
+                      <button
+                        onClick={handleAddVariant}
+                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-semibold shadow-md transition"
+                      >
+                        ✓ Tambah Varian
+                      </button>
+                      <p className="text-sm text-gray-600">
+                        <span className="text-red-500">*</span> Wajib diisi
+                      </p>
+                    </div>
                   </div>
 
                   {/* Daftar Varian */}
@@ -809,25 +992,33 @@ const AdminProducts = () => {
                     <thead className="bg-gray-200">
                       <tr>
                         <th className="px-4 py-2 text-left">Size</th>
+                        <th className="px-4 py-2 text-left">Warehouse</th>
                         <th className="px-4 py-2 text-left">SKU</th>
-                        <th className="px-4 py-2 text-right">Tambahan Harga</th>
+                        <th className="px-4 py-2 text-right">Harga Tambah</th>
                         <th className="px-4 py-2 text-right">Stok</th>
+                        <th className="px-4 py-2 text-right">Min Stok</th>
+                        <th className="px-4 py-2 text-right">Harga Modal</th>
                         <th className="px-4 py-2 text-center">Aksi</th>
                       </tr>
                     </thead>
                     <tbody>
                       {productVariants.map(variant => (
-                        <tr key={variant.id} className="border-t">
-                          <td className="px-4 py-2">{variant.size_name}</td>
+                        <tr key={variant.id} className="border-t hover:bg-gray-50">
+                          <td className="px-4 py-2">{variant.size_name || 'N/A'}</td>
+                          <td className="px-4 py-2">{variant.warehouse_name || 'N/A'}</td>
                           <td className="px-4 py-2">{variant.sku_variant}</td>
                           <td className="px-4 py-2 text-right">
-                            Rp {parseFloat(variant.additional_price).toLocaleString('id-ID')}
+                            Rp {parseFloat(variant.additional_price || 0).toLocaleString('id-ID')}
                           </td>
-                          <td className="px-4 py-2 text-right">{variant.stock_quantity}</td>
+                          <td className="px-4 py-2 text-right font-semibold">{variant.stock_quantity || 0}</td>
+                          <td className="px-4 py-2 text-right">{variant.minimum_stock || 5}</td>
+                          <td className="px-4 py-2 text-right">
+                            Rp {parseFloat(variant.cost_price || 0).toLocaleString('id-ID')}
+                          </td>
                           <td className="px-4 py-2 text-center">
                             <button
                               onClick={() => handleDeleteVariant(variant.id)}
-                              className="text-red-600 hover:underline"
+                              className="text-red-600 hover:underline text-sm"
                             >
                               Hapus
                             </button>
@@ -836,7 +1027,7 @@ const AdminProducts = () => {
                       ))}
                       {productVariants.length === 0 && (
                         <tr>
-                          <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                          <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
                             Belum ada varian
                           </td>
                         </tr>
@@ -862,7 +1053,7 @@ const AdminProducts = () => {
                     <th className="px-6 py-3 text-left text-sm font-semibold">Kategori</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold">Fitting</th>
                     <th className="px-6 py-3 text-right text-sm font-semibold">Harga</th>
-                    <th className="px-6 py-3 text-right text-sm font-semibold">Stok</th>
+                    <th className="px-6 py-3 text-right text-sm font-semibold">Varian</th>
                     <th className="px-6 py-3 text-center text-sm font-semibold">Status</th>
                     <th className="px-6 py-3 text-center text-sm font-semibold">Aksi</th>
                   </tr>
@@ -904,12 +1095,8 @@ const AdminProducts = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <span className={`font-medium ${
-                          (product.total_stock || 0) <= 5 ? 'text-red-600' : 'text-green-600'
-                        }`}>
-                          {product.total_stock || 0}
-                        </span>
+                      <td className="px-6 py-4 text-center">
+                        <span className="font-medium text-sm">{product.variant_count || 0} varian</span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`px-3 py-1 rounded text-xs font-semibold ${

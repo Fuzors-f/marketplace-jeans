@@ -462,4 +462,6 @@ const StockOpname = () => {
   );
 };
 
-export default StockOpname;
+// TODO: Disabled - Stock Opname functionality has been merged into variant-based inventory management
+// export default StockOpname;
+export default null;

@@ -93,13 +93,13 @@ export default function AdminInventory() {
         limit: pagination.limit,
         ...filters
       };
-      const response = await api.get('/inventory/overview', { params });
+      const response = await api.get('/inventory/variants', { params });
       if (response.data.success) {
         setStocks(response.data.data.stocks || []);
         setSummary(response.data.data.summary || summary);
         setPagination(prev => ({
           ...prev,
-          total: response.data.data.total || 0
+          total: response.data.data.pagination?.total || 0
         }));
       }
     } catch (error) {
@@ -236,18 +236,20 @@ export default function AdminInventory() {
   };
 
   const handleEditStock = (stock) => {
-    setEditingStock(stock.id);
+    setEditingStock(stock.variant_id);
     setEditForm({
-      min_stock: stock.min_stock || '',
+      stock_quantity: stock.stock_quantity || '',
+      min_stock: stock.min_stock || 5,
       cost_price: stock.cost_price || ''
     });
   };
 
-  const handleSaveEdit = async (stockId) => {
+  const handleSaveEdit = async (variantId) => {
     try {
-      const response = await api.put(`/inventory/stocks/${stockId}`, {
-        min_stock: parseInt(editForm.min_stock) || null,
-        cost_price: parseFloat(editForm.cost_price) || null
+      const response = await api.put(`/inventory/variants/${variantId}`, {
+        stock_quantity: parseInt(editForm.stock_quantity) || 0,
+        min_stock: parseInt(editForm.min_stock) || 5,
+        cost_price: parseFloat(editForm.cost_price) || 0
       });
 
       if (response.data.success) {
@@ -262,7 +264,7 @@ export default function AdminInventory() {
 
   const handleCancelEdit = () => {
     setEditingStock(null);
-    setEditForm({ min_stock: '', cost_price: '' });
+    setEditForm({ stock_quantity: '', min_stock: 5, cost_price: '' });
   };
 
   const formatCurrency = (value) => {
@@ -455,24 +457,44 @@ export default function AdminInventory() {
                         </tr>
                       ) : (
                         stocks.map((stock) => (
-                          <tr key={stock.id} className="hover:bg-gray-50">
+                          <tr key={stock.variant_id} className="hover:bg-gray-50">
                             <td className="px-4 py-3">
                               <div className="font-medium">{stock.product_name}</div>
                               <div className="text-xs text-gray-500">{stock.sku}</div>
                             </td>
                             <td className="px-4 py-3 text-sm">
-                              {stock.fitting_name} / {stock.size_name}
+                              {stock.size_name}
                             </td>
                             <td className="px-4 py-3 text-sm">{stock.warehouse_name}</td>
                             <td className="px-4 py-3 text-center">
-                              <span className={`font-bold ${
-                                stock.quantity <= (stock.min_stock || 5) ? 'text-red-600' : 'text-gray-900'
-                              }`}>
-                                {stock.quantity}
-                              </span>
+                              {editingStock === stock.variant_id ? (
+                                <input
+                                  type="number"
+                                  value={editForm.stock_quantity}
+                                  onChange={(e) => setEditForm({...editForm, stock_quantity: e.target.value})}
+                                  className="w-20 px-2 py-1 text-sm border rounded text-center"
+                                  min="0"
+                                />
+                              ) : (
+                                <div>
+                                  <span className={`font-bold ${
+                                    stock.stock_status === 'Out of Stock' ? 'text-red-600' :
+                                    stock.stock_status === 'Below Minimum' ? 'text-orange-600' :
+                                    'text-green-600'
+                                  }`}>
+                                    {stock.stock_quantity}
+                                  </span>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {stock.stock_status === 'Out of Stock' && '🔴'}
+                                    {stock.stock_status === 'Below Minimum' && '🟡'}
+                                    {stock.stock_status === 'Safe' && '🟢'}
+                                    {' '}{stock.stock_status}
+                                  </div>
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              {editingStock === stock.id ? (
+                              {editingStock === stock.variant_id ? (
                                 <input
                                   type="number"
                                   value={editForm.min_stock}
@@ -481,11 +503,11 @@ export default function AdminInventory() {
                                   min="0"
                                 />
                               ) : (
-                                <span className="text-sm">{stock.min_stock || 5}</span>
+                                <span className="text-sm font-medium">{stock.min_stock || 5}</span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-right text-sm">
-                              {editingStock === stock.id ? (
+                              {editingStock === stock.variant_id ? (
                                 <input
                                   type="number"
                                   value={editForm.cost_price}
@@ -499,14 +521,14 @@ export default function AdminInventory() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-right text-sm font-medium">
-                              {formatCurrency(stock.quantity * (stock.cost_price || 0))}
+                              {formatCurrency(stock.stock_quantity * (stock.cost_price || 0))}
                             </td>
                             <td className="px-4 py-3 text-center">
                               <div className="flex gap-1 justify-center">
-                                {editingStock === stock.id ? (
+                                {editingStock === stock.variant_id ? (
                                   <>
                                     <button
-                                      onClick={() => handleSaveEdit(stock.id)}
+                                      onClick={() => handleSaveEdit(stock.variant_id)}
                                       className="text-green-600 hover:text-green-800 text-xs px-2 py-1 rounded bg-green-50 hover:bg-green-100"
                                     >
                                       ✓
