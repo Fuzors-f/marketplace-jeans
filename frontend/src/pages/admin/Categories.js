@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { FaPlus, FaEdit, FaTrash, FaTimes, FaSave } from 'react-icons/fa';
 import { categoryAPI } from '../../services/api';
+import DataTable from '../../components/admin/DataTable';
 
 export default function AdminCategories() {
   const [categories, setCategories] = useState([]);
@@ -16,7 +18,6 @@ export default function AdminCategories() {
     is_active: true
   });
 
-  // Fetch categories
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -91,134 +92,196 @@ export default function AdminCategories() {
     setShowForm(false);
   };
 
-  if (loading && categories.length === 0) {
-    return <div className="p-6">Loading...</div>;
-  }
+  // Table columns configuration
+  const columns = [
+    {
+      key: 'name',
+      label: 'Nama',
+      render: (value) => <span className="font-medium">{value}</span>
+    },
+    {
+      key: 'slug',
+      label: 'Slug',
+      render: (value) => <span className="text-gray-600 text-sm">{value}</span>
+    },
+    {
+      key: 'is_active',
+      label: 'Status',
+      render: (value) => (
+        <span className={`px-2 py-1 rounded text-xs font-medium ${
+          value ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          {value ? 'Aktif' : 'Nonaktif'}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Aksi',
+      sortable: false,
+      render: (_, item) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleEdit(item)}
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+            title="Edit"
+          >
+            <FaEdit size={14} />
+          </button>
+          <button
+            onClick={() => handleDelete(item.id)}
+            className="p-2 text-red-600 hover:bg-red-50 rounded"
+            title="Hapus"
+          >
+            <FaTrash size={14} />
+          </button>
+        </div>
+      )
+    }
+  ];
+
+  // Mobile card renderer
+  const renderMobileCard = (category) => (
+    <div className="flex items-center justify-between">
+      <div className="flex-1 min-w-0">
+        <h3 className="font-medium truncate">{category.name}</h3>
+        <p className="text-sm text-gray-500 truncate">{category.slug}</p>
+        <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${
+          category.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          {category.is_active ? 'Aktif' : 'Nonaktif'}
+        </span>
+      </div>
+      <div className="flex items-center gap-1 ml-3">
+        <button
+          onClick={() => handleEdit(category)}
+          className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+        >
+          <FaEdit size={16} />
+        </button>
+        <button
+          onClick={() => handleDelete(category.id)}
+          className="p-2 text-red-600 hover:bg-red-50 rounded"
+        >
+          <FaTrash size={16} />
+        </button>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Manage Categories</h1>
+    <div className="p-3 sm:p-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Kelola Kategori</h1>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
         >
-          Add Category
+          <FaPlus /> Tambah Kategori
         </button>
       </div>
 
-      {error && <div className="bg-red-100 text-red-700 p-4 mb-4 rounded">{error}</div>}
+      {error && (
+        <div className="bg-red-100 text-red-700 p-3 mb-4 rounded-lg text-sm">{error}</div>
+      )}
 
+      {/* Form Modal */}
       {showForm && (
-        <div className="bg-white p-6 rounded shadow mb-6">
-          <h2 className="text-xl font-bold mb-4">
-            {editingId ? 'Edit Category' : 'Create Category'}
-          </h2>
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-2 gap-4">
-              <input
-                type="text"
-                name="name"
-                placeholder="Category Name"
-                value={formData.name}
-                onChange={handleInputChange}
-                className="border p-2 rounded col-span-2"
-                required
-              />
-              <input
-                type="text"
-                name="slug"
-                placeholder="Slug (URL-friendly)"
-                value={formData.slug}
-                onChange={handleInputChange}
-                className="border p-2 rounded"
-                required
-              />
-              <input
-                type="text"
-                name="image_url"
-                placeholder="Image URL"
-                value={formData.image_url}
-                onChange={handleInputChange}
-                className="border p-2 rounded"
-              />
-              <textarea
-                name="description"
-                placeholder="Description"
-                value={formData.description}
-                onChange={handleInputChange}
-                className="border p-2 rounded col-span-2"
-                rows="3"
-              />
-              <label className="flex items-center">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b sticky top-0 bg-white">
+              <h2 className="text-base sm:text-lg font-bold">
+                {editingId ? 'Edit Kategori' : 'Tambah Kategori'}
+              </h2>
+              <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 p-1">
+                <FaTimes />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kategori *</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label>
+                <input
+                  type="text"
+                  name="slug"
+                  value={formData.slug}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="url-friendly-name"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">URL Gambar</label>
+                <input
+                  type="text"
+                  name="image_url"
+                  value={formData.image_url}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  rows="3"
+                />
+              </div>
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
+                  id="is_active"
                   name="is_active"
                   checked={formData.is_active}
                   onChange={handleInputChange}
-                  className="mr-2"
+                  className="rounded text-blue-600"
                 />
-                Active
-              </label>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <button
-                type="submit"
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-              >
-                {editingId ? 'Update' : 'Create'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+                <label htmlFor="is_active" className="text-sm text-gray-700">Aktif</label>
+              </div>
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="w-full sm:w-auto px-4 py-2.5 border rounded-lg hover:bg-gray-50 text-sm"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm"
+                >
+                  <FaSave /> {editingId ? 'Update' : 'Simpan'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
-      <div className="bg-white rounded shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-4 text-left">Name</th>
-              <th className="p-4 text-left">Slug</th>
-              <th className="p-4 text-left">Status</th>
-              <th className="p-4 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map(category => (
-              <tr key={category.id} className="border-t hover:bg-gray-50">
-                <td className="p-4">{category.name}</td>
-                <td className="p-4 text-gray-600">{category.slug}</td>
-                <td className="p-4">
-                  <span className={`px-2 py-1 rounded text-white ${category.is_active ? 'bg-green-600' : 'bg-red-600'}`}>
-                    {category.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="p-4 flex gap-2">
-                  <button
-                    onClick={() => handleEdit(category)}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(category.id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Data Table */}
+      <DataTable
+        columns={columns}
+        data={categories}
+        loading={loading}
+        renderMobileCard={renderMobileCard}
+        searchPlaceholder="Cari kategori..."
+        emptyMessage="Tidak ada kategori"
+      />
     </div>
   );
 }

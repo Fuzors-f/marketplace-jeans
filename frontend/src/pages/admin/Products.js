@@ -344,7 +344,7 @@ const AdminProducts = () => {
         try {
           await apiClient.post(`/products/${productId}/images`, imageFormData, {
             headers: {
-              'Content-Type': 'multipart/form-data',
+              'Content-Type': undefined, // Let browser set the correct Content-Type with boundary
             },
           });
         } catch (imgErr) {
@@ -495,7 +495,6 @@ const AdminProducts = () => {
           <div className="mb-8 flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold mb-2">Manajemen Produk</h1>
-              <p className="text-gray-600">Kelola data produk jeans</p>
             </div>
             <button
               onClick={() => {

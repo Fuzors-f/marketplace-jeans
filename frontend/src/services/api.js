@@ -30,6 +30,12 @@ apiClient.interceptors.request.use(
     }
     // Add session ID for guest cart functionality
     config.headers['x-session-id'] = getSessionId();
+    
+    // Remove Content-Type for FormData (let browser set it with boundary)
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+    
     return config;
   },
   (error) => Promise.reject(error)
