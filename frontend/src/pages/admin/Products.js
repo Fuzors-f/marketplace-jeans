@@ -1053,7 +1053,8 @@ const AdminProducts = () => {
                     <th className="px-6 py-3 text-left text-sm font-semibold">Kategori</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold">Fitting</th>
                     <th className="px-6 py-3 text-right text-sm font-semibold">Harga</th>
-                    <th className="px-6 py-3 text-right text-sm font-semibold">Varian</th>
+                    <th className="px-6 py-3 text-center text-sm font-semibold">Varian</th>
+                    <th className="px-6 py-3 text-center text-sm font-semibold">Total Stok</th>
                     <th className="px-6 py-3 text-center text-sm font-semibold">Status</th>
                     <th className="px-6 py-3 text-center text-sm font-semibold">Aksi</th>
                   </tr>
@@ -1096,7 +1097,15 @@ const AdminProducts = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="font-medium text-sm">{product.variant_count || 0} varian</span>
+                        <span className="font-medium text-sm">{product.variants_count || 0} varian</span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`font-semibold text-sm ${
+                          (product.total_stock || 0) <= 0 ? 'text-red-600' : 
+                          (product.total_stock || 0) <= 10 ? 'text-yellow-600' : 'text-green-600'
+                        }`}>
+                          {product.total_stock || 0}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`px-3 py-1 rounded text-xs font-semibold ${

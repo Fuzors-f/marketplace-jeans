@@ -91,16 +91,40 @@ export default function AdminInventory() {
       const params = {
         page: pagination.page,
         limit: pagination.limit,
-        ...filters
+        warehouse_id: filters.warehouse_id || undefined,
+        search: filters.search || undefined
       };
-      const response = await api.get('/inventory/variants', { params });
+      
+      // Fetch stocks from stock controller
+      const response = await api.get('/stock', { params });
       if (response.data.success) {
-        setStocks(response.data.data.stocks || []);
-        setSummary(response.data.data.summary || summary);
+        // Map the response to match expected format
+        const stockData = (response.data.data || []).map(item => ({
+          ...item,
+          variant_id: item.id,
+          stock_quantity: item.quantity,
+          stock_status: item.quantity <= 0 ? 'Out of Stock' : 
+                        item.quantity <= (item.min_stock || 5) ? 'Below Minimum' : 'Safe'
+        }));
+        setStocks(stockData);
         setPagination(prev => ({
           ...prev,
-          total: response.data.data.pagination?.total || 0
+          total: response.data.pagination?.total || 0
         }));
+      }
+      
+      // Fetch summary separately
+      const summaryResponse = await api.get('/stock/summary', { 
+        params: { warehouse_id: filters.warehouse_id || undefined } 
+      });
+      if (summaryResponse.data.success) {
+        const summaryData = summaryResponse.data.data || {};
+        setSummary({
+          total_products: summaryData.total_products || 0,
+          total_stock: summaryData.total_quantity || 0,
+          total_value: summaryData.total_value || 0,
+          low_stock_count: (summaryData.low_stock || 0) + (summaryData.out_of_stock || 0)
+        });
       }
     } catch (error) {
       console.error('Error fetching stocks:', error);
@@ -115,14 +139,20 @@ export default function AdminInventory() {
       const params = {
         page: pagination.page,
         limit: pagination.limit,
-        warehouse_id: filters.warehouse_id
+        warehouse_id: filters.warehouse_id || undefined
       };
-      const response = await api.get('/inventory/movements', { params });
+      const response = await api.get('/stock/movements', { params });
       if (response.data.success) {
-        setMovements(response.data.data.movements || []);
+        // Map response to match expected format
+        const movementData = (response.data.data || []).map(mov => ({
+          ...mov,
+          movement_type: mov.type,
+          quantity: mov.type === 'out' ? -mov.quantity : mov.quantity
+        }));
+        setMovements(movementData);
         setPagination(prev => ({
           ...prev,
-          total: response.data.data.total || 0
+          total: response.data.pagination?.total || movementData.length
         }));
       }
     } catch (error) {
@@ -135,9 +165,24 @@ export default function AdminInventory() {
   const fetchLowStock = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/inventory/low-stock');
+      // Fetch all stocks and filter for low stock items
+      const response = await api.get('/stock', { 
+        params: { 
+          warehouse_id: filters.warehouse_id || undefined,
+          limit: 100 
+        } 
+      });
       if (response.data.success) {
-        setStocks(response.data.data || []);
+        // Filter items where stock is at or below minimum
+        const lowStockItems = (response.data.data || []).filter(item => 
+          item.quantity <= (item.min_stock || 5)
+        ).map(item => ({
+          ...item,
+          variant_id: item.id,
+          stock_quantity: item.quantity,
+          min_stock: item.min_stock || 5
+        }));
+        setStocks(lowStockItems);
       }
     } catch (error) {
       console.error('Error fetching low stock:', error);
@@ -182,9 +227,10 @@ export default function AdminInventory() {
   const handleAdjustment = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post('/inventory/adjust', {
-        stock_id: adjustmentForm.stock_id,
-        type: adjustmentForm.type,
+      const adjustmentType = adjustmentForm.type === 'adjustment_in' ? 'increase' : 'decrease';
+      const response = await api.post('/stock/adjustment', {
+        variant_id: selectedStock.variant_id || selectedStock.id,
+        adjustment_type: adjustmentType,
         quantity: parseInt(adjustmentForm.quantity),
         notes: adjustmentForm.notes
       });
@@ -192,6 +238,12 @@ export default function AdminInventory() {
       if (response.data.success) {
         alert('Penyesuaian stok berhasil!');
         setShowAdjustModal(false);
+        setAdjustmentForm({
+          stock_id: '',
+          type: 'adjustment_in',
+          quantity: '',
+          notes: ''
+        });
         fetchStocks();
       }
     } catch (error) {
@@ -210,12 +262,12 @@ export default function AdminInventory() {
   const handleOpeningStockSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post('/inventory/opening-stock', {
+      const response = await api.post('/stock/opening', {
         product_id: parseInt(openingStockForm.product_id),
         warehouse_id: parseInt(openingStockForm.warehouse_id),
         size_id: parseInt(openingStockForm.size_id),
         quantity: parseInt(openingStockForm.quantity),
-        cost_price: parseFloat(openingStockForm.cost_price)
+        cost_price: parseFloat(openingStockForm.cost_price) || 0
       });
 
       if (response.data.success) {
@@ -236,27 +288,36 @@ export default function AdminInventory() {
   };
 
   const handleEditStock = (stock) => {
-    setEditingStock(stock.variant_id);
+    setEditingStock(stock.variant_id || stock.id);
     setEditForm({
-      stock_quantity: stock.stock_quantity || '',
-      min_stock: stock.min_stock || 5,
+      stock_quantity: stock.stock_quantity || stock.quantity || '',
+      min_stock: stock.min_stock || stock.minimum_stock || 5,
       cost_price: stock.cost_price || ''
     });
   };
 
   const handleSaveEdit = async (variantId) => {
     try {
-      const response = await api.put(`/inventory/variants/${variantId}`, {
-        stock_quantity: parseInt(editForm.stock_quantity) || 0,
-        min_stock: parseInt(editForm.min_stock) || 5,
-        cost_price: parseFloat(editForm.cost_price) || 0
-      });
-
-      if (response.data.success) {
-        alert('Data stok berhasil diupdate!');
-        setEditingStock(null);
-        fetchStocks();
+      // Use adjustment for stock quantity changes
+      const currentStock = stocks.find(s => (s.variant_id || s.id) === variantId);
+      const currentQty = currentStock?.stock_quantity || currentStock?.quantity || 0;
+      const newQty = parseInt(editForm.stock_quantity) || 0;
+      const qtyDiff = newQty - currentQty;
+      
+      if (qtyDiff !== 0) {
+        await api.post('/stock/adjustment', {
+          variant_id: variantId,
+          adjustment_type: qtyDiff > 0 ? 'increase' : 'decrease',
+          quantity: Math.abs(qtyDiff),
+          cost_price: parseFloat(editForm.cost_price) || 0,
+          notes: 'Edit stok dari halaman inventori'
+        });
       }
+      
+      alert('Data stok berhasil diupdate!');
+      setEditingStock(null);
+      setEditForm({ stock_quantity: '', min_stock: 5, cost_price: '' });
+      fetchStocks();
     } catch (error) {
       alert(error.response?.data?.message || 'Gagal mengupdate data stok');
     }
@@ -457,17 +518,17 @@ export default function AdminInventory() {
                         </tr>
                       ) : (
                         stocks.map((stock) => (
-                          <tr key={stock.variant_id} className="hover:bg-gray-50">
+                          <tr key={stock.variant_id || stock.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3">
                               <div className="font-medium">{stock.product_name}</div>
-                              <div className="text-xs text-gray-500">{stock.sku}</div>
+                              <div className="text-xs text-gray-500">{stock.sku || stock.sku_variant}</div>
                             </td>
                             <td className="px-4 py-3 text-sm">
                               {stock.size_name}
                             </td>
                             <td className="px-4 py-3 text-sm">{stock.warehouse_name}</td>
                             <td className="px-4 py-3 text-center">
-                              {editingStock === stock.variant_id ? (
+                              {editingStock === (stock.variant_id || stock.id) ? (
                                 <input
                                   type="number"
                                   value={editForm.stock_quantity}
@@ -478,23 +539,22 @@ export default function AdminInventory() {
                               ) : (
                                 <div>
                                   <span className={`font-bold ${
-                                    stock.stock_status === 'Out of Stock' ? 'text-red-600' :
-                                    stock.stock_status === 'Below Minimum' ? 'text-orange-600' :
+                                    (stock.stock_quantity || stock.quantity) <= 0 ? 'text-red-600' :
+                                    (stock.stock_quantity || stock.quantity) <= (stock.min_stock || 5) ? 'text-orange-600' :
                                     'text-green-600'
                                   }`}>
-                                    {stock.stock_quantity}
+                                    {stock.stock_quantity || stock.quantity || 0}
                                   </span>
                                   <div className="text-xs text-gray-500 mt-1">
-                                    {stock.stock_status === 'Out of Stock' && '🔴'}
-                                    {stock.stock_status === 'Below Minimum' && '🟡'}
-                                    {stock.stock_status === 'Safe' && '🟢'}
-                                    {' '}{stock.stock_status}
+                                    {(stock.stock_quantity || stock.quantity) <= 0 && '🔴 Out of Stock'}
+                                    {(stock.stock_quantity || stock.quantity) > 0 && (stock.stock_quantity || stock.quantity) <= (stock.min_stock || 5) && '🟡 Below Minimum'}
+                                    {(stock.stock_quantity || stock.quantity) > (stock.min_stock || 5) && '🟢 Safe'}
                                   </div>
                                 </div>
                               )}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              {editingStock === stock.variant_id ? (
+                              {editingStock === (stock.variant_id || stock.id) ? (
                                 <input
                                   type="number"
                                   value={editForm.min_stock}
@@ -503,11 +563,11 @@ export default function AdminInventory() {
                                   min="0"
                                 />
                               ) : (
-                                <span className="text-sm font-medium">{stock.min_stock || 5}</span>
+                                <span className="text-sm font-medium">{stock.min_stock || stock.minimum_stock || 5}</span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-right text-sm">
-                              {editingStock === stock.variant_id ? (
+                              {editingStock === (stock.variant_id || stock.id) ? (
                                 <input
                                   type="number"
                                   value={editForm.cost_price}
@@ -521,14 +581,14 @@ export default function AdminInventory() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-right text-sm font-medium">
-                              {formatCurrency(stock.stock_quantity * (stock.cost_price || 0))}
+                              {formatCurrency((stock.stock_quantity || stock.quantity || 0) * (stock.cost_price || 0))}
                             </td>
                             <td className="px-4 py-3 text-center">
                               <div className="flex gap-1 justify-center">
-                                {editingStock === stock.variant_id ? (
+                                {editingStock === (stock.variant_id || stock.id) ? (
                                   <>
                                     <button
-                                      onClick={() => handleSaveEdit(stock.variant_id)}
+                                      onClick={() => handleSaveEdit(stock.variant_id || stock.id)}
                                       className="text-green-600 hover:text-green-800 text-xs px-2 py-1 rounded bg-green-50 hover:bg-green-100"
                                     >
                                       ✓
@@ -597,12 +657,12 @@ export default function AdminInventory() {
                             <td className="px-4 py-3">
                               <div className="font-medium text-sm">{mov.product_name}</div>
                               <div className="text-xs text-gray-500">
-                                {mov.fitting_name} / {mov.size_name}
+                                {mov.size_name} - {mov.sku_variant || mov.sku}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-sm">{mov.warehouse_name}</td>
                             <td className="px-4 py-3 text-center">
-                              {getMovementTypeBadge(mov.movement_type)}
+                              {getMovementTypeBadge(mov.movement_type || mov.type)}
                             </td>
                             <td className="px-4 py-3 text-center font-medium">
                               <span className={mov.quantity > 0 ? 'text-green-600' : 'text-red-600'}>
@@ -612,7 +672,7 @@ export default function AdminInventory() {
                             <td className="px-4 py-3 text-sm text-gray-600">
                               {mov.reference_type && (
                                 <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                                  {mov.reference_type}: {mov.reference_id}
+                                  {mov.reference_type}{mov.reference_id ? `: ${mov.reference_id}` : ''}
                                 </span>
                               )}
                             </td>
@@ -650,20 +710,20 @@ export default function AdminInventory() {
                         </tr>
                       ) : (
                         stocks.map((stock) => (
-                          <tr key={stock.id} className="hover:bg-gray-50 bg-red-50">
+                          <tr key={stock.variant_id || stock.id} className="hover:bg-gray-50 bg-red-50">
                             <td className="px-4 py-3">
                               <div className="font-medium">{stock.product_name}</div>
-                              <div className="text-xs text-gray-500">{stock.sku}</div>
+                              <div className="text-xs text-gray-500">{stock.sku || stock.sku_variant}</div>
                             </td>
                             <td className="px-4 py-3 text-sm">
-                              {stock.fitting_name} / {stock.size_name}
+                              {stock.size_name}
                             </td>
                             <td className="px-4 py-3 text-sm">{stock.warehouse_name}</td>
                             <td className="px-4 py-3 text-center font-bold text-red-600">
-                              {stock.quantity}
+                              {stock.stock_quantity || stock.quantity || 0}
                             </td>
                             <td className="px-4 py-3 text-center text-sm">
-                              {stock.min_stock || 5}
+                              {stock.min_stock || stock.minimum_stock || 5}
                             </td>
                             <td className="px-4 py-3 text-center">
                               <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
@@ -847,10 +907,10 @@ export default function AdminInventory() {
             <div className="bg-gray-50 p-3 rounded-lg mb-4">
               <p className="font-medium">{selectedStock.product_name}</p>
               <p className="text-sm text-gray-600">
-                {selectedStock.fitting_name} / {selectedStock.size_name}
+                Size: {selectedStock.size_name}
               </p>
               <p className="text-sm text-gray-600">{selectedStock.warehouse_name}</p>
-              <p className="mt-2">Stok saat ini: <strong>{selectedStock.quantity}</strong></p>
+              <p className="mt-2">Stok saat ini: <strong>{selectedStock.stock_quantity || selectedStock.quantity || 0}</strong></p>
             </div>
             <form onSubmit={handleAdjustment}>
               <div className="mb-4">
