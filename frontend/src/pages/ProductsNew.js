@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProducts } from '../redux/slices/productSlice';
 
 const Products = () => {
   const dispatch = useDispatch();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { products, isLoading, pagination } = useSelector((state) => state.products);
 
@@ -25,6 +26,23 @@ const Products = () => {
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
   const [viewMode, setViewMode] = useState('grid'); // grid or list
   const [showFilters, setShowFilters] = useState(false); // mobile filter toggle
+
+  // Close mobile filter on route change
+  useEffect(() => {
+    setShowFilters(false);
+  }, [location.pathname]);
+
+  // Prevent body scroll when mobile filter is open
+  useEffect(() => {
+    if (showFilters) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showFilters]);
 
   // Categories & Fittings data (should ideally come from API)
   const categories = ['Celana Jeans', 'Jaket Denim', 'Kemeja', 'T-Shirt', 'Aksesoris'];
@@ -94,28 +112,28 @@ const Products = () => {
       </Helmet>
 
       <div className="bg-gray-50 min-h-screen">
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
           {/* Breadcrumb */}
-          <div className="text-sm text-gray-600 mb-6">
+          <div className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
             <Link to="/" className="hover:underline">Home</Link>
-            <span className="mx-2">/</span>
+            <span className="mx-1 sm:mx-2">/</span>
             <span className="text-black font-semibold">Produk</span>
           </div>
 
           {/* Page Title */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2 uppercase tracking-wide">
+          <div className="mb-4 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-1 sm:mb-2 uppercase tracking-wide">
               {filters.gender === 'wanita' ? 'WANITA' : filters.gender === 'pria' ? 'PRIA' : 'SEMUA PRODUK'}
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-sm sm:text-base">
               {pagination?.total || 0} produk ditemukan
             </p>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-8">
+          <div className="flex flex-col lg:flex-row gap-4 sm:gap-8">
             {/* Sidebar Filters - Desktop */}
             <aside className="hidden lg:block w-64 flex-shrink-0">
-              <div className="bg-white p-6 sticky top-24">
+              <div className="bg-white p-4 sm:p-6 sticky top-24">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="font-bold text-lg uppercase tracking-wide">FILTER</h2>
                   {activeFiltersCount > 0 && (
@@ -241,34 +259,34 @@ const Products = () => {
             {/* Main Content */}
             <div className="flex-1">
               {/* Top Bar - Sort & View Mode */}
-              <div className="bg-white p-4 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-4 w-full md:w-auto">
+              <div className="bg-white p-3 sm:p-4 mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-2 sm:gap-4">
                   {/* Mobile Filter Toggle */}
                   <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="lg:hidden flex items-center gap-2 px-4 py-2 border border-black text-sm font-semibold uppercase"
+                    className="lg:hidden flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-black text-xs sm:text-sm font-semibold uppercase flex-1 sm:flex-none"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                     </svg>
-                    FILTER {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+                    <span>FILTER {activeFiltersCount > 0 && `(${activeFiltersCount})`}</span>
                   </button>
 
                   <select
                     value={sortBy}
                     onChange={(e) => handleSortChange(e.target.value)}
-                    className="flex-1 md:flex-none px-4 py-2 border focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 border focus:outline-none focus:ring-2 focus:ring-black text-xs sm:text-sm"
                   >
                     <option value="newest">TERBARU</option>
-                    <option value="price_asc">HARGA: RENDAH KE TINGGI</option>
-                    <option value="price_desc">HARGA: TINGGI KE RENDAH</option>
+                    <option value="price_asc">HARGA: RENDAH</option>
+                    <option value="price_desc">HARGA: TINGGI</option>
                     <option value="name_asc">NAMA: A-Z</option>
                     <option value="popular">TERPOPULER</option>
                   </select>
                 </div>
 
                 {/* View Mode Toggle */}
-                <div className="hidden md:flex items-center gap-2">
+                <div className="hidden sm:flex items-center gap-2">
                   <button
                     onClick={() => setViewMode('grid')}
                     className={`p-2 ${viewMode === 'grid' ? 'text-black' : 'text-gray-400'}`}
@@ -288,44 +306,133 @@ const Products = () => {
                 </div>
               </div>
 
-              {/* Mobile Filters Panel */}
+              {/* Mobile Filters Panel - Full Screen Overlay */}
               {showFilters && (
-                <div className="lg:hidden bg-white p-6 mb-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="font-bold uppercase">FILTER</h2>
-                    <button onClick={() => setShowFilters(false)} className="text-2xl">&times;</button>
+                <div className="lg:hidden fixed inset-0 bg-white z-50 overflow-y-auto">
+                  <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
+                    <h2 className="font-bold uppercase text-lg">FILTER</h2>
+                    <button onClick={() => setShowFilters(false)} className="text-2xl p-2">&times;</button>
                   </div>
                   
-                  {/* Same filters as sidebar, condensed */}
-                  <div className="space-y-4">
+                  <div className="p-4 space-y-6 pb-32">
+                    {/* Gender */}
                     <div>
-                      <h3 className="font-semibold mb-2 text-sm">JENIS KELAMIN</h3>
-                      <select
-                        value={filters.gender}
-                        onChange={(e) => handleFilterChange('gender', e.target.value)}
-                        className="w-full px-3 py-2 border"
-                      >
-                        <option value="">Semua</option>
-                        <option value="pria">Pria</option>
-                        <option value="wanita">Wanita</option>
-                      </select>
+                      <h3 className="font-semibold mb-3 text-sm uppercase">JENIS KELAMIN</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {['pria', 'wanita'].map((gender) => (
+                          <button
+                            key={gender}
+                            onClick={() => handleFilterChange('gender', filters.gender === gender ? '' : gender)}
+                            className={`px-4 py-2 text-sm border transition capitalize ${
+                              filters.gender === gender
+                                ? 'bg-black text-white border-black'
+                                : 'bg-white text-black border-gray-300'
+                            }`}
+                          >
+                            {gender}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
+                    {/* Category */}
+                    <div>
+                      <h3 className="font-semibold mb-3 text-sm uppercase">KATEGORI</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {categories.map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => handleFilterChange('category', filters.category === cat ? '' : cat)}
+                            className={`px-3 py-2 text-sm border transition ${
+                              filters.category === cat
+                                ? 'bg-black text-white border-black'
+                                : 'bg-white text-black border-gray-300'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Fitting */}
+                    <div>
+                      <h3 className="font-semibold mb-3 text-sm uppercase">FITTING</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {fittings.map((fit) => (
+                          <button
+                            key={fit}
+                            onClick={() => handleFilterChange('fitting', filters.fitting === fit ? '' : fit)}
+                            className={`px-3 py-2 text-sm border transition ${
+                              filters.fitting === fit
+                                ? 'bg-black text-white border-black'
+                                : 'bg-white text-black border-gray-300'
+                            }`}
+                          >
+                            {fit}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Size */}
+                    <div>
+                      <h3 className="font-semibold mb-3 text-sm uppercase">UKURAN</h3>
+                      <div className="grid grid-cols-5 gap-2">
+                        {sizes.map((size) => (
+                          <button
+                            key={size}
+                            onClick={() => handleFilterChange('size', filters.size === size ? '' : size)}
+                            className={`py-2 text-sm border transition ${
+                              filters.size === size
+                                ? 'bg-black text-white border-black'
+                                : 'bg-white text-black border-gray-300'
+                            }`}
+                          >
+                            {size}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Price Range */}
+                    <div>
+                      <h3 className="font-semibold mb-3 text-sm uppercase">HARGA</h3>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          placeholder="Min"
+                          value={filters.minPrice}
+                          onChange={(e) => handleFilterChange('minPrice', e.target.value)}
+                          className="flex-1 px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Max"
+                          value={filters.maxPrice}
+                          onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
+                          className="flex-1 px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Fixed Bottom Buttons */}
+                  <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex gap-3">
                     <button
                       onClick={() => {
                         clearFilters();
                         setShowFilters(false);
                       }}
-                      className="w-full py-2 border border-red-600 text-red-600 font-semibold uppercase text-sm"
+                      className="flex-1 py-3 border border-gray-300 text-gray-700 font-semibold uppercase text-sm"
                     >
-                      HAPUS FILTER
+                      HAPUS
                     </button>
-
                     <button
                       onClick={() => setShowFilters(false)}
-                      className="w-full py-2 bg-black text-white font-semibold uppercase text-sm"
+                      className="flex-1 py-3 bg-black text-white font-semibold uppercase text-sm"
                     >
-                      TERAPKAN
+                      TERAPKAN ({pagination?.total || 0})
                     </button>
                   </div>
                 </div>
@@ -333,14 +440,14 @@ const Products = () => {
 
               {/* Products Grid/List */}
               {isLoading ? (
-                <div className="flex justify-center items-center py-20">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
+                <div className="flex justify-center items-center py-16 sm:py-20">
+                  <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-black"></div>
                 </div>
               ) : products && products.length > 0 ? (
                 <>
                   <div className={viewMode === 'grid' 
-                    ? 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6' 
-                    : 'space-y-6'
+                    ? 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6' 
+                    : 'space-y-4 sm:space-y-6'
                   }>
                     {products.map((product) => (
                       <ProductCard key={product.id} product={product} viewMode={viewMode} />
@@ -349,9 +456,22 @@ const Products = () => {
 
                   {/* Pagination */}
                   {pagination && pagination.totalPages > 1 && (
-                    <div className="mt-12 flex justify-center items-center gap-2">
+                    <div className="mt-8 sm:mt-12 flex justify-center items-center gap-1 sm:gap-2 flex-wrap">
                       {[...Array(pagination.totalPages)].map((_, index) => {
                         const page = index + 1;
+                        // Show limited pages on mobile
+                        const currentPage = pagination.currentPage;
+                        const showPage = page === 1 || 
+                          page === pagination.totalPages || 
+                          (page >= currentPage - 1 && page <= currentPage + 1);
+                        
+                        if (!showPage) {
+                          if (page === 2 || page === pagination.totalPages - 1) {
+                            return <span key={page} className="px-2">...</span>;
+                          }
+                          return null;
+                        }
+
                         return (
                           <button
                             key={page}
@@ -359,8 +479,9 @@ const Products = () => {
                               const params = new URLSearchParams(searchParams);
                               params.set('page', page);
                               setSearchParams(params);
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
-                            className={`px-4 py-2 border ${
+                            className={`min-w-[40px] px-3 sm:px-4 py-2 border text-sm ${
                               pagination.currentPage === page
                                 ? 'bg-black text-white border-black'
                                 : 'bg-white text-black border-gray-300 hover:border-black'
@@ -374,11 +495,11 @@ const Products = () => {
                   )}
                 </>
               ) : (
-                <div className="text-center py-20">
-                  <p className="text-gray-600 text-lg mb-4">Tidak ada produk ditemukan</p>
+                <div className="text-center py-16 sm:py-20">
+                  <p className="text-gray-600 text-base sm:text-lg mb-4">Tidak ada produk ditemukan</p>
                   <button
                     onClick={clearFilters}
-                    className="px-6 py-2 bg-black text-white font-semibold uppercase text-sm hover:bg-gray-800"
+                    className="px-6 py-2.5 bg-black text-white font-semibold uppercase text-sm hover:bg-gray-800"
                   >
                     HAPUS FILTER
                   </button>
@@ -398,8 +519,8 @@ const ProductCard = ({ product, viewMode }) => {
 
   if (viewMode === 'list') {
     return (
-      <Link to={`/products/${product.slug}`} className="bg-white flex gap-6 p-6 hover:shadow-lg transition">
-        <div className="w-48 h-64 flex-shrink-0 overflow-hidden bg-gray-100">
+      <Link to={`/products/${product.slug}`} className="bg-white flex gap-3 sm:gap-6 p-3 sm:p-6 hover:shadow-lg transition">
+        <div className="w-24 sm:w-48 h-32 sm:h-64 flex-shrink-0 overflow-hidden bg-gray-100">
           <img
             src={
               product.primary_image
@@ -410,21 +531,21 @@ const ProductCard = ({ product, viewMode }) => {
             className="w-full h-full object-cover"
           />
         </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
-          <p className="text-gray-600 text-sm mb-4 line-clamp-2">{product.description}</p>
-          <div className="flex items-center gap-3 mb-4">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-sm sm:text-lg mb-1 sm:mb-2 line-clamp-2">{product.name}</h3>
+          <p className="text-gray-600 text-xs sm:text-sm mb-2 sm:mb-4 line-clamp-2 hidden sm:block">{product.description}</p>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
             {product.discount_price ? (
               <>
-                <span className="font-bold text-xl text-red-600">
+                <span className="font-bold text-sm sm:text-xl text-red-600">
                   Rp {parseInt(product.discount_price).toLocaleString('id-ID')}
                 </span>
-                <span className="text-sm text-gray-500 line-through">
+                <span className="text-xs sm:text-sm text-gray-500 line-through">
                   Rp {parseInt(product.price || product.base_price).toLocaleString('id-ID')}
                 </span>
               </>
             ) : (
-              <span className="font-bold text-xl">
+              <span className="font-bold text-sm sm:text-xl">
                 Rp {parseInt(product.price || product.base_price || 0).toLocaleString('id-ID')}
               </span>
             )}
@@ -440,11 +561,11 @@ const ProductCard = ({ product, viewMode }) => {
   return (
     <Link
       to={`/products/${product.slug}`}
-      className="group bg-white"
+      className="group bg-white block"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="aspect-[3/4] overflow-hidden bg-gray-100 mb-3 relative">
+      <div className="aspect-[3/4] overflow-hidden bg-gray-100 mb-2 sm:mb-3 relative">
         <img
           src={
             product.primary_image
@@ -455,31 +576,31 @@ const ProductCard = ({ product, viewMode }) => {
           className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
         />
         {product.discount_price && (
-          <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 text-xs font-bold">
+          <div className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-red-600 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold">
             SALE
           </div>
         )}
         {isHovered && (
-          <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
-            <span className="bg-white px-6 py-2 font-bold uppercase text-sm">
+          <div className="hidden sm:flex absolute inset-0 bg-black/10 items-center justify-center">
+            <span className="bg-white px-4 sm:px-6 py-1.5 sm:py-2 font-bold uppercase text-xs sm:text-sm">
               LIHAT DETAIL
             </span>
           </div>
         )}
       </div>
-      <h3 className="font-semibold mb-1 group-hover:underline text-sm">{product.name}</h3>
-      <div className="flex items-center gap-2">
+      <h3 className="font-semibold mb-1 group-hover:underline text-xs sm:text-sm line-clamp-2">{product.name}</h3>
+      <div className="flex flex-wrap items-center gap-1 sm:gap-2">
         {product.discount_price ? (
           <>
-            <span className="font-bold text-red-600">
+            <span className="font-bold text-red-600 text-xs sm:text-base">
               Rp {parseInt(product.discount_price).toLocaleString('id-ID')}
             </span>
-            <span className="text-xs text-gray-500 line-through">
+            <span className="text-[10px] sm:text-xs text-gray-500 line-through">
               Rp {parseInt(product.price || product.base_price).toLocaleString('id-ID')}
             </span>
           </>
         ) : (
-          <span className="font-bold">
+          <span className="font-bold text-xs sm:text-base">
             Rp {parseInt(product.price || product.base_price || 0).toLocaleString('id-ID')}
           </span>
         )}
