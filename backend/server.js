@@ -32,6 +32,8 @@ const warehouseRoutes = require('./src/routes/warehouseRoutes');
 const stockRoutes = require('./src/routes/stockRoutes');
 const opnameRoutes = require('./src/routes/opnameRoutes');
 const roleRoutes = require('./src/routes/roleRoutes');
+const cityRoutes = require('./src/routes/cityRoutes');
+const shippingCostRoutes = require('./src/routes/shippingCostRoutes');
 
 // Import middleware
 const errorHandler = require('./src/middleware/errorHandler');
@@ -93,6 +95,8 @@ app.use('/api/warehouses', warehouseRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/opname', opnameRoutes);
 app.use('/api/roles', roleRoutes);
+app.use('/api/cities', cityRoutes);
+app.use('/api/shipping-costs', shippingCostRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

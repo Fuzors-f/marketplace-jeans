@@ -39,6 +39,7 @@ import AdminSizeChart from './pages/admin/SizeChart';
 import AdminWarehouses from './pages/admin/Warehouses';
 import AdminStockOpname from './pages/admin/StockOpname';
 import AdminRoles from './pages/admin/Roles';
+import AdminCityShipping from './pages/admin/CityShipping';
 
 // Components
 import PrivateRoute from './components/PrivateRoute';
@@ -90,6 +91,7 @@ function App() {
         <Route path="inventory" element={<AdminInventory />} />
         <Route path="warehouses" element={<AdminWarehouses />} />
         <Route path="stock/opname" element={<AdminStockOpname />} />
+        <Route path="city-shipping" element={<AdminCityShipping />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="roles" element={<AdminRoles />} />

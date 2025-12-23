@@ -629,6 +629,386 @@ INSERT INTO settings (setting_key, setting_value, setting_type, description, is_
 ('member_discount_rate', '5', 'number', 'Diskon member (%)', false);
 
 -- ================================================
+-- 18. CITIES (Master Data Kota Indonesia)
+-- ================================================
+
+-- DKI Jakarta
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Jakarta Pusat', 'DKI Jakarta', '10110', 'kota'),
+('Jakarta Utara', 'DKI Jakarta', '14120', 'kota'),
+('Jakarta Barat', 'DKI Jakarta', '11430', 'kota'),
+('Jakarta Selatan', 'DKI Jakarta', '12110', 'kota'),
+('Jakarta Timur', 'DKI Jakarta', '13210', 'kota'),
+('Kepulauan Seribu', 'DKI Jakarta', '14510', 'kabupaten');
+
+-- Jawa Barat
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Bandung', 'Jawa Barat', '40111', 'kota'),
+('Bandung Barat', 'Jawa Barat', '40551', 'kabupaten'),
+('Bekasi', 'Jawa Barat', '17112', 'kota'),
+('Bogor', 'Jawa Barat', '16111', 'kota'),
+('Cimahi', 'Jawa Barat', '40512', 'kota'),
+('Cirebon', 'Jawa Barat', '45111', 'kota'),
+('Depok', 'Jawa Barat', '16411', 'kota'),
+('Garut', 'Jawa Barat', '44112', 'kabupaten'),
+('Indramayu', 'Jawa Barat', '45212', 'kabupaten'),
+('Karawang', 'Jawa Barat', '41311', 'kabupaten'),
+('Sukabumi', 'Jawa Barat', '43111', 'kota'),
+('Subang', 'Jawa Barat', '41211', 'kabupaten'),
+('Tasikmalaya', 'Jawa Barat', '46111', 'kota');
+
+-- Jawa Tengah
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Semarang', 'Jawa Tengah', '50111', 'kota'),
+('Solo', 'Jawa Tengah', '57111', 'kota'),
+('Magelang', 'Jawa Tengah', '56111', 'kota'),
+('Pekalongan', 'Jawa Tengah', '51111', 'kota'),
+('Salatiga', 'Jawa Tengah', '50711', 'kota'),
+('Tegal', 'Jawa Tengah', '52111', 'kota'),
+('Kudus', 'Jawa Tengah', '59311', 'kabupaten'),
+('Purwokerto', 'Jawa Tengah', '53111', 'kabupaten'),
+('Klaten', 'Jawa Tengah', '57411', 'kabupaten');
+
+-- Jawa Timur
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Surabaya', 'Jawa Timur', '60111', 'kota'),
+('Malang', 'Jawa Timur', '65111', 'kota'),
+('Sidoarjo', 'Jawa Timur', '61211', 'kabupaten'),
+('Kediri', 'Jawa Timur', '64111', 'kota'),
+('Madiun', 'Jawa Timur', '63111', 'kota'),
+('Mojokerto', 'Jawa Timur', '61311', 'kota'),
+('Pasuruan', 'Jawa Timur', '67111', 'kota'),
+('Probolinggo', 'Jawa Timur', '67211', 'kota'),
+('Banyuwangi', 'Jawa Timur', '68411', 'kabupaten'),
+('Jember', 'Jawa Timur', '68111', 'kabupaten'),
+('Gresik', 'Jawa Timur', '61111', 'kabupaten');
+
+-- DI Yogyakarta
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Yogyakarta', 'DI Yogyakarta', '55111', 'kota'),
+('Sleman', 'DI Yogyakarta', '55511', 'kabupaten'),
+('Bantul', 'DI Yogyakarta', '55711', 'kabupaten'),
+('Gunungkidul', 'DI Yogyakarta', '55811', 'kabupaten'),
+('Kulon Progo', 'DI Yogyakarta', '55611', 'kabupaten');
+
+-- Banten
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Tangerang', 'Banten', '15111', 'kota'),
+('Tangerang Selatan', 'Banten', '15310', 'kota'),
+('Serang', 'Banten', '42111', 'kota'),
+('Cilegon', 'Banten', '42411', 'kota'),
+('Pandeglang', 'Banten', '42211', 'kabupaten'),
+('Lebak', 'Banten', '42311', 'kabupaten');
+
+-- Bali
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Denpasar', 'Bali', '80111', 'kota'),
+('Badung', 'Bali', '80351', 'kabupaten'),
+('Gianyar', 'Bali', '80511', 'kabupaten'),
+('Tabanan', 'Bali', '82111', 'kabupaten'),
+('Buleleng', 'Bali', '81111', 'kabupaten'),
+('Karangasem', 'Bali', '80811', 'kabupaten');
+
+-- Sumatera Utara
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Medan', 'Sumatera Utara', '20111', 'kota'),
+('Binjai', 'Sumatera Utara', '20711', 'kota'),
+('Pematangsiantar', 'Sumatera Utara', '21111', 'kota'),
+('Tebing Tinggi', 'Sumatera Utara', '20611', 'kota'),
+('Deli Serdang', 'Sumatera Utara', '20511', 'kabupaten');
+
+-- Sumatera Barat
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Padang', 'Sumatera Barat', '25111', 'kota'),
+('Bukittinggi', 'Sumatera Barat', '26111', 'kota'),
+('Payakumbuh', 'Sumatera Barat', '26211', 'kota');
+
+-- Sumatera Selatan
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Palembang', 'Sumatera Selatan', '30111', 'kota'),
+('Prabumulih', 'Sumatera Selatan', '31111', 'kota'),
+('Lubuklinggau', 'Sumatera Selatan', '31611', 'kota');
+
+-- Lampung
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Bandar Lampung', 'Lampung', '35111', 'kota'),
+('Metro', 'Lampung', '34111', 'kota');
+
+-- Kalimantan
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Pontianak', 'Kalimantan Barat', '78111', 'kota'),
+('Banjarmasin', 'Kalimantan Selatan', '70111', 'kota'),
+('Balikpapan', 'Kalimantan Timur', '76111', 'kota'),
+('Samarinda', 'Kalimantan Timur', '75111', 'kota'),
+('Palangkaraya', 'Kalimantan Tengah', '73111', 'kota');
+
+-- Sulawesi
+INSERT INTO cities (name, province, postal_code, city_type) VALUES
+('Makassar', 'Sulawesi Selatan', '90111', 'kota'),
+('Manado', 'Sulawesi Utara', '95111', 'kota'),
+('Kendari', 'Sulawesi Tenggara', '93111', 'kota'),
+('Palu', 'Sulawesi Tengah', '94111', 'kota');
+
+-- ================================================
+-- 19. SHIPPING COSTS (Ongkos Kirim)
+-- ================================================
+
+-- Shipping costs from Jakarta Warehouse (ID: 1)
+-- DKI Jakarta (same city, cheapest)
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Jakarta Pusat (ID: 1)
+(1, 1, 'JNE', 'REG', 9000, 5000, 1, 2),
+(1, 1, 'JNE', 'YES', 15000, 8000, 1, 1),
+(1, 1, 'J&T', 'Regular', 9000, 5000, 1, 2),
+(1, 1, 'SiCepat', 'REG', 8000, 4500, 1, 2),
+(1, 1, 'SiCepat', 'BEST', 12000, 6000, 1, 1),
+-- Jakarta Utara (ID: 2)
+(2, 1, 'JNE', 'REG', 9000, 5000, 1, 2),
+(2, 1, 'JNE', 'YES', 15000, 8000, 1, 1),
+(2, 1, 'J&T', 'Regular', 9000, 5000, 1, 2),
+-- Jakarta Barat (ID: 3)
+(3, 1, 'JNE', 'REG', 9000, 5000, 1, 2),
+(3, 1, 'JNE', 'YES', 15000, 8000, 1, 1),
+(3, 1, 'J&T', 'Regular', 9000, 5000, 1, 2),
+-- Jakarta Selatan (ID: 4)
+(4, 1, 'JNE', 'REG', 9000, 5000, 1, 2),
+(4, 1, 'JNE', 'YES', 15000, 8000, 1, 1),
+(4, 1, 'J&T', 'Regular', 9000, 5000, 1, 2),
+(4, 1, 'SiCepat', 'REG', 8000, 4500, 1, 2),
+-- Jakarta Timur (ID: 5)
+(5, 1, 'JNE', 'REG', 9000, 5000, 1, 2),
+(5, 1, 'JNE', 'YES', 15000, 8000, 1, 1),
+(5, 1, 'J&T', 'Regular', 9000, 5000, 1, 2),
+-- Kepulauan Seribu (ID: 6)
+(6, 1, 'JNE', 'REG', 25000, 15000, 3, 5),
+(6, 1, 'J&T', 'Regular', 28000, 16000, 3, 5);
+
+-- Jawa Barat
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Bandung (ID: 7)
+(7, 1, 'JNE', 'REG', 15000, 8000, 2, 3),
+(7, 1, 'JNE', 'YES', 25000, 12000, 1, 1),
+(7, 1, 'J&T', 'Regular', 14000, 7500, 2, 3),
+(7, 1, 'SiCepat', 'REG', 13000, 7000, 2, 3),
+-- Bandung Barat (ID: 8)
+(8, 1, 'JNE', 'REG', 17000, 9000, 2, 4),
+(8, 1, 'J&T', 'Regular', 16000, 8500, 2, 4),
+-- Bekasi (ID: 9)
+(9, 1, 'JNE', 'REG', 10000, 5500, 1, 2),
+(9, 1, 'JNE', 'YES', 18000, 9000, 1, 1),
+(9, 1, 'J&T', 'Regular', 10000, 5500, 1, 2),
+(9, 1, 'SiCepat', 'REG', 9000, 5000, 1, 2),
+-- Bogor (ID: 10)
+(10, 1, 'JNE', 'REG', 12000, 6000, 1, 2),
+(10, 1, 'JNE', 'YES', 20000, 10000, 1, 1),
+(10, 1, 'J&T', 'Regular', 11000, 5800, 1, 2),
+-- Cimahi (ID: 11)
+(11, 1, 'JNE', 'REG', 16000, 8500, 2, 3),
+(11, 1, 'J&T', 'Regular', 15000, 8000, 2, 3),
+-- Cirebon (ID: 12)
+(12, 1, 'JNE', 'REG', 18000, 9000, 2, 3),
+(12, 1, 'J&T', 'Regular', 17000, 8500, 2, 3),
+-- Depok (ID: 13)
+(13, 1, 'JNE', 'REG', 10000, 5500, 1, 2),
+(13, 1, 'JNE', 'YES', 18000, 9000, 1, 1),
+(13, 1, 'J&T', 'Regular', 10000, 5500, 1, 2),
+(13, 1, 'SiCepat', 'REG', 9000, 5000, 1, 2),
+-- Garut (ID: 14)
+(14, 1, 'JNE', 'REG', 20000, 10000, 3, 4),
+(14, 1, 'J&T', 'Regular', 19000, 9500, 3, 4),
+-- Karawang (ID: 16)
+(16, 1, 'JNE', 'REG', 14000, 7000, 2, 3),
+(16, 1, 'J&T', 'Regular', 13000, 6500, 2, 3),
+-- Sukabumi (ID: 17)
+(17, 1, 'JNE', 'REG', 18000, 9000, 2, 3),
+(17, 1, 'J&T', 'Regular', 17000, 8500, 2, 3),
+-- Tasikmalaya (ID: 19)
+(19, 1, 'JNE', 'REG', 22000, 11000, 3, 4),
+(19, 1, 'J&T', 'Regular', 21000, 10500, 3, 4);
+
+-- Jawa Tengah
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Semarang (ID: 20)
+(20, 1, 'JNE', 'REG', 22000, 11000, 2, 4),
+(20, 1, 'JNE', 'YES', 35000, 18000, 1, 2),
+(20, 1, 'J&T', 'Regular', 21000, 10500, 2, 4),
+(20, 1, 'SiCepat', 'REG', 20000, 10000, 2, 4),
+-- Solo (ID: 21)
+(21, 1, 'JNE', 'REG', 24000, 12000, 3, 4),
+(21, 1, 'JNE', 'YES', 38000, 19000, 1, 2),
+(21, 1, 'J&T', 'Regular', 23000, 11500, 3, 4),
+-- Magelang (ID: 22)
+(22, 1, 'JNE', 'REG', 25000, 12500, 3, 4),
+(22, 1, 'J&T', 'Regular', 24000, 12000, 3, 4),
+-- Pekalongan (ID: 23)
+(23, 1, 'JNE', 'REG', 23000, 11500, 3, 4),
+(23, 1, 'J&T', 'Regular', 22000, 11000, 3, 4),
+-- Purwokerto (ID: 27)
+(27, 1, 'JNE', 'REG', 26000, 13000, 3, 5),
+(27, 1, 'J&T', 'Regular', 25000, 12500, 3, 5);
+
+-- Jawa Timur
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Surabaya (ID: 29)
+(29, 1, 'JNE', 'REG', 25000, 12500, 3, 4),
+(29, 1, 'JNE', 'YES', 40000, 20000, 1, 2),
+(29, 1, 'J&T', 'Regular', 24000, 12000, 3, 4),
+(29, 1, 'SiCepat', 'REG', 23000, 11500, 3, 4),
+-- Malang (ID: 30)
+(30, 1, 'JNE', 'REG', 28000, 14000, 3, 5),
+(30, 1, 'JNE', 'YES', 45000, 22000, 1, 2),
+(30, 1, 'J&T', 'Regular', 27000, 13500, 3, 5),
+-- Sidoarjo (ID: 31)
+(31, 1, 'JNE', 'REG', 26000, 13000, 3, 4),
+(31, 1, 'J&T', 'Regular', 25000, 12500, 3, 4),
+-- Kediri (ID: 32)
+(32, 1, 'JNE', 'REG', 30000, 15000, 4, 5),
+(32, 1, 'J&T', 'Regular', 29000, 14500, 4, 5),
+-- Banyuwangi (ID: 37)
+(37, 1, 'JNE', 'REG', 38000, 19000, 4, 6),
+(37, 1, 'J&T', 'Regular', 36000, 18000, 4, 6),
+-- Jember (ID: 38)
+(38, 1, 'JNE', 'REG', 35000, 17500, 4, 5),
+(38, 1, 'J&T', 'Regular', 33000, 16500, 4, 5);
+
+-- DI Yogyakarta
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Yogyakarta (ID: 40)
+(40, 1, 'JNE', 'REG', 23000, 11500, 2, 4),
+(40, 1, 'JNE', 'YES', 38000, 19000, 1, 2),
+(40, 1, 'J&T', 'Regular', 22000, 11000, 2, 4),
+(40, 1, 'SiCepat', 'REG', 21000, 10500, 2, 4),
+-- Sleman (ID: 41)
+(41, 1, 'JNE', 'REG', 24000, 12000, 2, 4),
+(41, 1, 'J&T', 'Regular', 23000, 11500, 2, 4),
+-- Bantul (ID: 42)
+(42, 1, 'JNE', 'REG', 25000, 12500, 3, 4),
+(42, 1, 'J&T', 'Regular', 24000, 12000, 3, 4);
+
+-- Banten
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Tangerang (ID: 45)
+(45, 1, 'JNE', 'REG', 10000, 5500, 1, 2),
+(45, 1, 'JNE', 'YES', 18000, 9000, 1, 1),
+(45, 1, 'J&T', 'Regular', 10000, 5500, 1, 2),
+(45, 1, 'SiCepat', 'REG', 9000, 5000, 1, 2),
+-- Tangerang Selatan (ID: 46)
+(46, 1, 'JNE', 'REG', 10000, 5500, 1, 2),
+(46, 1, 'JNE', 'YES', 18000, 9000, 1, 1),
+(46, 1, 'J&T', 'Regular', 10000, 5500, 1, 2),
+-- Serang (ID: 47)
+(47, 1, 'JNE', 'REG', 15000, 7500, 2, 3),
+(47, 1, 'J&T', 'Regular', 14000, 7000, 2, 3),
+-- Cilegon (ID: 48)
+(48, 1, 'JNE', 'REG', 18000, 9000, 2, 3),
+(48, 1, 'J&T', 'Regular', 17000, 8500, 2, 3);
+
+-- Bali
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Denpasar (ID: 51)
+(51, 1, 'JNE', 'REG', 35000, 17500, 4, 5),
+(51, 1, 'JNE', 'YES', 55000, 27000, 2, 3),
+(51, 1, 'J&T', 'Regular', 33000, 16500, 4, 5),
+(51, 1, 'SiCepat', 'REG', 32000, 16000, 4, 5),
+-- Badung (ID: 52)
+(52, 1, 'JNE', 'REG', 36000, 18000, 4, 5),
+(52, 1, 'J&T', 'Regular', 34000, 17000, 4, 5),
+-- Gianyar (ID: 53)
+(53, 1, 'JNE', 'REG', 38000, 19000, 4, 6),
+(53, 1, 'J&T', 'Regular', 36000, 18000, 4, 6);
+
+-- Sumatera Utara
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Medan (ID: 57)
+(57, 1, 'JNE', 'REG', 45000, 22000, 5, 7),
+(57, 1, 'JNE', 'YES', 70000, 35000, 2, 3),
+(57, 1, 'J&T', 'Regular', 43000, 21000, 5, 7),
+(57, 1, 'SiCepat', 'REG', 42000, 21000, 5, 7);
+
+-- Sumatera Barat
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Padang (ID: 62)
+(62, 1, 'JNE', 'REG', 48000, 24000, 5, 7),
+(62, 1, 'J&T', 'Regular', 46000, 23000, 5, 7);
+
+-- Sumatera Selatan
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Palembang (ID: 65)
+(65, 1, 'JNE', 'REG', 40000, 20000, 4, 6),
+(65, 1, 'JNE', 'YES', 65000, 32000, 2, 3),
+(65, 1, 'J&T', 'Regular', 38000, 19000, 4, 6);
+
+-- Lampung
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Bandar Lampung (ID: 68)
+(68, 1, 'JNE', 'REG', 35000, 17500, 3, 5),
+(68, 1, 'J&T', 'Regular', 33000, 16500, 3, 5);
+
+-- Kalimantan
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Pontianak (ID: 70)
+(70, 1, 'JNE', 'REG', 55000, 27000, 5, 7),
+(70, 1, 'J&T', 'Regular', 52000, 26000, 5, 7),
+-- Banjarmasin (ID: 71)
+(71, 1, 'JNE', 'REG', 50000, 25000, 5, 7),
+(71, 1, 'J&T', 'Regular', 48000, 24000, 5, 7),
+-- Balikpapan (ID: 72)
+(72, 1, 'JNE', 'REG', 55000, 27000, 5, 7),
+(72, 1, 'JNE', 'YES', 85000, 42000, 2, 3),
+(72, 1, 'J&T', 'Regular', 52000, 26000, 5, 7),
+-- Samarinda (ID: 73)
+(73, 1, 'JNE', 'REG', 58000, 29000, 5, 7),
+(73, 1, 'J&T', 'Regular', 55000, 27000, 5, 7);
+
+-- Sulawesi
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Makassar (ID: 75)
+(75, 1, 'JNE', 'REG', 50000, 25000, 5, 7),
+(75, 1, 'JNE', 'YES', 80000, 40000, 2, 3),
+(75, 1, 'J&T', 'Regular', 48000, 24000, 5, 7),
+-- Manado (ID: 76)
+(76, 1, 'JNE', 'REG', 65000, 32000, 6, 8),
+(76, 1, 'J&T', 'Regular', 62000, 31000, 6, 8);
+
+-- Shipping costs from Bandung Warehouse (ID: 2)
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Bandung (ID: 7) - same city
+(7, 2, 'JNE', 'REG', 8000, 4000, 1, 1),
+(7, 2, 'J&T', 'Regular', 8000, 4000, 1, 1),
+(7, 2, 'SiCepat', 'REG', 7000, 3500, 1, 1),
+-- Jakarta Selatan (ID: 4)
+(4, 2, 'JNE', 'REG', 15000, 7500, 2, 3),
+(4, 2, 'J&T', 'Regular', 14000, 7000, 2, 3),
+-- Tasikmalaya (ID: 19)
+(19, 2, 'JNE', 'REG', 12000, 6000, 1, 2),
+(19, 2, 'J&T', 'Regular', 11000, 5500, 1, 2),
+-- Garut (ID: 14)
+(14, 2, 'JNE', 'REG', 10000, 5000, 1, 2),
+(14, 2, 'J&T', 'Regular', 9000, 4500, 1, 2);
+
+-- Shipping costs from Surabaya Warehouse (ID: 3)
+INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) VALUES
+-- Surabaya (ID: 29) - same city
+(29, 3, 'JNE', 'REG', 8000, 4000, 1, 1),
+(29, 3, 'J&T', 'Regular', 8000, 4000, 1, 1),
+(29, 3, 'SiCepat', 'REG', 7000, 3500, 1, 1),
+-- Malang (ID: 30)
+(30, 3, 'JNE', 'REG', 12000, 6000, 1, 2),
+(30, 3, 'J&T', 'Regular', 11000, 5500, 1, 2),
+-- Sidoarjo (ID: 31)
+(31, 3, 'JNE', 'REG', 9000, 4500, 1, 1),
+(31, 3, 'J&T', 'Regular', 9000, 4500, 1, 1),
+-- Banyuwangi (ID: 37)
+(37, 3, 'JNE', 'REG', 18000, 9000, 2, 3),
+(37, 3, 'J&T', 'Regular', 17000, 8500, 2, 3),
+-- Kediri (ID: 32)
+(32, 3, 'JNE', 'REG', 14000, 7000, 1, 2),
+(32, 3, 'J&T', 'Regular', 13000, 6500, 1, 2),
+-- Denpasar (ID: 51)
+(51, 3, 'JNE', 'REG', 25000, 12500, 2, 3),
+(51, 3, 'J&T', 'Regular', 24000, 12000, 2, 3);
+
+-- ================================================
 -- END OF SEEDER
 -- ================================================
 

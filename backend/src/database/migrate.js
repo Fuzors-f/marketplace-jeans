@@ -560,6 +560,45 @@ const migrations = [
     UNIQUE KEY unique_user_role (user_id, role_id),
     INDEX idx_user (user_id),
     INDEX idx_role (role_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 30. Cities table (Master Data Kota)
+  `CREATE TABLE IF NOT EXISTS cities (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    province VARCHAR(100) NOT NULL,
+    postal_code VARCHAR(10),
+    city_type ENUM('kota', 'kabupaten') DEFAULT 'kota',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_city_province (name, province),
+    INDEX idx_name (name),
+    INDEX idx_province (province),
+    INDEX idx_active (is_active)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 31. Shipping costs table (Ongkos Kirim per Kota)
+  `CREATE TABLE IF NOT EXISTS shipping_costs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    city_id INT NOT NULL,
+    warehouse_id INT,
+    courier VARCHAR(50) NOT NULL,
+    service VARCHAR(50),
+    cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+    cost_per_kg DECIMAL(12,2) DEFAULT 0,
+    estimated_days_min INT DEFAULT 1,
+    estimated_days_max INT DEFAULT 3,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (city_id) REFERENCES cities(id) ON DELETE CASCADE,
+    FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_shipping (city_id, warehouse_id, courier, service),
+    INDEX idx_city (city_id),
+    INDEX idx_warehouse (warehouse_id),
+    INDEX idx_courier (courier),
+    INDEX idx_active (is_active)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`
 ];
 

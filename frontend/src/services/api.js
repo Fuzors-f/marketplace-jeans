@@ -159,4 +159,35 @@ export const userAPI = {
   deleteAddress: (id) => apiClient.delete(`/users/addresses/${id}`)
 };
 
+// =====================================
+// CITIES API
+// =====================================
+
+export const cityAPI = {
+  getAll: (params) => apiClient.get('/cities', { params }),
+  getById: (id) => apiClient.get(`/cities/${id}`),
+  getProvinces: () => apiClient.get('/cities/provinces'),
+  getByProvince: (province) => apiClient.get(`/cities/province/${province}`),
+  create: (data) => apiClient.post('/cities', data),
+  update: (id, data) => apiClient.put(`/cities/${id}`, data),
+  delete: (id) => apiClient.delete(`/cities/${id}`),
+  bulkCreate: (data) => apiClient.post('/cities/bulk', data)
+};
+
+// =====================================
+// SHIPPING COSTS API
+// =====================================
+
+export const shippingCostAPI = {
+  getAll: (params) => apiClient.get('/shipping-costs', { params }),
+  getById: (id) => apiClient.get(`/shipping-costs/${id}`),
+  calculate: (data) => apiClient.post('/shipping-costs/calculate', data),
+  getCouriers: () => apiClient.get('/shipping-costs/couriers'),
+  search: (params) => apiClient.get('/shipping-costs/search', { params }),
+  create: (data) => apiClient.post('/shipping-costs', data),
+  update: (id, data) => apiClient.put(`/shipping-costs/${id}`, data),
+  delete: (id) => apiClient.delete(`/shipping-costs/${id}`),
+  bulkCreate: (data) => apiClient.post('/shipping-costs/bulk', data)
+};
+
 export default apiClient;

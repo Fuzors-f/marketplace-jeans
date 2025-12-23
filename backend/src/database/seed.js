@@ -184,6 +184,192 @@ async function seedDatabase() {
     }
     console.log('✅ Settings created');
 
+    // 9. Create warehouses
+    const warehouses = [
+      ['Jakarta Warehouse', 'JKT', 'Jakarta Selatan', 'Jl. Sudirman No. 123', 'Jakarta Selatan', 'DKI Jakarta', '021-5551234', 'wh-jakarta@jeans.com', true],
+      ['Bandung Warehouse', 'BDG', 'Bandung', 'Jl. Braga No. 88', 'Bandung', 'Jawa Barat', '022-4561234', 'wh-bandung@jeans.com', false],
+      ['Surabaya Warehouse', 'SBY', 'Surabaya', 'Jl. Tunjungan No. 45', 'Surabaya', 'Jawa Timur', '031-7891234', 'wh-surabaya@jeans.com', false]
+    ];
+
+    for (const wh of warehouses) {
+      await query(
+        `INSERT INTO warehouses (name, code, location, address, city, province, phone, email, is_main) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE id=id`,
+        wh
+      );
+    }
+    console.log('✅ Warehouses created');
+
+    // 10. Create cities
+    const cities = [
+      // DKI Jakarta
+      ['Jakarta Pusat', 'DKI Jakarta', '10110', 'kota'],
+      ['Jakarta Utara', 'DKI Jakarta', '14120', 'kota'],
+      ['Jakarta Barat', 'DKI Jakarta', '11430', 'kota'],
+      ['Jakarta Selatan', 'DKI Jakarta', '12110', 'kota'],
+      ['Jakarta Timur', 'DKI Jakarta', '13210', 'kota'],
+      // Jawa Barat
+      ['Bandung', 'Jawa Barat', '40111', 'kota'],
+      ['Bekasi', 'Jawa Barat', '17112', 'kota'],
+      ['Bogor', 'Jawa Barat', '16111', 'kota'],
+      ['Depok', 'Jawa Barat', '16411', 'kota'],
+      ['Cirebon', 'Jawa Barat', '45111', 'kota'],
+      ['Karawang', 'Jawa Barat', '41311', 'kabupaten'],
+      ['Tasikmalaya', 'Jawa Barat', '46111', 'kota'],
+      ['Garut', 'Jawa Barat', '44112', 'kabupaten'],
+      // Jawa Tengah
+      ['Semarang', 'Jawa Tengah', '50111', 'kota'],
+      ['Solo', 'Jawa Tengah', '57111', 'kota'],
+      ['Magelang', 'Jawa Tengah', '56111', 'kota'],
+      ['Pekalongan', 'Jawa Tengah', '51111', 'kota'],
+      ['Purwokerto', 'Jawa Tengah', '53111', 'kabupaten'],
+      // Jawa Timur
+      ['Surabaya', 'Jawa Timur', '60111', 'kota'],
+      ['Malang', 'Jawa Timur', '65111', 'kota'],
+      ['Sidoarjo', 'Jawa Timur', '61211', 'kabupaten'],
+      ['Kediri', 'Jawa Timur', '64111', 'kota'],
+      ['Banyuwangi', 'Jawa Timur', '68411', 'kabupaten'],
+      // DI Yogyakarta
+      ['Yogyakarta', 'DI Yogyakarta', '55111', 'kota'],
+      ['Sleman', 'DI Yogyakarta', '55511', 'kabupaten'],
+      ['Bantul', 'DI Yogyakarta', '55711', 'kabupaten'],
+      // Banten
+      ['Tangerang', 'Banten', '15111', 'kota'],
+      ['Tangerang Selatan', 'Banten', '15310', 'kota'],
+      ['Serang', 'Banten', '42111', 'kota'],
+      // Bali
+      ['Denpasar', 'Bali', '80111', 'kota'],
+      ['Badung', 'Bali', '80351', 'kabupaten'],
+      // Sumatera
+      ['Medan', 'Sumatera Utara', '20111', 'kota'],
+      ['Padang', 'Sumatera Barat', '25111', 'kota'],
+      ['Palembang', 'Sumatera Selatan', '30111', 'kota'],
+      ['Bandar Lampung', 'Lampung', '35111', 'kota'],
+      // Kalimantan
+      ['Pontianak', 'Kalimantan Barat', '78111', 'kota'],
+      ['Banjarmasin', 'Kalimantan Selatan', '70111', 'kota'],
+      ['Balikpapan', 'Kalimantan Timur', '76111', 'kota'],
+      ['Samarinda', 'Kalimantan Timur', '75111', 'kota'],
+      // Sulawesi
+      ['Makassar', 'Sulawesi Selatan', '90111', 'kota'],
+      ['Manado', 'Sulawesi Utara', '95111', 'kota']
+    ];
+
+    for (const city of cities) {
+      await query(
+        `INSERT INTO cities (name, province, postal_code, city_type) 
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE id=id`,
+        city
+      );
+    }
+    console.log('✅ Cities created');
+
+    // 11. Create shipping costs (from Jakarta Warehouse ID: 1)
+    // Get city IDs first
+    const cityList = await query('SELECT id, name, province FROM cities ORDER BY id');
+    const cityMap = {};
+    for (const c of cityList) {
+      cityMap[`${c.name}-${c.province}`] = c.id;
+    }
+
+    const shippingCosts = [
+      // Jakarta cities (same area, cheap shipping)
+      { city: 'Jakarta Pusat-DKI Jakarta', warehouse: 1, courier: 'JNE', service: 'REG', cost: 9000, costPerKg: 5000, minDays: 1, maxDays: 2 },
+      { city: 'Jakarta Pusat-DKI Jakarta', warehouse: 1, courier: 'JNE', service: 'YES', cost: 15000, costPerKg: 8000, minDays: 1, maxDays: 1 },
+      { city: 'Jakarta Pusat-DKI Jakarta', warehouse: 1, courier: 'J&T', service: 'Regular', cost: 9000, costPerKg: 5000, minDays: 1, maxDays: 2 },
+      { city: 'Jakarta Selatan-DKI Jakarta', warehouse: 1, courier: 'JNE', service: 'REG', cost: 9000, costPerKg: 5000, minDays: 1, maxDays: 2 },
+      { city: 'Jakarta Selatan-DKI Jakarta', warehouse: 1, courier: 'JNE', service: 'YES', cost: 15000, costPerKg: 8000, minDays: 1, maxDays: 1 },
+      { city: 'Jakarta Selatan-DKI Jakarta', warehouse: 1, courier: 'J&T', service: 'Regular', cost: 9000, costPerKg: 5000, minDays: 1, maxDays: 2 },
+      { city: 'Jakarta Barat-DKI Jakarta', warehouse: 1, courier: 'JNE', service: 'REG', cost: 9000, costPerKg: 5000, minDays: 1, maxDays: 2 },
+      { city: 'Jakarta Timur-DKI Jakarta', warehouse: 1, courier: 'JNE', service: 'REG', cost: 9000, costPerKg: 5000, minDays: 1, maxDays: 2 },
+      { city: 'Jakarta Utara-DKI Jakarta', warehouse: 1, courier: 'JNE', service: 'REG', cost: 9000, costPerKg: 5000, minDays: 1, maxDays: 2 },
+      
+      // Jawa Barat
+      { city: 'Bandung-Jawa Barat', warehouse: 1, courier: 'JNE', service: 'REG', cost: 15000, costPerKg: 8000, minDays: 2, maxDays: 3 },
+      { city: 'Bandung-Jawa Barat', warehouse: 1, courier: 'JNE', service: 'YES', cost: 25000, costPerKg: 12000, minDays: 1, maxDays: 1 },
+      { city: 'Bandung-Jawa Barat', warehouse: 1, courier: 'J&T', service: 'Regular', cost: 14000, costPerKg: 7500, minDays: 2, maxDays: 3 },
+      { city: 'Bekasi-Jawa Barat', warehouse: 1, courier: 'JNE', service: 'REG', cost: 10000, costPerKg: 5500, minDays: 1, maxDays: 2 },
+      { city: 'Bekasi-Jawa Barat', warehouse: 1, courier: 'J&T', service: 'Regular', cost: 10000, costPerKg: 5500, minDays: 1, maxDays: 2 },
+      { city: 'Bogor-Jawa Barat', warehouse: 1, courier: 'JNE', service: 'REG', cost: 12000, costPerKg: 6000, minDays: 1, maxDays: 2 },
+      { city: 'Depok-Jawa Barat', warehouse: 1, courier: 'JNE', service: 'REG', cost: 10000, costPerKg: 5500, minDays: 1, maxDays: 2 },
+      { city: 'Cirebon-Jawa Barat', warehouse: 1, courier: 'JNE', service: 'REG', cost: 18000, costPerKg: 9000, minDays: 2, maxDays: 3 },
+      { city: 'Tasikmalaya-Jawa Barat', warehouse: 1, courier: 'JNE', service: 'REG', cost: 22000, costPerKg: 11000, minDays: 3, maxDays: 4 },
+      { city: 'Garut-Jawa Barat', warehouse: 1, courier: 'JNE', service: 'REG', cost: 20000, costPerKg: 10000, minDays: 3, maxDays: 4 },
+
+      // Jawa Tengah
+      { city: 'Semarang-Jawa Tengah', warehouse: 1, courier: 'JNE', service: 'REG', cost: 22000, costPerKg: 11000, minDays: 2, maxDays: 4 },
+      { city: 'Semarang-Jawa Tengah', warehouse: 1, courier: 'JNE', service: 'YES', cost: 35000, costPerKg: 18000, minDays: 1, maxDays: 2 },
+      { city: 'Semarang-Jawa Tengah', warehouse: 1, courier: 'J&T', service: 'Regular', cost: 21000, costPerKg: 10500, minDays: 2, maxDays: 4 },
+      { city: 'Solo-Jawa Tengah', warehouse: 1, courier: 'JNE', service: 'REG', cost: 24000, costPerKg: 12000, minDays: 3, maxDays: 4 },
+      { city: 'Magelang-Jawa Tengah', warehouse: 1, courier: 'JNE', service: 'REG', cost: 25000, costPerKg: 12500, minDays: 3, maxDays: 4 },
+
+      // Jawa Timur
+      { city: 'Surabaya-Jawa Timur', warehouse: 1, courier: 'JNE', service: 'REG', cost: 25000, costPerKg: 12500, minDays: 3, maxDays: 4 },
+      { city: 'Surabaya-Jawa Timur', warehouse: 1, courier: 'JNE', service: 'YES', cost: 40000, costPerKg: 20000, minDays: 1, maxDays: 2 },
+      { city: 'Surabaya-Jawa Timur', warehouse: 1, courier: 'J&T', service: 'Regular', cost: 24000, costPerKg: 12000, minDays: 3, maxDays: 4 },
+      { city: 'Malang-Jawa Timur', warehouse: 1, courier: 'JNE', service: 'REG', cost: 28000, costPerKg: 14000, minDays: 3, maxDays: 5 },
+      { city: 'Sidoarjo-Jawa Timur', warehouse: 1, courier: 'JNE', service: 'REG', cost: 26000, costPerKg: 13000, minDays: 3, maxDays: 4 },
+
+      // Yogyakarta
+      { city: 'Yogyakarta-DI Yogyakarta', warehouse: 1, courier: 'JNE', service: 'REG', cost: 23000, costPerKg: 11500, minDays: 2, maxDays: 4 },
+      { city: 'Yogyakarta-DI Yogyakarta', warehouse: 1, courier: 'JNE', service: 'YES', cost: 38000, costPerKg: 19000, minDays: 1, maxDays: 2 },
+      { city: 'Sleman-DI Yogyakarta', warehouse: 1, courier: 'JNE', service: 'REG', cost: 24000, costPerKg: 12000, minDays: 2, maxDays: 4 },
+
+      // Banten
+      { city: 'Tangerang-Banten', warehouse: 1, courier: 'JNE', service: 'REG', cost: 10000, costPerKg: 5500, minDays: 1, maxDays: 2 },
+      { city: 'Tangerang-Banten', warehouse: 1, courier: 'JNE', service: 'YES', cost: 18000, costPerKg: 9000, minDays: 1, maxDays: 1 },
+      { city: 'Tangerang Selatan-Banten', warehouse: 1, courier: 'JNE', service: 'REG', cost: 10000, costPerKg: 5500, minDays: 1, maxDays: 2 },
+      { city: 'Serang-Banten', warehouse: 1, courier: 'JNE', service: 'REG', cost: 15000, costPerKg: 7500, minDays: 2, maxDays: 3 },
+
+      // Bali
+      { city: 'Denpasar-Bali', warehouse: 1, courier: 'JNE', service: 'REG', cost: 35000, costPerKg: 17500, minDays: 4, maxDays: 5 },
+      { city: 'Denpasar-Bali', warehouse: 1, courier: 'JNE', service: 'YES', cost: 55000, costPerKg: 27000, minDays: 2, maxDays: 3 },
+      { city: 'Badung-Bali', warehouse: 1, courier: 'JNE', service: 'REG', cost: 36000, costPerKg: 18000, minDays: 4, maxDays: 5 },
+
+      // Sumatera
+      { city: 'Medan-Sumatera Utara', warehouse: 1, courier: 'JNE', service: 'REG', cost: 45000, costPerKg: 22000, minDays: 5, maxDays: 7 },
+      { city: 'Padang-Sumatera Barat', warehouse: 1, courier: 'JNE', service: 'REG', cost: 48000, costPerKg: 24000, minDays: 5, maxDays: 7 },
+      { city: 'Palembang-Sumatera Selatan', warehouse: 1, courier: 'JNE', service: 'REG', cost: 40000, costPerKg: 20000, minDays: 4, maxDays: 6 },
+      { city: 'Bandar Lampung-Lampung', warehouse: 1, courier: 'JNE', service: 'REG', cost: 35000, costPerKg: 17500, minDays: 3, maxDays: 5 },
+
+      // Kalimantan
+      { city: 'Pontianak-Kalimantan Barat', warehouse: 1, courier: 'JNE', service: 'REG', cost: 55000, costPerKg: 27000, minDays: 5, maxDays: 7 },
+      { city: 'Banjarmasin-Kalimantan Selatan', warehouse: 1, courier: 'JNE', service: 'REG', cost: 50000, costPerKg: 25000, minDays: 5, maxDays: 7 },
+      { city: 'Balikpapan-Kalimantan Timur', warehouse: 1, courier: 'JNE', service: 'REG', cost: 55000, costPerKg: 27000, minDays: 5, maxDays: 7 },
+      { city: 'Samarinda-Kalimantan Timur', warehouse: 1, courier: 'JNE', service: 'REG', cost: 58000, costPerKg: 29000, minDays: 5, maxDays: 7 },
+
+      // Sulawesi
+      { city: 'Makassar-Sulawesi Selatan', warehouse: 1, courier: 'JNE', service: 'REG', cost: 50000, costPerKg: 25000, minDays: 5, maxDays: 7 },
+      { city: 'Makassar-Sulawesi Selatan', warehouse: 1, courier: 'JNE', service: 'YES', cost: 80000, costPerKg: 40000, minDays: 2, maxDays: 3 },
+      { city: 'Manado-Sulawesi Utara', warehouse: 1, courier: 'JNE', service: 'REG', cost: 65000, costPerKg: 32000, minDays: 6, maxDays: 8 },
+
+      // From Surabaya Warehouse (ID: 3) - cheaper for East Java & Bali
+      { city: 'Surabaya-Jawa Timur', warehouse: 3, courier: 'JNE', service: 'REG', cost: 8000, costPerKg: 4000, minDays: 1, maxDays: 1 },
+      { city: 'Malang-Jawa Timur', warehouse: 3, courier: 'JNE', service: 'REG', cost: 12000, costPerKg: 6000, minDays: 1, maxDays: 2 },
+      { city: 'Sidoarjo-Jawa Timur', warehouse: 3, courier: 'JNE', service: 'REG', cost: 9000, costPerKg: 4500, minDays: 1, maxDays: 1 },
+      { city: 'Denpasar-Bali', warehouse: 3, courier: 'JNE', service: 'REG', cost: 25000, costPerKg: 12500, minDays: 2, maxDays: 3 },
+      
+      // From Bandung Warehouse (ID: 2) - cheaper for West Java
+      { city: 'Bandung-Jawa Barat', warehouse: 2, courier: 'JNE', service: 'REG', cost: 8000, costPerKg: 4000, minDays: 1, maxDays: 1 },
+      { city: 'Tasikmalaya-Jawa Barat', warehouse: 2, courier: 'JNE', service: 'REG', cost: 12000, costPerKg: 6000, minDays: 1, maxDays: 2 },
+      { city: 'Garut-Jawa Barat', warehouse: 2, courier: 'JNE', service: 'REG', cost: 10000, costPerKg: 5000, minDays: 1, maxDays: 2 }
+    ];
+
+    for (const sc of shippingCosts) {
+      const cityId = cityMap[sc.city];
+      if (cityId) {
+        await query(
+          `INSERT INTO shipping_costs (city_id, warehouse_id, courier, service, cost, cost_per_kg, estimated_days_min, estimated_days_max) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE cost=VALUES(cost), cost_per_kg=VALUES(cost_per_kg)`,
+          [cityId, sc.warehouse, sc.courier, sc.service, sc.cost, sc.costPerKg, sc.minDays, sc.maxDays]
+        );
+      }
+    }
+    console.log('✅ Shipping costs created');
+
     console.log('\n🎉 Database seeding completed successfully!\n');
     console.log('📝 Credentials:');
     console.log('   Admin: admin@marketplacejeans.com / admin123');

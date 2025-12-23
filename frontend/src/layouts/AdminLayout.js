@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { 
   FaHome, FaBox, FaShoppingBag, FaWarehouse, FaChartBar, FaUsers, FaCog, 
   FaSignOutAlt, FaImages, FaTags, FaRuler, FaUserShield, 
-  FaChevronDown, FaChevronRight, FaTable, FaClipboardList, FaBoxes
+  FaChevronDown, FaChevronRight, FaTable, FaClipboardList, FaBoxes, FaCity, FaTruck
 } from 'react-icons/fa';
 import { logout } from '../redux/slices/authSlice';
 
@@ -37,8 +37,9 @@ const AdminLayout = () => {
         { path: '/admin/categories', icon: FaTags, label: 'Kategori' },
         { path: '/admin/fittings', icon: FaRuler, label: 'Fitting' },
         { path: '/admin/sizes', icon: FaRuler, label: 'Ukuran' },
-        { path: '/admin/size-chart', icon: FaRuler, label: 'Size Chart' },
+        // { path: '/admin/size-chart', icon: FaRuler, label: 'Size Chart' },
         { path: '/admin/banners', icon: FaImages, label: 'Banner' },
+        { path: '/admin/city-shipping', icon: FaTruck, label: 'Kota & Ongkir' },
       ]
     },
     { path: '/admin/orders', icon: FaShoppingBag, label: 'Pesanan' },
