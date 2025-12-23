@@ -1,6 +1,17 @@
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+// Get or create session ID for guest users
+const getSessionId = () => {
+  let sessionId = localStorage.getItem('sessionId');
+  if (!sessionId) {
+    sessionId = uuidv4();
+    localStorage.setItem('sessionId', sessionId);
+  }
+  return sessionId;
+};
 
 // Create axios instance
 const apiClient = axios.create({
@@ -10,13 +21,15 @@ const apiClient = axios.create({
   }
 });
 
-// Add request interceptor to include token
+// Add request interceptor to include token and session ID
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Add session ID for guest cart functionality
+    config.headers['x-session-id'] = getSessionId();
     return config;
   },
   (error) => Promise.reject(error)
