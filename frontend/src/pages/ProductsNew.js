@@ -525,8 +525,11 @@ const ProductCard = ({ product, viewMode }) => {
             src={
               product.primary_image
                 ? `${process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000'}${product.primary_image}`
-                : 'https://via.placeholder.com/400x600?text=No+Image'
+                : 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop'
             }
+            onError={(e) => {
+              e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop';
+            }}
             alt={product.name}
             className="w-full h-full object-cover"
           />
@@ -570,10 +573,13 @@ const ProductCard = ({ product, viewMode }) => {
           src={
             product.primary_image
               ? `${process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000'}${product.primary_image}`
-              : 'https://via.placeholder.com/400x600?text=No+Image'
+              : 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop'
           }
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
+          onError={(e) => {
+            e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop';
+          }}
         />
         {product.discount_price && (
           <div className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-red-600 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold">

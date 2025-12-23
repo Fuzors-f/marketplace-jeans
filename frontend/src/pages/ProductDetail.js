@@ -169,7 +169,7 @@ export default function ProductDetail() {
                   alt={product.name}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.target.src = '/placeholder-product.jpg';
+                    e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&h=600&fit=crop';
                   }}
                 />
               </div>
@@ -190,7 +190,7 @@ export default function ProductDetail() {
                         alt={`${product.name} ${index + 1}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.target.src = '/placeholder-product.jpg';
+                          e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=100&h=100&fit=crop';
                         }}
                       />
                     </button>

@@ -1044,48 +1044,48 @@ const AdminProducts = () => {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
             </div>
           ) : products.length > 0 ? (
-            <div className="bg-white rounded shadow overflow-hidden">
-              <table className="w-full">
+            <div className="bg-white rounded shadow overflow-x-auto">
+              <table className="w-full min-w-[800px]">
                 <thead className="bg-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Produk</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Kategori</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold">Fitting</th>
-                    <th className="px-6 py-3 text-right text-sm font-semibold">Harga</th>
-                    <th className="px-6 py-3 text-center text-sm font-semibold">Varian</th>
-                    <th className="px-6 py-3 text-center text-sm font-semibold">Total Stok</th>
-                    <th className="px-6 py-3 text-center text-sm font-semibold">Status</th>
-                    <th className="px-6 py-3 text-center text-sm font-semibold">Aksi</th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-sm font-semibold whitespace-nowrap">Produk</th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-sm font-semibold whitespace-nowrap">Kategori</th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-sm font-semibold whitespace-nowrap">Fitting</th>
+                    <th className="px-4 lg:px-6 py-3 text-right text-sm font-semibold whitespace-nowrap">Harga</th>
+                    <th className="px-4 lg:px-6 py-3 text-center text-sm font-semibold whitespace-nowrap">Varian</th>
+                    <th className="px-4 lg:px-6 py-3 text-center text-sm font-semibold whitespace-nowrap">Total Stok</th>
+                    <th className="px-4 lg:px-6 py-3 text-center text-sm font-semibold whitespace-nowrap">Status</th>
+                    <th className="px-4 lg:px-6 py-3 text-center text-sm font-semibold whitespace-nowrap">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {products.map((product) => (
                     <tr key={product.id} className="border-t hover:bg-gray-50">
-                      <td className="px-6 py-4">
+                      <td className="px-4 lg:px-6 py-4">
                         <div className="flex items-center">
                           {product.primary_image && (
                             <img
                               src={product.primary_image}
                               alt={product.name}
-                              className="w-12 h-12 object-cover rounded mr-3"
+                              className="w-12 h-12 object-cover rounded mr-3 flex-shrink-0"
                             />
                           )}
-                          <div>
-                            <p className="font-semibold">{product.name}</p>
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate max-w-[150px] lg:max-w-none">{product.name}</p>
                             <p className="text-xs text-gray-500">SKU: {product.sku || '-'}</p>
                             {product.short_description && (
-                              <p className="text-xs text-gray-400 mt-1">{product.short_description.substring(0, 50)}...</p>
+                              <p className="text-xs text-gray-400 mt-1 truncate max-w-[150px] lg:max-w-none">{product.short_description.substring(0, 50)}...</p>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                         <span className="text-sm">{product.category_name || '-'}</span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                         <span className="text-sm">{product.fitting_name || '-'}</span>
                       </td>
-                      <td className="px-6 py-4 text-right font-semibold">
+                      <td className="px-4 lg:px-6 py-4 text-right font-semibold whitespace-nowrap">
                         <div>
                           <p>Rp {parseFloat(product.base_price).toLocaleString('id-ID')}</p>
                           {product.master_cost_price && (
@@ -1095,10 +1095,10 @@ const AdminProducts = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 lg:px-6 py-4 text-center whitespace-nowrap">
                         <span className="font-medium text-sm">{product.variants_count || 0} varian</span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 lg:px-6 py-4 text-center whitespace-nowrap">
                         <span className={`font-semibold text-sm ${
                           (product.total_stock || 0) <= 0 ? 'text-red-600' : 
                           (product.total_stock || 0) <= 10 ? 'text-yellow-600' : 'text-green-600'
@@ -1106,14 +1106,14 @@ const AdminProducts = () => {
                           {product.total_stock || 0}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 lg:px-6 py-4 text-center whitespace-nowrap">
                         <span className={`px-3 py-1 rounded text-xs font-semibold ${
                           product.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                         }`}>
                           {product.is_active ? 'Aktif' : 'Nonaktif'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 lg:px-6 py-4 text-center whitespace-nowrap">
                         <div className="flex justify-center gap-2">
                           <button
                             onClick={() => handleManageVariants(product)}

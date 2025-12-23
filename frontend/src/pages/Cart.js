@@ -79,7 +79,7 @@ export default function Cart() {
   };
 
   const getImageUrl = (imageUrl) => {
-    if (!imageUrl) return '/placeholder-product.jpg';
+    if (!imageUrl) return 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=200&h=200&fit=crop';
     if (imageUrl.startsWith('http')) return imageUrl;
     return `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${imageUrl}`;
   };
@@ -127,7 +127,7 @@ export default function Cart() {
                       src={getImageUrl(item.image)}
                       alt={item.product_name}
                       className="w-full h-full object-cover rounded"
-                      onError={(e) => { e.target.src = '/placeholder-product.jpg'; }}
+                      onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=200&h=200&fit=crop'; }}
                     />
                   </div>
                   

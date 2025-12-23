@@ -46,7 +46,7 @@ const Home = () => {
     : [
         {
           id: 1,
-          image: '/images/hero/banner-1.jpg',
+          image: 'https://images.unsplash.com/photo-1565084888279-aca607ecce0c?w=1600&h=900&fit=crop',
           title: 'KOLEKSI MUSIM INI',
           subtitle: 'Tampil percaya diri dengan denim terbaru',
           link: '/products?category=new-arrivals',
@@ -54,7 +54,7 @@ const Home = () => {
         },
         {
           id: 2,
-          image: '/images/hero/banner-2.jpg',
+          image: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?w=1600&h=900&fit=crop',
           title: 'BAGGY JEANS',
           subtitle: 'Gaya santai yang tetap stylish',
           link: '/products?fitting=baggy',
@@ -62,7 +62,7 @@ const Home = () => {
         },
         {
           id: 3,
-          image: '/images/hero/banner-3.jpg',
+          image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?w=1600&h=900&fit=crop',
           title: 'DISKON HINGGA 40%',
           subtitle: 'Dapatkan koleksi favorit dengan harga spesial',
           link: '/products?discount=true',
@@ -75,25 +75,25 @@ const Home = () => {
     {
       name: 'BOTTOMS PRIA',
       subtitle: 'Celana jeans untuk gaya maskulin',
-      image: '/images/categories/mens-bottoms.jpg',
+      image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop',
       link: '/products?category=bottoms&gender=pria'
     },
     {
       name: 'BOTTOMS WANITA',
       subtitle: 'Koleksi jeans wanita terlengkap',
-      image: '/images/categories/womens-bottoms.jpg',
+      image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400&h=600&fit=crop',
       link: '/products?category=bottoms&gender=wanita'
     },
     {
       name: 'JAKET DENIM',
       subtitle: 'Statement piece klasik',
-      image: '/images/categories/jackets.jpg',
+      image: 'https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=400&h=600&fit=crop',
       link: '/products?category=jackets'
     },
     {
       name: 'AKSESORIS',
       subtitle: 'Lengkapi penampilanmu',
-      image: '/images/categories/accessories.jpg',
+      image: 'https://images.unsplash.com/photo-1523779105320-d1cd346ff52b?w=400&h=600&fit=crop',
       link: '/products?category=accessories'
     }
   ];
@@ -203,7 +203,7 @@ const Home = () => {
                     alt={category.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
                     onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/400x600?text=' + category.name;
+                      e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop';
                     }}
                   />
                 </div>
@@ -251,8 +251,11 @@ const Home = () => {
                       src={
                         product.primary_image
                           ? `${process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000'}${product.primary_image}`
-                          : 'https://via.placeholder.com/400x600?text=No+Image'
+                          : 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop'
                       }
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop';
+                      }}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
                     />
@@ -300,7 +303,7 @@ const Home = () => {
                   alt="Panduan Fitting"
                   className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
                   onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/600x400?text=Panduan+Fitting';
+                    e.target.src = 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?w=600&h=400&fit=crop';
                   }}
                 />
               </div>
@@ -323,7 +326,7 @@ const Home = () => {
                   alt="Program Member"
                   className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
                   onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/600x400?text=Program+Member';
+                    e.target.src = 'https://images.unsplash.com/photo-1604176354204-9268737828e4?w=600&h=400&fit=crop';
                   }}
                 />
               </div>
@@ -346,7 +349,7 @@ const Home = () => {
                   alt="Temukan Toko"
                   className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
                   onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/600x400?text=Temukan+Toko';
+                    e.target.src = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&h=400&fit=crop';
                   }}
                 />
               </div>
