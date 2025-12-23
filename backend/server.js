@@ -43,13 +43,19 @@ const rateLimiter = require('./src/middleware/rateLimiter');
 const app = express();
 
 // Security middleware
-app.use(helmet());
-
-// CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+
+// CORS configuration - Allow all origins
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-session-id']
+}));
+
+// Handle preflight requests
+app.options('*', cors());
 
 // Compression middleware
 app.use(compression());
