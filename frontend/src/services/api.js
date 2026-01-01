@@ -159,10 +159,12 @@ export const userAPI = {
   getProfile: () => apiClient.get('/users/profile'),
   updateProfile: (data) => apiClient.put('/users/profile', data),
   updatePassword: (data) => apiClient.put('/users/password', data),
-  getAddresses: () => apiClient.get('/users/addresses'),
-  createAddress: (data) => apiClient.post('/users/addresses', data),
-  updateAddress: (id, data) => apiClient.put(`/users/addresses/${id}`, data),
-  deleteAddress: (id) => apiClient.delete(`/users/addresses/${id}`)
+  getAddresses: () => apiClient.get('/addresses'),
+  getAddress: (id) => apiClient.get(`/addresses/${id}`),
+  createAddress: (data) => apiClient.post('/addresses', data),
+  updateAddress: (id, data) => apiClient.put(`/addresses/${id}`, data),
+  deleteAddress: (id) => apiClient.delete(`/addresses/${id}`),
+  setDefaultAddress: (id) => apiClient.put(`/addresses/${id}/default`)
 };
 
 // =====================================

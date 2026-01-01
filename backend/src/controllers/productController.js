@@ -708,7 +708,7 @@ exports.getProductImages = async (req, res) => {
     const { productId } = req.params;
     
     const images = await query(
-      'SELECT id, image_url as url, filename, is_primary FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, created_at ASC',
+      'SELECT id, image_url as url, image_url as filename, is_primary, sort_order FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, sort_order ASC, created_at ASC',
       [productId]
     );
 
@@ -734,7 +734,7 @@ exports.deleteProductImage = async (req, res) => {
     const { productId, imageId } = req.params;
     
     // Get image details
-    const image = await query('SELECT filename FROM product_images WHERE id = ? AND product_id = ?', [imageId, productId]);
+    const image = await query('SELECT id, image_url FROM product_images WHERE id = ? AND product_id = ?', [imageId, productId]);
     
     if (image.length === 0) {
       return res.status(404).json({

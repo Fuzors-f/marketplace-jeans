@@ -64,16 +64,17 @@ exports.getAdminOrders = async (req, res) => {
     // Get orders with user info
     const orders = await query(
       `SELECT 
-        o.id, o.user_id, o.status, o.payment_status, o.payment_method,
-        o.subtotal, o.shipping_cost, o.discount_amount, o.tax, 
-        COALESCE(o.total, o.total_amount) as total,
-        o.customer_name, o.customer_email, o.customer_phone,
-        o.shipping_address, o.shipping_city, o.shipping_province,
-        o.shipping_postal_code, o.shipping_method, o.tracking_number,
+        o.id, o.order_number, o.user_id, o.guest_email, o.status, o.payment_status,
+        o.subtotal, o.shipping_cost, o.discount_amount, o.discount_code,
+        o.member_discount_amount, o.total_amount as total,
         o.notes, o.created_at, o.updated_at,
-        u.name as user_name, u.email as user_email
+        u.full_name as user_name, u.email as user_email, u.phone as user_phone,
+        ua.recipient_name as customer_name, ua.phone as customer_phone,
+        ua.address as shipping_address, ua.city as shipping_city,
+        ua.province as shipping_province, ua.postal_code as shipping_postal_code
       FROM orders o
       LEFT JOIN users u ON o.user_id = u.id
+      LEFT JOIN user_addresses ua ON o.user_id = ua.user_id AND ua.is_default = 1
       ${whereClause}
       ORDER BY o.${sortColumn} ${sortOrder}
       LIMIT ? OFFSET ?`,

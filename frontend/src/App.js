@@ -20,6 +20,7 @@ import OrderTracking from './pages/OrderTracking';
 
 // Private Pages
 import Profile from './pages/Profile';
+import Addresses from './pages/Addresses';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 
@@ -73,6 +74,7 @@ function App() {
         
         {/* Private Routes */}
         <Route path="profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+        <Route path="addresses" element={<PrivateRoute><Addresses /></PrivateRoute>} />
         <Route path="orders" element={<PrivateRoute><Orders /></PrivateRoute>} />
         <Route path="orders/:orderId" element={<PrivateRoute><OrderDetail /></PrivateRoute>} />
       </Route>
