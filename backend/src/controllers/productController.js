@@ -657,19 +657,29 @@ exports.addProductImages = async (req, res) => {
       });
     }
 
+    // Check if product already has images to determine primary
+    const existingImages = await query('SELECT COUNT(*) as count FROM product_images WHERE product_id = ?', [productId]);
+    const hasExistingImages = existingImages[0].count > 0;
+
     const savedImages = [];
-    for (const file of req.files) {
+    for (let i = 0; i < req.files.length; i++) {
+      const file = req.files[i];
       const imagePath = `/uploads/products/${file.filename}`;
       
-      // Save to database
-      await query(
-        'INSERT INTO product_images (product_id, image_url, filename, is_primary) VALUES (?, ?, ?, ?)',
-        [productId, imagePath, file.filename, savedImages.length === 0 ? 1 : 0]
+      // First image is primary only if no existing images
+      const isPrimary = (!hasExistingImages && i === 0) ? 1 : 0;
+      
+      // Save to database (without filename column which doesn't exist)
+      const result = await query(
+        'INSERT INTO product_images (product_id, image_url, is_primary, sort_order) VALUES (?, ?, ?, ?)',
+        [productId, imagePath, isPrimary, existingImages[0].count + i]
       );
       
       savedImages.push({
+        id: result.insertId,
         filename: file.filename,
-        url: imagePath
+        url: imagePath,
+        is_primary: isPrimary
       });
     }
 

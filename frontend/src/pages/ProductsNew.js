@@ -3,6 +3,7 @@ import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProducts } from '../redux/slices/productSlice';
+import { getProductImageUrl, handleImageError } from '../utils/imageUtils';
 
 const Products = () => {
   const dispatch = useDispatch();
@@ -522,14 +523,8 @@ const ProductCard = ({ product, viewMode }) => {
       <Link to={`/products/${product.slug}`} className="bg-white flex gap-3 sm:gap-6 p-3 sm:p-6 hover:shadow-lg transition">
         <div className="w-24 sm:w-48 h-32 sm:h-64 flex-shrink-0 overflow-hidden bg-gray-100">
           <img
-            src={
-              product.primary_image
-                ? `${process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000'}${product.primary_image}`
-                : 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop'
-            }
-            onError={(e) => {
-              e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop';
-            }}
+            src={getProductImageUrl(product)}
+            onError={(e) => handleImageError(e, 'product')}
             alt={product.name}
             className="w-full h-full object-cover"
           />
@@ -570,16 +565,10 @@ const ProductCard = ({ product, viewMode }) => {
     >
       <div className="aspect-[3/4] overflow-hidden bg-gray-100 mb-2 sm:mb-3 relative">
         <img
-          src={
-            product.primary_image
-              ? `${process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000'}${product.primary_image}`
-              : 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop'
-          }
+          src={getProductImageUrl(product)}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
-          onError={(e) => {
-            e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop';
-          }}
+          onError={(e) => handleImageError(e, 'product')}
         />
         {product.discount_price && (
           <div className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-red-600 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold">

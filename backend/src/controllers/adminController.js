@@ -65,7 +65,8 @@ exports.getAdminOrders = async (req, res) => {
     const orders = await query(
       `SELECT 
         o.id, o.user_id, o.status, o.payment_status, o.payment_method,
-        o.subtotal, o.shipping_cost, o.discount_amount, o.tax, o.total,
+        o.subtotal, o.shipping_cost, o.discount_amount, o.tax, 
+        COALESCE(o.total, o.total_amount) as total,
         o.customer_name, o.customer_email, o.customer_phone,
         o.shipping_address, o.shipping_city, o.shipping_province,
         o.shipping_postal_code, o.shipping_method, o.tracking_number,
@@ -81,19 +82,29 @@ exports.getAdminOrders = async (req, res) => {
 
     // Get order items for each order
     for (let order of orders) {
-      const items = await query(
-        `SELECT 
-          oi.id, oi.quantity, oi.price, oi.total,
-          p.name as product_name, p.slug as product_slug,
-          s.name as size_name,
-          (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image
-        FROM order_items oi
-        LEFT JOIN products p ON oi.product_id = p.id
-        LEFT JOIN sizes s ON oi.size_id = s.id
-        WHERE oi.order_id = ?`,
-        [order.id]
-      );
-      order.items = items;
+      try {
+        const items = await query(
+          `SELECT 
+            oi.id, oi.quantity, oi.price, oi.total, oi.product_name, oi.size_name,
+            p.name as product_name_fallback, p.slug as product_slug,
+            s.name as size_name_fallback,
+            (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image
+          FROM order_items oi
+          LEFT JOIN products p ON oi.product_id = p.id
+          LEFT JOIN sizes s ON oi.size_id = s.id
+          WHERE oi.order_id = ?`,
+          [order.id]
+        );
+        // Map items to use fallback names if needed
+        order.items = items.map(item => ({
+          ...item,
+          product_name: item.product_name || item.product_name_fallback || 'Unknown Product',
+          size_name: item.size_name || item.size_name_fallback || '-'
+        }));
+      } catch (itemError) {
+        console.error(`Error fetching items for order ${order.id}:`, itemError);
+        order.items = [];
+      }
     }
 
     res.json({

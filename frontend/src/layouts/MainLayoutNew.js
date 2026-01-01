@@ -3,6 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchCart } from '../redux/slices/cartSlice';
 import { logout } from '../redux/slices/authSlice';
+import { useLanguage, LanguageSwitcher } from '../utils/i18n';
 
 const MainLayoutNew = () => {
   const dispatch = useDispatch();
@@ -10,6 +11,7 @@ const MainLayoutNew = () => {
   const location = useLocation();
   const { items } = useSelector((state) => state.cart);
   const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openMegaMenu, setOpenMegaMenu] = useState(null);
@@ -97,7 +99,7 @@ const MainLayoutNew = () => {
       {/* Top Bar - Promo */}
       <div className="bg-black text-white text-center py-1.5 sm:py-2 text-xs sm:text-sm px-4">
         <p className="line-clamp-1">
-          Belanja 24 jam, Pengembalian gratis 14 hari. <Link to="/pages/returns" className="underline">Pelajari lebih lanjut!</Link>
+          {t('promoText')} <Link to="/pages/returns" className="underline">{t('learnMore')}</Link>
         </p>
       </div>
 
@@ -139,7 +141,7 @@ const MainLayoutNew = () => {
                   to="/products?gender=wanita"
                   className="font-semibold hover:underline uppercase tracking-wide"
                 >
-                  WANITA
+                  {t('women').toUpperCase()}
                 </Link>
                 
                 {/* Mega Menu */}
@@ -182,7 +184,7 @@ const MainLayoutNew = () => {
                   to="/products?gender=pria"
                   className="font-semibold hover:underline uppercase tracking-wide"
                 >
-                  PRIA
+                  {t('men').toUpperCase()}
                 </Link>
                 
                 {/* Mega Menu */}
@@ -219,19 +221,24 @@ const MainLayoutNew = () => {
                 to="/products?new=true"
                 className="font-semibold hover:underline uppercase tracking-wide"
               >
-                KOLEKSI BARU
+                {t('newCollection').toUpperCase()}
               </Link>
               
               <Link
                 to="/products?discount=true"
                 className="font-semibold hover:underline uppercase tracking-wide text-red-600"
               >
-                DISKON
+                {t('discount').toUpperCase()}
               </Link>
             </nav>
 
             {/* Right Icons */}
             <div className="flex items-center space-x-2 sm:space-x-4 md:space-x-6">
+              {/* Language Switcher - Desktop */}
+              <div className="hidden md:block">
+                <LanguageSwitcher />
+              </div>
+              
               {/* Search Icon - Desktop */}
               <button className="hover:text-gray-600 hidden md:block p-2">
                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -275,27 +282,27 @@ const MainLayoutNew = () => {
                       to="/profile"
                       className="block px-4 py-2.5 hover:bg-gray-50 text-sm"
                     >
-                      Profil Saya
+                      {t('myProfile')}
                     </Link>
                     <Link
                       to="/orders"
                       className="block px-4 py-2.5 hover:bg-gray-50 text-sm"
                     >
-                      Pesanan Saya
+                      {t('myOrders')}
                     </Link>
                     {(user?.role === 'admin' || user?.role === 'admin_stok') && (
                       <Link
                         to="/admin"
                         className="block px-4 py-2.5 hover:bg-gray-50 text-sm border-t"
                       >
-                        Admin Dashboard
+                        {t('adminDashboard')}
                       </Link>
                     )}
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2.5 hover:bg-gray-50 text-red-600 text-sm border-t"
                     >
-                      Keluar
+                      {t('logout')}
                     </button>
                   </div>
                 </div>
@@ -314,7 +321,7 @@ const MainLayoutNew = () => {
             <form onSubmit={handleSearch}>
               <input
                 type="text"
-                placeholder="Cari produk..."
+                placeholder={t('search') + '...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-2.5 border focus:outline-none focus:ring-2 focus:ring-black rounded-lg text-sm"
@@ -334,7 +341,7 @@ const MainLayoutNew = () => {
                     onClick={() => setMobileSubmenu(mobileSubmenu === 'wanita' ? null : 'wanita')}
                     className="flex items-center justify-between w-full py-4 font-semibold uppercase tracking-wide"
                   >
-                    <span>WANITA</span>
+                    <span>{t('women').toUpperCase()}</span>
                     <svg className={`w-5 h-5 transition-transform ${mobileSubmenu === 'wanita' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -363,7 +370,7 @@ const MainLayoutNew = () => {
                         className="block py-2 text-black font-medium text-sm underline"
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        Lihat Semua Wanita →
+                        {t('viewAll')} {t('women')} →
                       </Link>
                     </div>
                   )}
@@ -375,7 +382,7 @@ const MainLayoutNew = () => {
                     onClick={() => setMobileSubmenu(mobileSubmenu === 'pria' ? null : 'pria')}
                     className="flex items-center justify-between w-full py-4 font-semibold uppercase tracking-wide"
                   >
-                    <span>PRIA</span>
+                    <span>{t('men').toUpperCase()}</span>
                     <svg className={`w-5 h-5 transition-transform ${mobileSubmenu === 'pria' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -404,7 +411,7 @@ const MainLayoutNew = () => {
                         className="block py-2 text-black font-medium text-sm underline"
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        Lihat Semua Pria →
+                        {t('viewAll')} {t('men')} →
                       </Link>
                     </div>
                   )}
@@ -415,14 +422,14 @@ const MainLayoutNew = () => {
                   className="block py-4 font-semibold uppercase tracking-wide border-b"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  KOLEKSI BARU
+                  {t('newCollection').toUpperCase()}
                 </Link>
                 <Link
                   to="/products?discount=true"
                   className="block py-4 font-semibold uppercase tracking-wide text-red-600 border-b"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  DISKON
+                  {t('discount').toUpperCase()}
                 </Link>
 
                 {/* Mobile-only links */}
@@ -435,7 +442,7 @@ const MainLayoutNew = () => {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>
-                    <span>Wishlist Saya</span>
+                    <span>{t('myWishlist')}</span>
                   </Link>
                   {isAuthenticated ? (
                     <>
@@ -447,7 +454,7 @@ const MainLayoutNew = () => {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        <span>Profil Saya</span>
+                        <span>{t('myProfile')}</span>
                       </Link>
                       <Link
                         to="/orders"
@@ -457,7 +464,7 @@ const MainLayoutNew = () => {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
-                        <span>Pesanan Saya</span>
+                        <span>{t('myOrders')}</span>
                       </Link>
                       <button
                         onClick={() => { handleLogout(); setIsMenuOpen(false); }}
@@ -466,7 +473,7 @@ const MainLayoutNew = () => {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
-                        <span>Keluar</span>
+                        <span>{t('logout')}</span>
                       </button>
                     </>
                   ) : (
@@ -478,7 +485,7 @@ const MainLayoutNew = () => {
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                       </svg>
-                      <span>Masuk / Daftar</span>
+                      <span>{t('loginRegister')}</span>
                     </Link>
                   )}
                 </div>
@@ -499,31 +506,31 @@ const MainLayoutNew = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-8 sm:mb-12">
             {/* Column 1 - Bantuan */}
             <div>
-              <h3 className="font-bold mb-3 sm:mb-4 uppercase tracking-wider text-sm sm:text-base">BANTUAN</h3>
+              <h3 className="font-bold mb-3 sm:mb-4 uppercase tracking-wider text-sm sm:text-base">{t('help').toUpperCase()}</h3>
               <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-300">
                 <li>
                   <Link to="/pages/contact" className="hover:text-white hover:underline">
-                    Hubungi Kami
+                    {t('contactUs')}
                   </Link>
                 </li>
                 <li>
                   <Link to="/pages/faq" className="hover:text-white hover:underline">
-                    Pertanyaan Umum
+                    {t('faq')}
                   </Link>
                 </li>
                 <li>
                   <Link to="/pages/returns" className="hover:text-white hover:underline">
-                    Pengembalian
+                    {t('returns')}
                   </Link>
                 </li>
                 <li>
                   <Link to="/pages/store-locator" className="hover:text-white hover:underline">
-                    Temukan Toko
+                    {t('findStore')}
                   </Link>
                 </li>
                 <li>
                   <Link to="/pages/track-order" className="hover:text-white hover:underline">
-                    Melacak Pesanan
+                    {t('trackOrder')}
                   </Link>
                 </li>
               </ul>
@@ -531,21 +538,21 @@ const MainLayoutNew = () => {
 
             {/* Column 2 - Perusahaan */}
             <div>
-              <h3 className="font-bold mb-3 sm:mb-4 uppercase tracking-wider text-sm sm:text-base">PERUSAHAAN</h3>
+              <h3 className="font-bold mb-3 sm:mb-4 uppercase tracking-wider text-sm sm:text-base">{t('company').toUpperCase()}</h3>
               <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-300">
                 <li>
                   <Link to="/pages/about" className="hover:text-white hover:underline">
-                    Tentang Kami
+                    {t('aboutUs')}
                   </Link>
                 </li>
                 <li>
                   <Link to="/pages/privacy" className="hover:text-white hover:underline">
-                    Kebijakan Privasi
+                    {t('privacyPolicy')}
                   </Link>
                 </li>
                 <li>
                   <Link to="/pages/terms" className="hover:text-white hover:underline">
-                    Syarat & Ketentuan
+                    {t('termsConditions')}
                   </Link>
                 </li>
               </ul>
@@ -553,21 +560,21 @@ const MainLayoutNew = () => {
 
             {/* Column 3 - Tautan Langsung */}
             <div>
-              <h3 className="font-bold mb-3 sm:mb-4 uppercase tracking-wider text-sm sm:text-base">TAUTAN</h3>
+              <h3 className="font-bold mb-3 sm:mb-4 uppercase tracking-wider text-sm sm:text-base">{t('quickLinks').toUpperCase()}</h3>
               <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-300">
                 <li>
                   <Link to="/pages/membership" className="hover:text-white hover:underline">
-                    Program Member
+                    {t('memberProgram')}
                   </Link>
                 </li>
                 <li>
                   <Link to="/pages/store-locator" className="hover:text-white hover:underline">
-                    Temukan Toko
+                    {t('findStore')}
                   </Link>
                 </li>
                 <li>
                   <Link to="/pages/jean-fit-guide" className="hover:text-white hover:underline">
-                    Panduan Jeans
+                    {t('jeansGuide')}
                   </Link>
                 </li>
               </ul>
@@ -575,7 +582,7 @@ const MainLayoutNew = () => {
 
             {/* Column 4 - Social Media */}
             <div>
-              <h3 className="font-bold mb-3 sm:mb-4 uppercase tracking-wider text-sm sm:text-base">IKUTI KAMI</h3>
+              <h3 className="font-bold mb-3 sm:mb-4 uppercase tracking-wider text-sm sm:text-base">{t('followUs').toUpperCase()}</h3>
               <div className="flex space-x-4">
                 <a
                   href="https://instagram.com"
@@ -617,15 +624,15 @@ const MainLayoutNew = () => {
               <p className="text-center md:text-left">© 2025 Marketplace Jeans. All rights reserved.</p>
               <div className="flex flex-wrap justify-center gap-x-4 gap-y-1">
                 <Link to="/pages/privacy" className="hover:text-white">
-                  Kebijakan Privasi
+                  {t('privacyPolicy')}
                 </Link>
                 <span className="hidden sm:inline">·</span>
                 <Link to="/pages/terms" className="hover:text-white">
-                  Syarat Layanan
+                  {t('termsOfService')}
                 </Link>
                 <span className="hidden sm:inline">·</span>
                 <Link to="/pages/shipping" className="hover:text-white">
-                  Kebijakan Pengiriman
+                  {t('shippingPolicy')}
                 </Link>
               </div>
             </div>

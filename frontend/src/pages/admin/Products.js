@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
+import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../../utils/imageUtils';
 
 const AdminProducts = () => {
   const [products, setProducts] = useState([]);
@@ -342,11 +343,7 @@ const AdminProducts = () => {
         });
 
         try {
-          await apiClient.post(`/products/${productId}/images`, imageFormData, {
-            headers: {
-              'Content-Type': undefined, // Let browser set the correct Content-Type with boundary
-            },
-          });
+          await apiClient.post(`/products/${productId}/images`, imageFormData);
         } catch (imgErr) {
           console.error('Error uploading images:', imgErr);
           setError('Produk berhasil disimpan, tetapi gagal mengupload gambar');
@@ -715,9 +712,10 @@ const AdminProducts = () => {
                         {existingImages.map((image, index) => (
                           <div key={index} className="relative">
                             <img
-                              src={image.url || `/uploads/products/${image.filename}`}
+                              src={getImageUrl(image.url || image.filename, 'products')}
                               alt={`Product ${index + 1}`}
                               className="w-full h-24 object-cover rounded border"
+                              onError={(e) => handleImageError(e, 'product')}
                             />
                             <button
                               type="button"
@@ -1063,13 +1061,12 @@ const AdminProducts = () => {
                     <tr key={product.id} className="border-t hover:bg-gray-50">
                       <td className="px-4 lg:px-6 py-4">
                         <div className="flex items-center">
-                          {product.primary_image && (
-                            <img
-                              src={product.primary_image}
-                              alt={product.name}
-                              className="w-12 h-12 object-cover rounded mr-3 flex-shrink-0"
-                            />
-                          )}
+                          <img
+                            src={product.primary_image ? getImageUrl(product.primary_image, 'products') : PLACEHOLDER_IMAGES.product}
+                            alt={product.name}
+                            className="w-12 h-12 object-cover rounded mr-3 flex-shrink-0"
+                            onError={(e) => handleImageError(e, 'product')}
+                          />
                           <div className="min-w-0">
                             <p className="font-semibold truncate max-w-[150px] lg:max-w-none">{product.name}</p>
                             <p className="text-xs text-gray-500">SKU: {product.sku || '-'}</p>

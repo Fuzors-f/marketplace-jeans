@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import api from '../services/api';
+import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../utils/imageUtils';
 
 export default function ProductDetail() {
   const { slug } = useParams();
@@ -90,10 +91,8 @@ export default function ProductDetail() {
     return basePrice + additionalPrice;
   };
 
-  const getImageUrl = (imageUrl) => {
-    if (!imageUrl) return '/placeholder-product.jpg';
-    if (imageUrl.startsWith('http')) return imageUrl;
-    return `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${imageUrl}`;
+  const getProductImageUrl = (imageUrl) => {
+    return getImageUrl(imageUrl, 'product');
   };
 
   if (loading) {
@@ -165,12 +164,10 @@ export default function ProductDetail() {
               {/* Main Image */}
               <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
                 <img
-                  src={getImageUrl(currentImage)}
+                  src={getProductImageUrl(currentImage)}
                   alt={product.name}
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&h=600&fit=crop';
-                  }}
+                  onError={(e) => handleImageError(e, 'product')}
                 />
               </div>
               
@@ -186,12 +183,10 @@ export default function ProductDetail() {
                       }`}
                     >
                       <img
-                        src={getImageUrl(img.image_url)}
+                        src={getProductImageUrl(img.image_url)}
                         alt={`${product.name} ${index + 1}`}
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=100&h=100&fit=crop';
-                        }}
+                        onError={(e) => handleImageError(e, 'productThumbnail')}
                       />
                     </button>
                   ))}

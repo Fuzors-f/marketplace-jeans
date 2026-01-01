@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../utils/imageUtils';
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -78,10 +79,8 @@ export default function Cart() {
     }).format(value || 0);
   };
 
-  const getImageUrl = (imageUrl) => {
-    if (!imageUrl) return 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=200&h=200&fit=crop';
-    if (imageUrl.startsWith('http')) return imageUrl;
-    return `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${imageUrl}`;
+  const getCartImageUrl = (imageUrl) => {
+    return getImageUrl(imageUrl, 'products');
   };
 
   if (loading) {
@@ -124,10 +123,10 @@ export default function Cart() {
                   {/* Product Image */}
                   <div className="w-24 h-24 flex-shrink-0">
                     <img
-                      src={getImageUrl(item.image)}
+                      src={getCartImageUrl(item.image)}
                       alt={item.product_name}
                       className="w-full h-full object-cover rounded"
-                      onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=200&h=200&fit=crop'; }}
+                      onError={(e) => handleImageError(e, 'product')}
                     />
                   </div>
                   

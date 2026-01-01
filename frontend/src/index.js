@@ -9,6 +9,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import './index.css';
 import App from './App';
 import { store, persistor } from './redux/store';
+import { LanguageProvider } from './utils/i18n';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -16,20 +17,22 @@ root.render(
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <HelmetProvider>
-          <BrowserRouter>
-            <App />
-            <ToastContainer
-              position="top-right"
-              autoClose={3000}
-              hideProgressBar={false}
-              newestOnTop={false}
-              closeOnClick
-              rtl={false}
-              pauseOnFocusLoss
-              draggable
-              pauseOnHover
-            />
-          </BrowserRouter>
+          <LanguageProvider>
+            <BrowserRouter>
+              <App />
+              <ToastContainer
+                position="top-right"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+              />
+            </BrowserRouter>
+          </LanguageProvider>
         </HelmetProvider>
       </PersistGate>
     </Provider>

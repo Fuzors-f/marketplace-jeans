@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchProducts } from '../redux/slices/productSlice';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import apiClient from '../services/api';
+import { getProductImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../utils/imageUtils';
 
 const Home = () => {
   const dispatch = useDispatch();
@@ -199,12 +200,10 @@ const Home = () => {
               >
                 <div className="aspect-[3/4] overflow-hidden">
                   <img
-                    src={category.image}
+                    src={category.image || PLACEHOLDER_IMAGES.category}
                     alt={category.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
-                    onError={(e) => {
-                      e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop';
-                    }}
+                    onError={(e) => handleImageError(e, 'category')}
                   />
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 text-white">
@@ -248,14 +247,8 @@ const Home = () => {
                 >
                   <div className="aspect-[3/4] overflow-hidden bg-gray-100 mb-3">
                     <img
-                      src={
-                        product.primary_image
-                          ? `${process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000'}${product.primary_image}`
-                          : 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop'
-                      }
-                      onError={(e) => {
-                        e.target.src = 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop';
-                      }}
+                      src={getProductImageUrl(product)}
+                      onError={(e) => handleImageError(e, 'product')}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
                     />
