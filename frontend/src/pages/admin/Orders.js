@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
-import { FaEye, FaTimes, FaFilter, FaPlus, FaSearch, FaTrash } from 'react-icons/fa';
+import { FaEye, FaTimes, FaFilter, FaPlus, FaSearch, FaTrash, FaUser, FaUserPlus } from 'react-icons/fa';
 import DataTable from '../../components/admin/DataTable';
 import { useLanguage } from '../../utils/i18n';
 
@@ -26,6 +26,17 @@ const AdminOrders = () => {
   const [searchProduct, setSearchProduct] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [orderItems, setOrderItems] = useState([]);
+  
+  // User selection state
+  const [userMode, setUserMode] = useState('new'); // 'existing' or 'new'
+  const [searchUser, setSearchUser] = useState('');
+  const [userSearchResults, setUserSearchResults] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [searchingUser, setSearchingUser] = useState(false);
+  
+  // Exchange rate state
+  const [exchangeRate, setExchangeRate] = useState(16000); // Default IDR per USD
+  
   const [newOrderData, setNewOrderData] = useState({
     customer_name: '',
     customer_email: '',
@@ -34,6 +45,7 @@ const AdminOrders = () => {
     shipping_city: '',
     shipping_province: '',
     shipping_postal_code: '',
+    shipping_country: 'Indonesia',
     shipping_method: 'JNE Regular',
     payment_method: 'bank_transfer',
     shipping_cost: 0,
@@ -70,6 +82,49 @@ const AdminOrders = () => {
     } catch (err) {
       console.error('Error fetching products:', err);
     }
+  };
+
+  // Search users by name or email
+  const handleSearchUser = async (search) => {
+    setSearchUser(search);
+    if (search.length >= 2) {
+      setSearchingUser(true);
+      try {
+        const response = await apiClient.get(`/users/search?q=${encodeURIComponent(search)}`);
+        setUserSearchResults(response.data.data || []);
+      } catch (err) {
+        console.error('Error searching users:', err);
+        setUserSearchResults([]);
+      } finally {
+        setSearchingUser(false);
+      }
+    } else {
+      setUserSearchResults([]);
+    }
+  };
+
+  // Select existing user
+  const handleSelectUser = (user) => {
+    setSelectedUser(user);
+    setNewOrderData({
+      ...newOrderData,
+      customer_name: user.full_name,
+      customer_email: user.email,
+      customer_phone: user.phone || ''
+    });
+    setSearchUser('');
+    setUserSearchResults([]);
+  };
+
+  // Clear selected user
+  const handleClearSelectedUser = () => {
+    setSelectedUser(null);
+    setNewOrderData({
+      ...newOrderData,
+      customer_name: '',
+      customer_email: '',
+      customer_phone: ''
+    });
   };
 
   const handleSearchProduct = async (search) => {
@@ -181,11 +236,22 @@ const AdminOrders = () => {
       return;
     }
 
+    // If creating new user, email is required
+    if (userMode === 'new' && !selectedUser && newOrderData.customer_email) {
+      // Will create new user
+    }
+
     try {
       setCreateLoading(true);
       
+      const isInternational = newOrderData.shipping_country && newOrderData.shipping_country !== 'Indonesia';
+      
       const orderPayload = {
         ...newOrderData,
+        user_id: selectedUser?.id || null,
+        create_new_user: userMode === 'new' && !selectedUser && newOrderData.customer_email ? true : false,
+        currency: isInternational ? 'USD' : 'IDR',
+        exchange_rate: isInternational ? exchangeRate : null,
         items: orderItems.map(item => ({
           product_id: item.product_id,
           variant_id: item.variant_id,
@@ -196,7 +262,9 @@ const AdminOrders = () => {
 
       await apiClient.post('/admin/orders/manual', orderPayload);
       
-      setSuccess('Pesanan berhasil dibuat!');
+      setSuccess(userMode === 'new' && !selectedUser && newOrderData.customer_email 
+        ? 'Pesanan dan user baru berhasil dibuat!' 
+        : 'Pesanan berhasil dibuat!');
       setShowCreateModal(false);
       resetCreateForm();
       fetchOrders();
@@ -218,6 +286,7 @@ const AdminOrders = () => {
       shipping_city: '',
       shipping_province: '',
       shipping_postal_code: '',
+      shipping_country: 'Indonesia',
       shipping_method: 'JNE Regular',
       payment_method: 'bank_transfer',
       shipping_cost: 0,
@@ -227,6 +296,10 @@ const AdminOrders = () => {
     setOrderItems([]);
     setSearchProduct('');
     setSearchResults([]);
+    setUserMode('new');
+    setSelectedUser(null);
+    setSearchUser('');
+    setUserSearchResults([]);
   };
 
   const handleStatusUpdate = async (orderId, status) => {
@@ -638,24 +711,128 @@ const AdminOrders = () => {
                 <div className="space-y-4">
                   <h3 className="font-bold text-lg border-b pb-2">{t('customerInfo')}</h3>
                   
+                  {/* User Selection Mode Toggle */}
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserMode('existing');
+                        handleClearSelectedUser();
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                        userMode === 'existing' 
+                          ? 'bg-black text-white border-black' 
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <FaUser /> Pilih User
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserMode('new');
+                        handleClearSelectedUser();
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                        userMode === 'new' 
+                          ? 'bg-black text-white border-black' 
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <FaUserPlus /> User Baru
+                    </button>
+                  </div>
+
+                  {/* Existing User Search */}
+                  {userMode === 'existing' && !selectedUser && (
+                    <div className="relative">
+                      <label className="block text-sm font-semibold mb-1">Cari User (Nama/Email)</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={searchUser}
+                          onChange={(e) => handleSearchUser(e.target.value)}
+                          placeholder="Ketik nama atau email..."
+                          className="w-full px-4 py-2 pl-10 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                        />
+                        <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                        {searchingUser && (
+                          <div className="absolute right-3 top-3">
+                            <div className="animate-spin h-4 w-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* User Search Results */}
+                      {userSearchResults.length > 0 && (
+                        <div className="absolute z-10 w-full bg-white border rounded-lg shadow-lg mt-1 max-h-60 overflow-auto">
+                          {userSearchResults.map((user) => (
+                            <button
+                              key={user.id}
+                              type="button"
+                              onClick={() => handleSelectUser(user)}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-100 border-b last:border-b-0"
+                            >
+                              <p className="font-medium">{user.full_name}</p>
+                              <p className="text-sm text-gray-500">{user.email}</p>
+                              {user.phone && <p className="text-xs text-gray-400">{user.phone}</p>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Selected User Display */}
+                  {selectedUser && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-green-800">{selectedUser.full_name}</p>
+                          <p className="text-sm text-green-600">{selectedUser.email}</p>
+                          {selectedUser.phone && <p className="text-xs text-green-500">{selectedUser.phone}</p>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleClearSelectedUser}
+                          className="text-green-600 hover:text-green-800"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* New User Info Message */}
+                  {userMode === 'new' && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                      <p className="font-medium">Mode User Baru</p>
+                      <p>Jika email diisi, user baru akan otomatis dibuat saat pesanan disimpan.</p>
+                    </div>
+                  )}
+                  
                   <div>
                     <label className="block text-sm font-semibold mb-1">{t('recipientName')} *</label>
                     <input
                       type="text"
                       value={newOrderData.customer_name}
                       onChange={(e) => setNewOrderData({...newOrderData, customer_name: e.target.value})}
-                      className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                      className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black disabled:bg-gray-100"
                       required
+                      disabled={!!selectedUser}
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-semibold mb-1">Email</label>
+                    <label className="block text-sm font-semibold mb-1">
+                      Email {userMode === 'new' && !selectedUser && '(isi untuk buat user baru)'}
+                    </label>
                     <input
                       type="email"
                       value={newOrderData.customer_email}
                       onChange={(e) => setNewOrderData({...newOrderData, customer_email: e.target.value})}
-                      className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                      disabled={!!selectedUser}
+                      className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black disabled:bg-gray-100"
                     />
                   </div>
                   
@@ -713,6 +890,54 @@ const AdminOrders = () => {
                       />
                     </div>
                     <div>
+                      <label className="block text-sm font-semibold mb-1">Negara</label>
+                      <select
+                        value={newOrderData.shipping_country}
+                        onChange={(e) => setNewOrderData({...newOrderData, shipping_country: e.target.value})}
+                        className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                      >
+                        <option value="Indonesia">Indonesia</option>
+                        <option value="Malaysia">Malaysia</option>
+                        <option value="Singapore">Singapore</option>
+                        <option value="Australia">Australia</option>
+                        <option value="United States">United States</option>
+                        <option value="Japan">Japan</option>
+                        <option value="South Korea">South Korea</option>
+                        <option value="Other">Lainnya</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Exchange Rate for International Orders */}
+                  {newOrderData.shipping_country && newOrderData.shipping_country !== 'Indonesia' && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-yellow-800 font-semibold">💱 Pesanan Internasional (USD)</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold mb-1 text-yellow-700">Kurs (IDR per USD)</label>
+                          <input
+                            type="number"
+                            min="10000"
+                            step="100"
+                            value={exchangeRate}
+                            onChange={(e) => setExchangeRate(parseFloat(e.target.value) || 16000)}
+                            className="w-full px-4 py-2 border border-yellow-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <div className="text-sm text-yellow-700">
+                            <p>Total IDR: <span className="font-bold">{formatCurrency(totals.total)}</span></p>
+                            <p>Total USD: <span className="font-bold">${(totals.total / exchangeRate).toFixed(2)}</span></p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
                       <label className="block text-sm font-semibold mb-1">{t('paymentMethod')}</label>
                       <select
                         value={newOrderData.payment_method}
@@ -722,7 +947,18 @@ const AdminOrders = () => {
                         <option value="bank_transfer">Transfer Bank</option>
                         <option value="cash">Tunai (COD)</option>
                         <option value="e-wallet">E-Wallet</option>
+                        <option value="paypal">PayPal</option>
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">{t('shippingCost')}</label>
+                      <input
+                        type="text"
+                        value={newOrderData.shipping_method}
+                        onChange={(e) => setNewOrderData({...newOrderData, shipping_method: e.target.value})}
+                        placeholder="e.g. JNE Regular"
+                        className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                      />
                     </div>
                   </div>
                   
@@ -885,6 +1121,19 @@ const AdminOrders = () => {
                       <span>{t('total')}</span>
                       <span className="text-red-600">{formatCurrency(totals.total)}</span>
                     </div>
+                    
+                    {/* USD Conversion for International Orders */}
+                    {newOrderData.shipping_country && newOrderData.shipping_country !== 'Indonesia' && (
+                      <div className="border-t pt-2 mt-2">
+                        <div className="flex justify-between font-bold text-yellow-700">
+                          <span>Total (USD)</span>
+                          <span className="text-lg">${(totals.total / exchangeRate).toFixed(2)}</span>
+                        </div>
+                        <p className="text-xs text-gray-500 text-right mt-1">
+                          Kurs: 1 USD = {formatCurrency(exchangeRate)}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

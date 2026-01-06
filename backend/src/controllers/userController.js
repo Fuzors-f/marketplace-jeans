@@ -30,6 +30,34 @@ exports.getUsers = async (req, res) => {
   }
 };
 
+// @desc    Search users by name or email (Admin)
+// @route   GET /api/users/search
+// @access  Private (Admin)
+exports.searchUsers = async (req, res) => {
+  try {
+    const { q, limit = 10 } = req.query;
+    
+    if (!q || q.length < 2) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const searchTerm = `%${q}%`;
+    const users = await query(
+      `SELECT id, email, full_name, phone, role, is_active, member_discount 
+       FROM users 
+       WHERE (full_name LIKE ? OR email LIKE ? OR phone LIKE ?)
+       AND is_active = true
+       ORDER BY full_name ASC 
+       LIMIT ?`,
+      [searchTerm, searchTerm, searchTerm, parseInt(limit)]
+    );
+
+    res.json({ success: true, data: users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // @desc    Update user role/status (Admin)
 // @route   PUT /api/users/:id
 // @access  Private (Admin)

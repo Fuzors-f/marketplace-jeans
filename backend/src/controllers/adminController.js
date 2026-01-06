@@ -1,5 +1,6 @@
 const { query, transaction } = require('../config/database');
 const { logActivity } = require('../middleware/activityLogger');
+const bcrypt = require('bcryptjs');
 
 // @desc    Get all orders for admin
 // @route   GET /api/admin/orders
@@ -404,19 +405,25 @@ exports.addTracking = async (req, res) => {
 exports.createManualOrder = async (req, res) => {
   try {
     const {
+      user_id, // If selecting existing user
+      create_new_user, // Flag to create new user
       customer_name,
       customer_email,
       customer_phone,
+      customer_password, // Optional password for new user
       shipping_address,
       shipping_city,
       shipping_province,
       shipping_postal_code,
+      shipping_country,
       shipping_method,
       payment_method,
       items, // [{ product_id, variant_id, quantity, price }]
       shipping_cost,
       discount_amount,
-      notes
+      notes,
+      currency, // 'IDR' or 'USD'
+      exchange_rate // Kurs if from USD
     } = req.body;
 
     // Validation
@@ -428,6 +435,32 @@ exports.createManualOrder = async (req, res) => {
     }
 
     const orderId = await transaction(async (conn) => {
+      let finalUserId = user_id || null;
+      
+      // Create new user if requested
+      if (create_new_user && customer_email) {
+        // Check if email already exists
+        const existingUser = await query('SELECT id FROM users WHERE email = ?', [customer_email]);
+        
+        if (existingUser.length > 0) {
+          throw new Error('Email sudah terdaftar. Pilih user dari daftar atau gunakan email lain.');
+        }
+
+        // Generate default password if not provided
+        const password = customer_password || Math.random().toString(36).slice(-8);
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // Create new user
+        const [userResult] = await conn.execute(
+          `INSERT INTO users (email, password, full_name, phone, role, is_active)
+           VALUES (?, ?, ?, ?, 'guest', true)`,
+          [customer_email, hashedPassword, customer_name, customer_phone]
+        );
+        
+        finalUserId = userResult.insertId;
+      }
+
       // Calculate totals
       let subtotal = 0;
       for (const item of items) {
@@ -437,18 +470,44 @@ exports.createManualOrder = async (req, res) => {
       const tax = subtotal * 0.11; // 11% PPN
       const total = subtotal + (shipping_cost || 0) + tax - (discount_amount || 0);
 
-      // Create order
-      const [orderResult] = await conn.execute(
-        `INSERT INTO orders 
-        (user_id, status, payment_status, payment_method, subtotal, shipping_cost, discount_amount, tax, total,
-         customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_province,
-         shipping_postal_code, shipping_method, notes, created_by)
-        VALUES (?, 'confirmed', 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [null, payment_method || 'cash', subtotal, shipping_cost || 0, discount_amount || 0, tax, total,
-         customer_name, customer_email || null, customer_phone, shipping_address, shipping_city || null,
-         shipping_province || null, shipping_postal_code || null, shipping_method || 'manual',
-         notes || 'Manual order created by admin', req.user.id]
-      );
+      // Determine if international order
+      const isInternational = shipping_country && shipping_country !== 'Indonesia';
+      const orderCurrency = currency || (isInternational ? 'USD' : 'IDR');
+      const orderExchangeRate = exchange_rate || null;
+
+      // Create order - Try with new columns first, fallback if they don't exist
+      let orderResult;
+      try {
+        [orderResult] = await conn.execute(
+          `INSERT INTO orders 
+          (user_id, status, payment_status, payment_method, subtotal, shipping_cost, discount_amount, tax, total,
+           customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_province,
+           shipping_postal_code, shipping_country, shipping_method, notes, currency, exchange_rate, created_by)
+          VALUES (?, 'confirmed', 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [finalUserId, payment_method || 'cash', subtotal, shipping_cost || 0, discount_amount || 0, tax, total,
+           customer_name, customer_email || null, customer_phone, shipping_address, shipping_city || null,
+           shipping_province || null, shipping_postal_code || null, shipping_country || 'Indonesia',
+           shipping_method || 'manual', notes || 'Manual order created by admin', 
+           orderCurrency, orderExchangeRate, req.user.id]
+        );
+      } catch (insertError) {
+        // Fallback: try without new columns if they don't exist yet
+        if (insertError.code === 'ER_BAD_FIELD_ERROR') {
+          [orderResult] = await conn.execute(
+            `INSERT INTO orders 
+            (user_id, status, payment_status, payment_method, subtotal, shipping_cost, discount_amount, tax, total,
+             customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_province,
+             shipping_postal_code, shipping_method, notes, created_by)
+            VALUES (?, 'confirmed', 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [finalUserId, payment_method || 'cash', subtotal, shipping_cost || 0, discount_amount || 0, tax, total,
+             customer_name, customer_email || null, customer_phone, shipping_address, shipping_city || null,
+             shipping_province || null, shipping_postal_code || null,
+             shipping_method || 'manual', notes || 'Manual order created by admin', req.user.id]
+          );
+        } else {
+          throw insertError;
+        }
+      }
 
       const newOrderId = orderResult.insertId;
 
@@ -502,18 +561,18 @@ exports.createManualOrder = async (req, res) => {
     });
 
     await logActivity(req.user.id, 'create_manual_order', 'order', orderId,
-      `Manual order created for ${customer_name}`, req);
+      `Manual order created for ${customer_name}${create_new_user ? ' (new user created)' : ''}`, req);
 
     res.status(201).json({
       success: true,
-      message: 'Manual order created successfully',
+      message: create_new_user ? 'Pesanan dan user baru berhasil dibuat' : 'Pesanan berhasil dibuat',
       data: { id: orderId }
     });
   } catch (error) {
     console.error('Create manual order error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error creating manual order',
+      message: error.message || 'Error creating manual order',
       error: error.message
     });
   }
