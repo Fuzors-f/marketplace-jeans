@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
-import { FaPlus, FaEdit, FaTrash, FaTimes, FaImage, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaTimes, FaImage, FaEye, FaEyeSlash, FaGlobe } from 'react-icons/fa';
 import DataTable from '../../components/admin/DataTable';
 
 const AdminBanners = () => {
@@ -15,9 +15,13 @@ const AdminBanners = () => {
 
   const [formData, setFormData] = useState({
     title: '',
+    title_en: '',
     subtitle: '',
+    subtitle_en: '',
     image_url: '',
     link_url: '',
+    button_text: '',
+    button_text_en: '',
     position: 'hero',
     sort_order: 0,
     start_date: '',
@@ -88,10 +92,14 @@ const AdminBanners = () => {
   const handleEdit = (banner) => {
     setEditingBanner(banner);
     setFormData({
-      title: banner.title,
+      title: banner.title || '',
+      title_en: banner.title_en || '',
       subtitle: banner.subtitle || '',
-      image_url: banner.image_url,
+      subtitle_en: banner.subtitle_en || '',
+      image_url: banner.image_url || '',
       link_url: banner.link_url || '',
+      button_text: banner.button_text || '',
+      button_text_en: banner.button_text_en || '',
       position: banner.position || 'hero',
       sort_order: banner.sort_order || 0,
       start_date: banner.start_date ? banner.start_date.slice(0, 16) : '',
@@ -120,9 +128,13 @@ const AdminBanners = () => {
     setEditingBanner(null);
     setFormData({
       title: '',
+      title_en: '',
       subtitle: '',
+      subtitle_en: '',
       image_url: '',
       link_url: '',
+      button_text: '',
+      button_text_en: '',
       position: 'hero',
       sort_order: 0,
       start_date: '',
@@ -163,6 +175,7 @@ const AdminBanners = () => {
       render: (value, banner) => (
         <div>
           <p className="font-semibold">{value}</p>
+          {banner.title_en && <p className="text-xs text-blue-600">EN: {banner.title_en}</p>}
           {banner.subtitle && <p className="text-xs text-gray-500">{banner.subtitle}</p>}
         </div>
       )
@@ -321,29 +334,65 @@ const AdminBanners = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-4 space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Judul *</label>
-                    <input
-                      type="text"
-                      name="title"
-                      value={formData.title}
-                      onChange={handleChange}
-                      required
-                      placeholder="Judul banner"
-                      className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-                    />
+                  {/* Bilingual Title */}
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <h3 className="text-sm font-semibold mb-2 flex items-center gap-1">
+                      <FaGlobe className="text-blue-500" /> Judul / Title
+                    </h3>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium mb-1">🇮🇩 Indonesia *</label>
+                        <input
+                          type="text"
+                          name="title"
+                          value={formData.title}
+                          onChange={handleChange}
+                          required
+                          placeholder="Judul banner"
+                          className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">🇬🇧 English</label>
+                        <input
+                          type="text"
+                          name="title_en"
+                          value={formData.title_en}
+                          onChange={handleChange}
+                          placeholder="Banner title"
+                          className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Subtitle</label>
-                    <input
-                      type="text"
-                      name="subtitle"
-                      value={formData.subtitle}
-                      onChange={handleChange}
-                      placeholder="Subtitle banner"
-                      className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-                    />
+                  {/* Bilingual Subtitle */}
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <h3 className="text-sm font-semibold mb-2">Subtitle</h3>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium mb-1">🇮🇩 Indonesia</label>
+                        <input
+                          type="text"
+                          name="subtitle"
+                          value={formData.subtitle}
+                          onChange={handleChange}
+                          placeholder="Subtitle banner"
+                          className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">🇬🇧 English</label>
+                        <input
+                          type="text"
+                          name="subtitle_en"
+                          value={formData.subtitle_en}
+                          onChange={handleChange}
+                          placeholder="Banner subtitle"
+                          className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div>
@@ -369,6 +418,35 @@ const AdminBanners = () => {
                       placeholder="/products"
                       className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                     />
+                  </div>
+
+                  {/* Bilingual Button Text */}
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <h3 className="text-sm font-semibold mb-2">Teks Tombol / Button Text</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium mb-1">🇮🇩 Indonesia</label>
+                        <input
+                          type="text"
+                          name="button_text"
+                          value={formData.button_text}
+                          onChange={handleChange}
+                          placeholder="Belanja Sekarang"
+                          className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">🇬🇧 English</label>
+                        <input
+                          type="text"
+                          name="button_text_en"
+                          value={formData.button_text_en}
+                          onChange={handleChange}
+                          placeholder="Shop Now"
+                          className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

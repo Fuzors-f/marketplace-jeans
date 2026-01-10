@@ -687,7 +687,50 @@ const migrations = [
 
   // 33. Insert default exchange rate (IDR to USD)
   `INSERT IGNORE INTO exchange_rates (currency_from, currency_to, rate, is_active)
-   VALUES ('IDR', 'USD', 16000, TRUE);`
+   VALUES ('IDR', 'USD', 16000, TRUE);`,
+
+  // 34. Add bilingual columns to banners table
+  `ALTER TABLE banners 
+   ADD COLUMN IF NOT EXISTS title_en VARCHAR(255) AFTER title,
+   ADD COLUMN IF NOT EXISTS subtitle_en VARCHAR(255) AFTER subtitle,
+   ADD COLUMN IF NOT EXISTS button_text VARCHAR(100) DEFAULT 'Shop Now' AFTER link_url,
+   ADD COLUMN IF NOT EXISTS button_text_en VARCHAR(100) DEFAULT 'Shop Now' AFTER button_text;`,
+
+  // 35. Content settings table for homepage sections (bilingual)
+  `CREATE TABLE IF NOT EXISTS content_settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    section_key VARCHAR(100) UNIQUE NOT NULL COMMENT 'Unique identifier for section',
+    section_name VARCHAR(255) NOT NULL COMMENT 'Display name',
+    title_id VARCHAR(255) COMMENT 'Indonesian title',
+    title_en VARCHAR(255) COMMENT 'English title',
+    subtitle_id TEXT COMMENT 'Indonesian subtitle',
+    subtitle_en TEXT COMMENT 'English subtitle',
+    content_id TEXT COMMENT 'Indonesian content',
+    content_en TEXT COMMENT 'English content',
+    button_text_id VARCHAR(100) COMMENT 'Indonesian button text',
+    button_text_en VARCHAR(100) COMMENT 'English button text',
+    button_url VARCHAR(500) COMMENT 'Button link URL',
+    image_url VARCHAR(500) COMMENT 'Section image',
+    extra_data JSON COMMENT 'Additional configuration',
+    is_active BOOLEAN DEFAULT TRUE,
+    sort_order INT DEFAULT 0,
+    updated_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_section_key (section_key),
+    INDEX idx_active (is_active)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 36. Insert default content settings
+  `INSERT IGNORE INTO content_settings (section_key, section_name, title_id, title_en, subtitle_id, subtitle_en, button_text_id, button_text_en, button_url, sort_order) VALUES
+   ('hero', 'Hero Section', 'Koleksi Jeans Terbaru', 'Latest Jeans Collection', 'Temukan gaya sempurna untuk setiap kesempatan', 'Find the perfect style for every occasion', 'Belanja Sekarang', 'Shop Now', '/products', 1),
+   ('featured', 'Featured Products', 'Produk Unggulan', 'Featured Products', 'Pilihan terbaik untuk Anda', 'Best picks for you', 'Lihat Semua', 'View All', '/products?featured=true', 2),
+   ('categories', 'Categories Section', 'Kategori', 'Categories', 'Jelajahi koleksi kami', 'Explore our collection', 'Lihat Kategori', 'View Categories', '/products', 3),
+   ('promo', 'Promo Section', 'Promo Spesial', 'Special Promo', 'Diskon hingga 50%', 'Up to 50% off', 'Lihat Promo', 'View Promo', '/products?promo=true', 4),
+   ('about', 'About Section', 'Tentang Kami', 'About Us', 'Kualitas terbaik dengan harga terjangkau', 'Best quality at affordable prices', 'Selengkapnya', 'Learn More', '/about', 5),
+   ('newsletter', 'Newsletter Section', 'Berlangganan Newsletter', 'Subscribe to Newsletter', 'Dapatkan info promo dan produk terbaru', 'Get the latest promo and product updates', 'Berlangganan', 'Subscribe', NULL, 6),
+   ('footer_tagline', 'Footer Tagline', 'Jeans berkualitas untuk semua', 'Quality jeans for everyone', NULL, NULL, NULL, NULL, NULL, 7);`
 ];
 
 async function runMigrations() {

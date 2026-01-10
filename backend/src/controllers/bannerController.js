@@ -6,10 +6,11 @@ const { logActivity } = require('../middleware/activityLogger');
 // @access  Public
 exports.getAllBanners = async (req, res) => {
   try {
-    const { position } = req.query;
+    const { position, lang } = req.query;
     
     let sql = `
-      SELECT id, title, subtitle, image_url, link_url, position, is_active, start_date, end_date, sort_order
+      SELECT id, title, title_en, subtitle, subtitle_en, image_url, link_url, 
+             button_text, button_text_en, position, is_active, start_date, end_date, sort_order
       FROM banners
       WHERE is_active = true
         AND (start_date IS NULL OR start_date <= NOW())
@@ -26,9 +27,30 @@ exports.getAllBanners = async (req, res) => {
 
     const results = await query(sql, params);
 
+    // Transform based on language
+    const data = results.map(item => ({
+      id: item.id,
+      title: lang === 'en' ? (item.title_en || item.title) : item.title,
+      title_id: item.title,
+      title_en: item.title_en,
+      subtitle: lang === 'en' ? (item.subtitle_en || item.subtitle) : item.subtitle,
+      subtitle_id: item.subtitle,
+      subtitle_en: item.subtitle_en,
+      button_text: lang === 'en' ? (item.button_text_en || item.button_text) : item.button_text,
+      button_text_id: item.button_text,
+      button_text_en: item.button_text_en,
+      image_url: item.image_url,
+      link_url: item.link_url,
+      position: item.position,
+      is_active: item.is_active,
+      start_date: item.start_date,
+      end_date: item.end_date,
+      sort_order: item.sort_order
+    }));
+
     res.status(200).json({
       success: true,
-      data: results
+      data
     });
   } catch (error) {
     console.error('Error fetching banners:', error);
@@ -46,7 +68,8 @@ exports.getAllBanners = async (req, res) => {
 exports.getAdminBanners = async (req, res) => {
   try {
     const sql = `
-      SELECT id, title, subtitle, image_url, link_url, position, is_active, start_date, end_date, sort_order, created_at
+      SELECT id, title, title_en, subtitle, subtitle_en, image_url, link_url, 
+             button_text, button_text_en, position, is_active, start_date, end_date, sort_order, created_at
       FROM banners
       ORDER BY sort_order ASC, created_at DESC
     `;
@@ -72,7 +95,11 @@ exports.getAdminBanners = async (req, res) => {
 // @access  Private/Admin
 exports.createBanner = async (req, res) => {
   try {
-    const { title, subtitle, image_url, link_url, position, start_date, end_date, sort_order } = req.body;
+    const { 
+      title, title_en, subtitle, subtitle_en, 
+      image_url, link_url, button_text, button_text_en,
+      position, start_date, end_date, sort_order 
+    } = req.body;
 
     if (!title || !image_url) {
       return res.status(400).json({
@@ -83,15 +110,20 @@ exports.createBanner = async (req, res) => {
 
     const sql = `
       INSERT INTO banners 
-      (title, subtitle, image_url, link_url, position, is_active, start_date, end_date, sort_order, created_at)
-      VALUES (?, ?, ?, ?, ?, true, ?, ?, ?, NOW())
+      (title, title_en, subtitle, subtitle_en, image_url, link_url, button_text, button_text_en,
+       position, is_active, start_date, end_date, sort_order, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, true, ?, ?, ?, NOW())
     `;
 
     const result = await query(sql, [
       title,
+      title_en || null,
       subtitle || null,
+      subtitle_en || null,
       image_url,
       link_url || null,
+      button_text || 'Belanja Sekarang',
+      button_text_en || 'Shop Now',
       position || 'hero',
       start_date || null,
       end_date || null,
@@ -106,9 +138,13 @@ exports.createBanner = async (req, res) => {
       data: {
         id: result.insertId,
         title,
+        title_en,
         subtitle,
+        subtitle_en,
         image_url,
         link_url,
+        button_text: button_text || 'Belanja Sekarang',
+        button_text_en: button_text_en || 'Shop Now',
         position: position || 'hero',
         is_active: true
       }
@@ -129,7 +165,11 @@ exports.createBanner = async (req, res) => {
 exports.updateBanner = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, subtitle, image_url, link_url, position, is_active, start_date, end_date, sort_order } = req.body;
+    const { 
+      title, title_en, subtitle, subtitle_en, 
+      image_url, link_url, button_text, button_text_en,
+      position, is_active, start_date, end_date, sort_order 
+    } = req.body;
 
     // Check if banner exists
     const checkSql = 'SELECT id, title FROM banners WHERE id = ?';
@@ -150,9 +190,17 @@ exports.updateBanner = async (req, res) => {
       updates.push('title = ?');
       params.push(title);
     }
+    if (title_en !== undefined) {
+      updates.push('title_en = ?');
+      params.push(title_en);
+    }
     if (subtitle !== undefined) {
       updates.push('subtitle = ?');
       params.push(subtitle);
+    }
+    if (subtitle_en !== undefined) {
+      updates.push('subtitle_en = ?');
+      params.push(subtitle_en);
     }
     if (image_url !== undefined) {
       updates.push('image_url = ?');
@@ -161,6 +209,14 @@ exports.updateBanner = async (req, res) => {
     if (link_url !== undefined) {
       updates.push('link_url = ?');
       params.push(link_url);
+    }
+    if (button_text !== undefined) {
+      updates.push('button_text = ?');
+      params.push(button_text);
+    }
+    if (button_text_en !== undefined) {
+      updates.push('button_text_en = ?');
+      params.push(button_text_en);
     }
     if (position !== undefined) {
       updates.push('position = ?');
