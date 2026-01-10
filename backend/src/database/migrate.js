@@ -339,9 +339,13 @@ const migrations = [
     description TEXT,
     ip_address VARCHAR(45),
     user_agent TEXT,
+    request_url VARCHAR(500),
+    request_method VARCHAR(10),
+    metadata JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_user (user_id),
+    INDEX idx_action (action),
     INDEX idx_entity (entity_type, entity_id),
     INDEX idx_created (created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,

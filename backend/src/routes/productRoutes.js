@@ -15,8 +15,13 @@ const {
   getProductImages,
   deleteProductImage
 } = require('../controllers/productController');
+const { downloadImportTemplate, importProducts, uploadMiddleware } = require('../controllers/productImportController');
 const { protect, authorize, optionalAuth } = require('../middleware/auth');
 const { upload } = require('../middleware/upload');
+
+// Import routes (must be before /:slug to avoid conflict)
+router.get('/import/template', protect, authorize('admin', 'admin_stok'), downloadImportTemplate);
+router.post('/import', protect, authorize('admin', 'admin_stok'), uploadMiddleware, importProducts);
 
 // Public routes
 router.get('/', optionalAuth, getProducts);

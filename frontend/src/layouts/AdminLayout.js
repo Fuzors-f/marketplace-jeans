@@ -5,7 +5,7 @@ import {
   FaHome, FaBox, FaShoppingBag, FaWarehouse, FaChartBar, FaUsers, FaCog, 
   FaSignOutAlt, FaImages, FaTags, FaRuler, FaUserShield, 
   FaChevronDown, FaChevronRight, FaTable, FaClipboardList, FaBoxes, FaCity, FaTruck,
-  FaBars, FaTimes, FaExchangeAlt
+  FaBars, FaTimes, FaExchangeAlt, FaHistory, FaFileImport, FaMoneyBillWave, FaArrowsAltH
 } from 'react-icons/fa';
 import { logout } from '../redux/slices/authSlice';
 
@@ -53,6 +53,7 @@ const AdminLayout = () => {
       label: 'Master Data',
       children: [
         { path: '/admin/products', icon: FaBox, label: 'Produk' },
+        { path: '/admin/products/import', icon: FaFileImport, label: 'Import Produk' },
         { path: '/admin/categories', icon: FaTags, label: 'Kategori' },
         { path: '/admin/fittings', icon: FaRuler, label: 'Fitting' },
         { path: '/admin/sizes', icon: FaRuler, label: 'Ukuran' },
@@ -69,10 +70,20 @@ const AdminLayout = () => {
       children: [
         { path: '/admin/inventory', icon: FaBoxes, label: 'Stok Produk' },
         { path: '/admin/warehouses', icon: FaWarehouse, label: 'Gudang' },
+        { path: '/admin/reports/inventory-movement', icon: FaArrowsAltH, label: 'Pergerakan Stok' },
         // { path: '/admin/stock/opname', icon: FaClipboardList, label: 'Stock Opname' }, // DISABLED - Using variant-based inventory
       ]
     },
-    { path: '/admin/reports', icon: FaChartBar, label: 'Laporan' },
+    { 
+      key: 'reports',
+      icon: FaChartBar, 
+      label: 'Laporan',
+      children: [
+        { path: '/admin/reports', icon: FaChartBar, label: 'Dashboard Laporan' },
+        { path: '/admin/reports/sales', icon: FaMoneyBillWave, label: 'Laporan Penjualan' },
+        { path: '/admin/activity-logs', icon: FaHistory, label: 'Activity Logs' },
+      ]
+    },
     { 
       key: 'users',
       icon: FaUsers, 

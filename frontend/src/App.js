@@ -42,6 +42,10 @@ import AdminStockOpname from './pages/admin/StockOpname';
 import AdminRoles from './pages/admin/Roles';
 import AdminCityShipping from './pages/admin/CityShipping';
 import AdminExchangeRates from './pages/admin/ExchangeRates';
+import AdminActivityLogs from './pages/admin/ActivityLogs';
+import AdminSalesReport from './pages/admin/SalesReport';
+import AdminInventoryMovementReport from './pages/admin/InventoryMovementReport';
+import AdminProductImport from './pages/admin/ProductImport';
 
 // Components
 import PrivateRoute from './components/PrivateRoute';
@@ -96,6 +100,10 @@ function App() {
         <Route path="stock/opname" element={<AdminStockOpname />} />
         <Route path="city-shipping" element={<AdminCityShipping />} />
         <Route path="reports" element={<AdminReports />} />
+        <Route path="reports/sales" element={<AdminSalesReport />} />
+        <Route path="reports/inventory-movement" element={<AdminInventoryMovementReport />} />
+        <Route path="activity-logs" element={<AdminActivityLogs />} />
+        <Route path="products/import" element={<AdminProductImport />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="roles" element={<AdminRoles />} />
         <Route path="exchange-rates" element={<AdminExchangeRates />} />
