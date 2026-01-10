@@ -109,17 +109,19 @@ const ProductImport = () => {
         <title>Import Produk - Admin</title>
       </Helmet>
 
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FaFileImport className="text-green-600" />
-            Import Produk
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Import data produk dari file Excel
-          </p>
-        </div>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="space-y-6">
+            {/* Header */}
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <FaFileImport className="text-green-600" />
+                Import Produk
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Import data produk dari file Excel
+              </p>
+            </div>
 
         {/* Instructions */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
@@ -321,6 +323,8 @@ const ProductImport = () => {
             )}
           </div>
         )}
+          </div>
+        </div>
       </div>
     </>
   );

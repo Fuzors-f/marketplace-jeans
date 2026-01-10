@@ -108,26 +108,28 @@ const SalesReport = () => {
         <title>Laporan Penjualan - Admin</title>
       </Helmet>
 
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <FaChartLine className="text-green-600" />
-              Laporan Penjualan
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Analisis penjualan dan profit
-            </p>
-          </div>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          >
-            <FaDownload />
-            Export Excel
-          </button>
-        </div>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold flex items-center gap-2">
+                  <FaChartLine className="text-green-600" />
+                  Laporan Penjualan
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  Analisis penjualan dan profit
+                </p>
+              </div>
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                <FaDownload />
+                Export Excel
+              </button>
+            </div>
 
         {/* Filters */}
         <div className="bg-white rounded-xl shadow p-4">
@@ -348,6 +350,8 @@ const SalesReport = () => {
             </div>
           </>
         )}
+          </div>
+        </div>
       </div>
     </>
   );

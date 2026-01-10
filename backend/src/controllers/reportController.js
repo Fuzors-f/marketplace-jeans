@@ -18,7 +18,7 @@ const getSalesReport = async (req, res) => {
     }
 
     if (warehouse_id) {
-      dateCondition.push('EXISTS (SELECT 1 FROM order_items oi2 JOIN stocks s ON oi2.product_id = s.product_id WHERE oi2.order_id = o.id AND s.warehouse_id = ?)');
+      dateCondition.push('EXISTS (SELECT 1 FROM order_items oi2 JOIN product_variants pv2 ON oi2.product_variant_id = pv2.id WHERE oi2.order_id = o.id AND pv2.warehouse_id = ?)');
       params.push(warehouse_id);
     }
 
@@ -33,10 +33,10 @@ const getSalesReport = async (req, res) => {
         SUM(oi.price * oi.quantity) as gross_sales,
         SUM(o.discount_amount) as total_discounts,
         SUM(o.shipping_cost) as total_shipping,
-        SUM(o.total_amount) as net_sales,
+        SUM(o.total) as net_sales,
         SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as total_cost,
-        SUM(o.total_amount) - SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as gross_profit,
-        ROUND(((SUM(o.total_amount) - SUM(oi.quantity * COALESCE(pv.cost_price, 0))) / SUM(o.total_amount) * 100), 2) as profit_margin
+        SUM(o.total) - SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as gross_profit,
+        ROUND(((SUM(o.total) - SUM(oi.quantity * COALESCE(pv.cost_price, 0))) / NULLIF(SUM(o.total), 0) * 100), 2) as profit_margin
       FROM orders o
       JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN product_variants pv ON oi.product_variant_id = pv.id
@@ -55,10 +55,10 @@ const getSalesReport = async (req, res) => {
         SUM(oi.price * oi.quantity) as total_gross_sales,
         SUM(o.discount_amount) as total_discounts,
         SUM(o.shipping_cost) as total_shipping,
-        SUM(o.total_amount) as total_net_sales,
+        SUM(o.total) as total_net_sales,
         SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as total_cost,
-        SUM(o.total_amount) - SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as total_profit,
-        ROUND(((SUM(o.total_amount) - SUM(oi.quantity * COALESCE(pv.cost_price, 0))) / SUM(o.total_amount) * 100), 2) as avg_profit_margin
+        SUM(o.total) - SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as total_profit,
+        ROUND(((SUM(o.total) - SUM(oi.quantity * COALESCE(pv.cost_price, 0))) / NULLIF(SUM(o.total), 0) * 100), 2) as avg_profit_margin
       FROM orders o
       JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN product_variants pv ON oi.product_variant_id = pv.id
@@ -100,7 +100,7 @@ const getProductReport = async (req, res) => {
     }
 
     if (warehouse_id) {
-      dateCondition.push('EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND pv.warehouse_id = ?)');
+      dateCondition.push('EXISTS (SELECT 1 FROM product_variants pv2 WHERE pv2.product_id = p.id AND pv2.warehouse_id = ?)');
       params.push(warehouse_id);
     }
 
@@ -110,13 +110,13 @@ const getProductReport = async (req, res) => {
       `SELECT 
         p.id as product_id,
         p.name as product_name,
-        p.sku_code,
+        p.sku as sku_code,
         c.name as category_name,
         SUM(oi.quantity) as units_sold,
         SUM(oi.price * oi.quantity) as revenue,
         SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as cost,
         SUM(oi.price * oi.quantity) - SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as profit,
-        ROUND(((SUM(oi.price * oi.quantity) - SUM(oi.quantity * COALESCE(pv.cost_price, 0))) / SUM(oi.price * oi.quantity) * 100), 2) as profit_margin,
+        ROUND(((SUM(oi.price * oi.quantity) - SUM(oi.quantity * COALESCE(pv.cost_price, 0))) / NULLIF(SUM(oi.price * oi.quantity), 0) * 100), 2) as profit_margin,
         AVG(oi.price) as avg_selling_price,
         AVG(pv.cost_price) as avg_cost_price,
         COUNT(DISTINCT o.id) as orders_count,
@@ -127,7 +127,7 @@ const getProductReport = async (req, res) => {
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN product_variants pv ON p.id = pv.product_id
       ${whereClause}
-      GROUP BY p.id, p.name, p.sku_code, c.name
+      GROUP BY p.id, p.name, p.sku, c.name
       HAVING units_sold > 0
       ORDER BY units_sold DESC
       LIMIT ?`,
@@ -195,7 +195,7 @@ const getInventoryReport = async (req, res) => {
       JOIN products p ON pv.product_id = p.id
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN sizes sz ON pv.size_id = sz.id
-      JOIN warehouses w ON pv.warehouse_id = w.id
+      LEFT JOIN warehouses w ON pv.warehouse_id = w.id
       WHERE ${whereClause}
       ORDER BY stock_status DESC, pv.stock_quantity ASC, p.name`,
       params
@@ -211,7 +211,7 @@ const getInventoryReport = async (req, res) => {
         COUNT(CASE WHEN pv.stock_quantity > 5 THEN 1 END) as in_stock
       FROM product_variants pv
       JOIN products p ON pv.product_id = p.id
-      JOIN warehouses w ON pv.warehouse_id = w.id
+      LEFT JOIN warehouses w ON pv.warehouse_id = w.id
       WHERE ${whereClause}`,
       params
     );
@@ -251,7 +251,7 @@ const exportSalesReport = async (req, res) => {
     }
 
     if (warehouse_id) {
-      dateCondition.push('EXISTS (SELECT 1 FROM order_items oi2 JOIN stocks s ON oi2.product_id = s.product_id WHERE oi2.order_id = o.id AND s.warehouse_id = ?)');
+      dateCondition.push('EXISTS (SELECT 1 FROM order_items oi2 JOIN product_variants pv2 ON oi2.product_variant_id = pv2.id WHERE oi2.order_id = o.id AND pv2.warehouse_id = ?)');
       params.push(warehouse_id);
     }
 
@@ -266,10 +266,10 @@ const exportSalesReport = async (req, res) => {
         SUM(oi.price * oi.quantity) as gross_sales,
         SUM(o.discount_amount) as total_discounts,
         SUM(o.shipping_cost) as total_shipping,
-        SUM(o.total_amount) as net_sales,
+        SUM(o.total) as net_sales,
         SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as total_cost,
-        SUM(o.total_amount) - SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as gross_profit,
-        ROUND(((SUM(o.total_amount) - SUM(oi.quantity * COALESCE(pv.cost_price, 0))) / SUM(o.total_amount) * 100), 2) as profit_margin
+        SUM(o.total) - SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as gross_profit,
+        ROUND(((SUM(o.total) - SUM(oi.quantity * COALESCE(pv.cost_price, 0))) / NULLIF(SUM(o.total), 0) * 100), 2) as profit_margin
       FROM orders o
       JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN product_variants pv ON oi.product_variant_id = pv.id
@@ -394,7 +394,7 @@ const exportInventoryReport = async (req, res) => {
       JOIN products p ON pv.product_id = p.id
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN sizes sz ON pv.size_id = sz.id
-      JOIN warehouses w ON pv.warehouse_id = w.id
+      LEFT JOIN warehouses w ON pv.warehouse_id = w.id
       WHERE ${whereClause}
       ORDER BY stock_status DESC, pv.stock_quantity ASC, p.name`,
       params
@@ -435,8 +435,8 @@ const exportInventoryReport = async (req, res) => {
     });
 
     // Format currency columns
-    worksheet.getColumn('K').numFmt = '"Rp"#,##0.00'; // Cost Price
-    worksheet.getColumn('L').numFmt = '"Rp"#,##0.00'; // Total Value
+    worksheet.getColumn('G').numFmt = '"Rp"#,##0.00'; // Cost Price
+    worksheet.getColumn('H').numFmt = '"Rp"#,##0.00'; // Total Value
 
     // Auto-fit columns
     worksheet.columns.forEach(column => {

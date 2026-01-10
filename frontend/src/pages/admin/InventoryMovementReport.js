@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
 import { 
-  FaExchangeAlt, FaDownload, FaCalendarAlt, FaFilter, FaSpinner,
-  FaArrowUp, FaArrowDown, FaWarehouse, FaBox, FaSync, FaClipboardList
+  FaExchangeAlt, FaDownload, FaFilter, FaSpinner,
+  FaArrowUp, FaArrowDown, FaBox, FaSync
 } from 'react-icons/fa';
 import { useLanguage } from '../../utils/i18n';
 
@@ -15,7 +15,6 @@ const InventoryMovementReport = () => {
   const [summary, setSummary] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 });
   
-  // Filters
   const [filters, setFilters] = useState({
     start_date: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
     end_date: new Date().toISOString().split('T')[0],
@@ -24,7 +23,6 @@ const InventoryMovementReport = () => {
     product_id: ''
   });
   
-  // Warehouses
   const [warehouses, setWarehouses] = useState([]);
 
   useEffect(() => {
@@ -164,273 +162,249 @@ const InventoryMovementReport = () => {
         <title>Laporan Pergerakan Stok - Admin</title>
       </Helmet>
 
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <FaExchangeAlt className="text-blue-600" />
-              Laporan Pergerakan Stok
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Tracking semua pergerakan inventori
-            </p>
-          </div>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          >
-            <FaDownload />
-            Export Excel
-          </button>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow p-4">
-          <div className="flex flex-wrap gap-4 items-end">
-            <div>
-              <label className="block text-sm font-medium mb-1">Dari Tanggal</label>
-              <input
-                type="date"
-                value={filters.start_date}
-                onChange={(e) => setFilters(prev => ({ ...prev, start_date: e.target.value }))}
-                className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Sampai Tanggal</label>
-              <input
-                type="date"
-                value={filters.end_date}
-                onChange={(e) => setFilters(prev => ({ ...prev, end_date: e.target.value }))}
-                className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Gudang</label>
-              <select
-                value={filters.warehouse_id}
-                onChange={(e) => setFilters(prev => ({ ...prev, warehouse_id: e.target.value }))}
-                className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold flex items-center gap-2">
+                  <FaExchangeAlt className="text-blue-600" />
+                  Laporan Pergerakan Stok
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  Tracking semua pergerakan inventori
+                </p>
+              </div>
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
-                <option value="">Semua Gudang</option>
-                {warehouses.map(wh => (
-                  <option key={wh.id} value={wh.id}>{wh.name}</option>
-                ))}
-              </select>
+                <FaDownload />
+                Export Excel
+              </button>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Tipe</label>
-              <select
-                value={filters.movement_type}
-                onChange={(e) => setFilters(prev => ({ ...prev, movement_type: e.target.value }))}
-                className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Semua Tipe</option>
-                <option value="in">Masuk</option>
-                <option value="out">Keluar</option>
-                <option value="transfer">Transfer</option>
-                <option value="adjustment">Adjustment</option>
-                <option value="sale">Penjualan</option>
-                <option value="purchase">Pembelian</option>
-                <option value="return">Retur</option>
-                <option value="opname">Stock Opname</option>
-              </select>
-            </div>
-            <button
-              onClick={handleApplyFilters}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <FaFilter />
-              Terapkan
-            </button>
-          </div>
-        </div>
 
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        {/* Summary Cards */}
-        {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Filters */}
             <div className="bg-white rounded-xl shadow p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <FaArrowDown className="text-green-600 text-xl" />
+              <div className="flex flex-wrap gap-4 items-end">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Dari Tanggal</label>
+                  <input
+                    type="date"
+                    value={filters.start_date}
+                    onChange={(e) => setFilters(prev => ({ ...prev, start_date: e.target.value }))}
+                    className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Total Masuk</p>
-                  <p className="text-xl font-bold text-green-600">+{summary.total_in?.toLocaleString() || 0}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                  <FaArrowUp className="text-red-600 text-xl" />
+                  <label className="block text-sm font-medium mb-1">Sampai Tanggal</label>
+                  <input
+                    type="date"
+                    value={filters.end_date}
+                    onChange={(e) => setFilters(prev => ({ ...prev, end_date: e.target.value }))}
+                    className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Total Keluar</p>
-                  <p className="text-xl font-bold text-red-600">-{summary.total_out?.toLocaleString() || 0}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <FaExchangeAlt className="text-blue-600 text-xl" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Total Transfer</p>
-                  <p className="text-xl font-bold">{summary.total_transfers?.toLocaleString() || 0}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <FaClipboardList className="text-purple-600 text-xl" />
+                  <label className="block text-sm font-medium mb-1">Gudang</label>
+                  <select
+                    value={filters.warehouse_id}
+                    onChange={(e) => setFilters(prev => ({ ...prev, warehouse_id: e.target.value }))}
+                    className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Semua Gudang</option>
+                    {warehouses.map(wh => (
+                      <option key={wh.id} value={wh.id}>{wh.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Total Movement</p>
-                  <p className="text-xl font-bold">{summary.total_movements?.toLocaleString() || 0}</p>
+                  <label className="block text-sm font-medium mb-1">Tipe</label>
+                  <select
+                    value={filters.movement_type}
+                    onChange={(e) => setFilters(prev => ({ ...prev, movement_type: e.target.value }))}
+                    className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Semua Tipe</option>
+                    <option value="in">Masuk</option>
+                    <option value="out">Keluar</option>
+                    <option value="transfer">Transfer</option>
+                    <option value="adjustment">Adjustment</option>
+                    <option value="sale">Penjualan</option>
+                    <option value="purchase">Pembelian</option>
+                    <option value="return">Retur</option>
+                    <option value="opname">Stock Opname</option>
+                  </select>
                 </div>
+                <button
+                  onClick={handleApplyFilters}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <FaFilter />
+                  Terapkan
+                </button>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Movement Table */}
-        <div className="bg-white rounded-xl shadow overflow-hidden">
-          {loading ? (
-            <div className="p-8 text-center">
-              <FaSpinner className="animate-spin text-3xl mx-auto text-gray-400" />
-              <p className="text-gray-500 mt-2">Memuat data...</p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Tanggal</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Tipe</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Produk</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Varian</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Gudang</th>
-                      <th className="px-4 py-3 text-right text-sm font-semibold">Qty</th>
-                      <th className="px-4 py-3 text-right text-sm font-semibold">Stok Sebelum</th>
-                      <th className="px-4 py-3 text-right text-sm font-semibold">Stok Sesudah</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Referensi</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Catatan</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {movements.length > 0 ? movements.map((movement) => (
-                      <tr key={movement.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm whitespace-nowrap">
-                          {formatDate(movement.created_at)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            {getMovementIcon(movement.movement_type)}
-                            {getMovementBadge(movement.movement_type)}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="font-medium">{movement.product_name}</div>
-                          <div className="text-xs text-gray-500">{movement.sku_code}</div>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          {movement.variant_name || '-'}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center gap-1">
-                            <FaWarehouse className="text-gray-400" />
-                            {movement.warehouse_name || '-'}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className={`font-medium ${
-                            movement.quantity > 0 ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {movement.quantity > 0 ? '+' : ''}{movement.quantity}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm text-gray-500">
-                          {movement.stock_before || '-'}
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm font-medium">
-                          {movement.stock_after || '-'}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          {movement.reference_type && (
-                            <span className="text-blue-600">
-                              {movement.reference_type}: {movement.reference_id}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
-                          {movement.notes || '-'}
-                        </td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan="10" className="px-4 py-8 text-center text-gray-500">
-                          Tidak ada data pergerakan stok
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+            {/* Error */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {error}
               </div>
+            )}
 
-              {/* Pagination */}
-              {pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 border-t">
-                  <div className="text-sm text-gray-500">
-                    Menampilkan halaman {pagination.page} dari {pagination.totalPages}
-                    ({pagination.total} total)
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                      disabled={pagination.page === 1}
-                      className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Sebelumnya
-                    </button>
-                    {[...Array(Math.min(5, pagination.totalPages))].map((_, i) => {
-                      const pageNum = pagination.page > 3 ? pagination.page - 2 + i : i + 1;
-                      if (pageNum > pagination.totalPages) return null;
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
-                          className={`px-3 py-1 border rounded ${
-                            pagination.page === pageNum ? 'bg-blue-600 text-white' : 'hover:bg-gray-50'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                    <button
-                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                      disabled={pagination.page === pagination.totalPages}
-                      className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Selanjutnya
-                    </button>
+            {/* Summary Cards */}
+            {summary && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white rounded-xl shadow p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                      <FaArrowDown className="text-green-600 text-xl" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Total Masuk</p>
+                      <p className="text-xl font-bold text-green-600">+{summary.total_in?.toLocaleString() || 0}</p>
+                    </div>
                   </div>
                 </div>
-              )}
-            </>
-          )}
+                <div className="bg-white rounded-xl shadow p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                      <FaArrowUp className="text-red-600 text-xl" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Total Keluar</p>
+                      <p className="text-xl font-bold text-red-600">-{summary.total_out?.toLocaleString() || 0}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl shadow p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <FaExchangeAlt className="text-blue-600 text-xl" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Transfer</p>
+                      <p className="text-xl font-bold text-blue-600">{summary.total_transfer?.toLocaleString() || 0}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl shadow p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <FaBox className="text-gray-600 text-xl" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Total Pergerakan</p>
+                      <p className="text-xl font-bold">{summary.total_movements?.toLocaleString() || 0}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Loading or Content */}
+            {loading ? (
+              <div className="bg-white rounded-xl shadow p-8 text-center">
+                <FaSpinner className="animate-spin text-3xl mx-auto text-gray-400" />
+                <p className="text-gray-500 mt-2">Memuat data...</p>
+              </div>
+            ) : (
+              <>
+                {/* Movements Table */}
+                <div className="bg-white rounded-xl shadow overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-sm font-semibold">Tanggal</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold">Produk</th>
+                          <th className="px-4 py-3 text-center text-sm font-semibold">Tipe</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold">Qty</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold">Stok Awal</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold">Stok Akhir</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold">Gudang</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold">Catatan</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {movements.length > 0 ? movements.map((movement) => (
+                          <tr key={movement.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm">
+                              {formatDate ? formatDate(movement.created_at) : new Date(movement.created_at).toLocaleDateString('id-ID')}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                {getMovementIcon(movement.type)}
+                                <div>
+                                  <p className="font-medium">{movement.product_name}</p>
+                                  <p className="text-xs text-gray-500">{movement.size_name}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {getMovementBadge(movement.type)}
+                            </td>
+                            <td className={`px-4 py-3 text-right font-medium ${
+                              movement.type === 'in' || movement.type === 'purchase' || movement.type === 'return'
+                                ? 'text-green-600'
+                                : movement.type === 'out' || movement.type === 'sale'
+                                ? 'text-red-600'
+                                : ''
+                            }`}>
+                              {movement.type === 'in' || movement.type === 'purchase' || movement.type === 'return' ? '+' : '-'}
+                              {Math.abs(movement.quantity)}
+                            </td>
+                            <td className="px-4 py-3 text-right text-sm">{movement.stock_before}</td>
+                            <td className="px-4 py-3 text-right text-sm">{movement.stock_after}</td>
+                            <td className="px-4 py-3 text-sm">{movement.warehouse_name || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
+                              {movement.notes || '-'}
+                            </td>
+                          </tr>
+                        )) : (
+                          <tr>
+                            <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
+                              Tidak ada data pergerakan stok
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Pagination */}
+                {pagination.totalPages > 1 && (
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-gray-500">
+                      Menampilkan {((pagination.page - 1) * 20) + 1} - {Math.min(pagination.page * 20, pagination.total)} dari {pagination.total} data
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                        disabled={pagination.page === 1}
+                        className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Sebelumnya
+                      </button>
+                      <span className="px-3 py-1">
+                        {pagination.page} / {pagination.totalPages}
+                      </span>
+                      <button
+                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                        disabled={pagination.page === pagination.totalPages}
+                        className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Selanjutnya
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </>

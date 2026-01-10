@@ -175,29 +175,31 @@ const ActivityLogs = () => {
         <title>Activity Logs - Admin</title>
       </Helmet>
 
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <FaHistory className="text-blue-600" />
-              Activity Logs
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Monitor semua aktivitas pengguna di sistem
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${
-                showFilters ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'
-              }`}
-            >
-              <FaFilter />
-              Filter
-            </button>
-            <button
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold flex items-center gap-2">
+                  <FaHistory className="text-blue-600" />
+                  Activity Logs
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  Monitor semua aktivitas pengguna di sistem
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${
+                    showFilters ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'
+                  }`}
+                >
+                  <FaFilter />
+                  Filter
+                </button>
+                <button
               onClick={handleExport}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
@@ -449,6 +451,8 @@ const ActivityLogs = () => {
               </div>
             </>
           )}
+        </div>
+          </div>
         </div>
       </div>
 
