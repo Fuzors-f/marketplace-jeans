@@ -212,20 +212,24 @@ const migrations = [
     payment_status ENUM('pending', 'paid', 'failed', 'refunded') DEFAULT 'pending',
     payment_method VARCHAR(50) DEFAULT 'bank_transfer',
     subtotal DECIMAL(12,2) NOT NULL,
-    discount_amount DECIMAL(12,2) DEFAULT 0.00,
+    discount_amount DECIMAL(12,2) DEFAULT 0.00 COMMENT 'Total discount (sum of order_discounts)',
     discount_code VARCHAR(50),
     member_discount_amount DECIMAL(12,2) DEFAULT 0.00,
     shipping_cost DECIMAL(12,2) DEFAULT 0.00,
-    tax DECIMAL(12,2) DEFAULT 0.00,
+    tax DECIMAL(12,2) DEFAULT 0.00 COMMENT 'Total tax (sum of order_taxes)',
     total DECIMAL(12,2) NOT NULL,
     customer_name VARCHAR(255),
     customer_email VARCHAR(255),
     customer_phone VARCHAR(20),
     shipping_address TEXT,
     shipping_city VARCHAR(100),
+    shipping_city_id INT COMMENT 'Reference to cities table',
     shipping_province VARCHAR(100),
     shipping_postal_code VARCHAR(10),
     shipping_method VARCHAR(100),
+    warehouse_id INT COMMENT 'Source warehouse for shipping',
+    shipping_cost_id INT COMMENT 'Reference to shipping_costs table',
+    courier VARCHAR(100) COMMENT 'Courier name (JNE, JNT, etc)',
     tracking_number VARCHAR(100),
     notes TEXT,
     created_by INT,
@@ -237,7 +241,8 @@ const migrations = [
     INDEX idx_user (user_id),
     INDEX idx_status (status),
     INDEX idx_payment_status (payment_status),
-    INDEX idx_created (created_at)
+    INDEX idx_created (created_at),
+    INDEX idx_warehouse (warehouse_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
   // 13. Order items table
@@ -599,7 +604,86 @@ const migrations = [
     INDEX idx_warehouse (warehouse_id),
     INDEX idx_courier (courier),
     INDEX idx_active (is_active)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 28. Order taxes table (for dynamic tax items)
+  `CREATE TABLE IF NOT EXISTS order_taxes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    description VARCHAR(255) NOT NULL COMMENT 'Tax description/name',
+    amount DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT 'Tax amount',
+    sort_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    INDEX idx_order (order_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 29. Order discounts table (for dynamic discount items)
+  `CREATE TABLE IF NOT EXISTS order_discounts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    description VARCHAR(255) NOT NULL COMMENT 'Discount description',
+    amount DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT 'Discount amount',
+    sort_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    INDEX idx_order (order_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 30. Order tracking history table
+  `CREATE TABLE IF NOT EXISTS order_tracking (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    status VARCHAR(50) NOT NULL COMMENT 'Status: pending, confirmed, processing, packed, shipped, in_transit, out_for_delivery, delivered, cancelled',
+    title VARCHAR(255) NOT NULL COMMENT 'Status title for display',
+    description TEXT COMMENT 'Detailed description/notes',
+    location VARCHAR(255) COMMENT 'Location info if applicable',
+    created_by INT COMMENT 'Admin who created this update',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_order (order_id),
+    INDEX idx_status (status),
+    INDEX idx_created (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 31. Exchange rates table (for currency conversion)
+  `CREATE TABLE IF NOT EXISTS exchange_rates (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    currency_from VARCHAR(3) NOT NULL DEFAULT 'IDR',
+    currency_to VARCHAR(3) NOT NULL DEFAULT 'USD',
+    rate DECIMAL(20,6) NOT NULL COMMENT 'Exchange rate (e.g., 1 USD = 16000 IDR, so rate = 16000)',
+    is_active BOOLEAN DEFAULT TRUE,
+    updated_by INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_currency_pair (currency_from, currency_to),
+    INDEX idx_active (is_active)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 32. Exchange rate logs table (track rate changes)
+  `CREATE TABLE IF NOT EXISTS exchange_rate_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    exchange_rate_id INT NOT NULL,
+    currency_from VARCHAR(3) NOT NULL,
+    currency_to VARCHAR(3) NOT NULL,
+    old_rate DECIMAL(20,6) COMMENT 'Previous rate',
+    new_rate DECIMAL(20,6) NOT NULL COMMENT 'New rate',
+    changed_by INT,
+    change_reason VARCHAR(255) COMMENT 'Optional reason for change',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (exchange_rate_id) REFERENCES exchange_rates(id) ON DELETE CASCADE,
+    FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_exchange_rate (exchange_rate_id),
+    INDEX idx_created (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 33. Insert default exchange rate (IDR to USD)
+  `INSERT IGNORE INTO exchange_rates (currency_from, currency_to, rate, is_active)
+   VALUES ('IDR', 'USD', 16000, TRUE);`
 ];
 
 async function runMigrations() {

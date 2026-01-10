@@ -471,12 +471,49 @@ const translations = {
 // Create context
 const LanguageContext = createContext();
 
+// Default exchange rate (fallback if API fails)
+const DEFAULT_EXCHANGE_RATE = 16000;
+
 // Language Provider Component
 export const LanguageProvider = ({ children }) => {
   const [language, setLanguage] = useState(() => {
     // Get saved language from localStorage or default to 'id'
     return localStorage.getItem('language') || 'id';
   });
+
+  // Exchange rate state
+  const [exchangeRate, setExchangeRate] = useState(() => {
+    // Get cached rate from localStorage
+    const cached = localStorage.getItem('exchangeRate');
+    return cached ? parseFloat(cached) : DEFAULT_EXCHANGE_RATE;
+  });
+  const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
+
+  // Fetch exchange rate on mount
+  useEffect(() => {
+    fetchExchangeRate();
+  }, []);
+
+  // Fetch exchange rate from API
+  const fetchExchangeRate = async () => {
+    try {
+      setExchangeRateLoading(true);
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/exchange-rates/IDR/USD`);
+      const data = await response.json();
+      
+      if (data.success && data.data?.rate) {
+        const rate = parseFloat(data.data.rate);
+        setExchangeRate(rate);
+        localStorage.setItem('exchangeRate', rate.toString());
+        localStorage.setItem('exchangeRateUpdated', new Date().toISOString());
+      }
+    } catch (error) {
+      console.error('Failed to fetch exchange rate:', error);
+      // Use cached or default rate
+    } finally {
+      setExchangeRateLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Save language preference to localStorage
@@ -498,21 +535,97 @@ export const LanguageProvider = ({ children }) => {
     return translations[language]?.[key] || translations['id']?.[key] || key;
   };
 
-  // Format currency based on language
-  const formatCurrency = (value) => {
+  // Format currency based on language with automatic conversion
+  const formatCurrency = (value, options = {}) => {
     const num = parseFloat(value) || 0;
-    if (language === 'en') {
-      return new Intl.NumberFormat('en-US', {
+    const { forceIDR = false, forceUSD = false, showBothCurrencies = false } = options;
+    
+    // Force IDR regardless of language
+    if (forceIDR) {
+      return new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
         minimumFractionDigits: 0
       }).format(num);
     }
+    
+    // Force USD regardless of language
+    if (forceUSD) {
+      const usdAmount = num / exchangeRate;
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2
+      }).format(usdAmount);
+    }
+    
+    // Show both currencies
+    if (showBothCurrencies) {
+      const idrFormatted = new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0
+      }).format(num);
+      
+      const usdAmount = num / exchangeRate;
+      const usdFormatted = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2
+      }).format(usdAmount);
+      
+      return `${idrFormatted} (~${usdFormatted})`;
+    }
+    
+    // Auto conversion based on language
+    if (language === 'en') {
+      // Convert IDR to USD for English
+      const usdAmount = num / exchangeRate;
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2
+      }).format(usdAmount);
+    }
+    
+    // Default: IDR for Indonesian
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(num);
+  };
+
+  // Format currency with original IDR value shown (for receipts, etc.)
+  const formatCurrencyWithOriginal = (value) => {
+    const num = parseFloat(value) || 0;
+    
+    const idrFormatted = new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(num);
+    
+    if (language === 'en') {
+      const usdAmount = num / exchangeRate;
+      const usdFormatted = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2
+      }).format(usdAmount);
+      return { primary: usdFormatted, original: idrFormatted };
+    }
+    
+    return { primary: idrFormatted, original: null };
+  };
+
+  // Get raw converted amount without formatting
+  const convertCurrency = (idrAmount) => {
+    const num = parseFloat(idrAmount) || 0;
+    if (language === 'en') {
+      return Math.round((num / exchangeRate) * 100) / 100;
+    }
+    return num;
   };
 
   // Format date based on language
@@ -533,9 +646,17 @@ export const LanguageProvider = ({ children }) => {
     toggleLanguage,
     t,
     formatCurrency,
+    formatCurrencyWithOriginal,
+    convertCurrency,
     formatDate,
     isIndonesian: language === 'id',
-    isEnglish: language === 'en'
+    isEnglish: language === 'en',
+    // Exchange rate related
+    exchangeRate,
+    exchangeRateLoading,
+    refreshExchangeRate: fetchExchangeRate,
+    currencySymbol: language === 'en' ? '$' : 'Rp',
+    currencyCode: language === 'en' ? 'USD' : 'IDR'
   };
 
   return (

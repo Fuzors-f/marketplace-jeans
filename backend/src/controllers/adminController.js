@@ -142,10 +142,12 @@ exports.getAdminOrderDetail = async (req, res) => {
         u.name as user_name, u.email as user_email,
         p.transaction_id, p.payment_method as payment_method_detail, 
         p.amount as payment_amount, p.status as payment_detail_status,
-        p.paid_at
+        p.paid_at,
+        w.name as warehouse_name, w.code as warehouse_code, w.city as warehouse_city
       FROM orders o
       LEFT JOIN users u ON o.user_id = u.id
       LEFT JOIN payments p ON o.id = p.order_id
+      LEFT JOIN warehouses w ON o.warehouse_id = w.id
       WHERE o.id = ?`,
       [id]
     );
@@ -173,6 +175,28 @@ exports.getAdminOrderDetail = async (req, res) => {
       [id]
     );
 
+    // Get order taxes
+    let taxes = [];
+    try {
+      taxes = await query(
+        `SELECT id, description, amount, sort_order FROM order_taxes WHERE order_id = ? ORDER BY sort_order`,
+        [id]
+      );
+    } catch (e) {
+      // Table might not exist yet
+    }
+
+    // Get order discounts
+    let discounts = [];
+    try {
+      discounts = await query(
+        `SELECT id, description, amount, sort_order FROM order_discounts WHERE order_id = ? ORDER BY sort_order`,
+        [id]
+      );
+    } catch (e) {
+      // Table might not exist yet
+    }
+
     // Get order history/logs
     const history = await query(
       `SELECT 
@@ -190,6 +214,8 @@ exports.getAdminOrderDetail = async (req, res) => {
       data: {
         ...order,
         items,
+        taxes,
+        discounts,
         history
       }
     });
@@ -413,14 +439,19 @@ exports.createManualOrder = async (req, res) => {
       customer_password, // Optional password for new user
       shipping_address,
       shipping_city,
+      shipping_city_id, // City ID for shipping cost lookup
       shipping_province,
       shipping_postal_code,
       shipping_country,
       shipping_method,
+      warehouse_id, // Source warehouse for shipping
+      shipping_cost_id, // Reference to shipping_costs table
+      courier, // Courier name (JNE, JNT, etc)
       payment_method,
       items, // [{ product_id, variant_id, quantity, price }]
       shipping_cost,
-      discount_amount,
+      taxes, // [{ description: 'PPN 11%', amount: 50000 }, ...]
+      discounts, // [{ description: 'Member Discount', amount: 10000 }, ...]
       notes,
       currency, // 'IDR' or 'USD'
       exchange_rate // Kurs if from USD
@@ -461,34 +492,52 @@ exports.createManualOrder = async (req, res) => {
         finalUserId = userResult.insertId;
       }
 
-      // Calculate totals
+      // Calculate subtotal from items
       let subtotal = 0;
       for (const item of items) {
         subtotal += item.price * item.quantity;
       }
 
-      const tax = subtotal * 0.11; // 11% PPN
-      const total = subtotal + (shipping_cost || 0) + tax - (discount_amount || 0);
+      // Calculate total taxes
+      let totalTax = 0;
+      if (taxes && Array.isArray(taxes)) {
+        for (const tax of taxes) {
+          totalTax += parseFloat(tax.amount) || 0;
+        }
+      }
+
+      // Calculate total discounts
+      let totalDiscount = 0;
+      if (discounts && Array.isArray(discounts)) {
+        for (const discount of discounts) {
+          totalDiscount += parseFloat(discount.amount) || 0;
+        }
+      }
+
+      const shippingCostAmount = parseFloat(shipping_cost) || 0;
+      const total = subtotal + shippingCostAmount + totalTax - totalDiscount;
 
       // Determine if international order
       const isInternational = shipping_country && shipping_country !== 'Indonesia';
       const orderCurrency = currency || (isInternational ? 'USD' : 'IDR');
       const orderExchangeRate = exchange_rate || null;
 
-      // Create order - Try with new columns first, fallback if they don't exist
+      // Create order with warehouse and shipping details
       let orderResult;
       try {
         [orderResult] = await conn.execute(
           `INSERT INTO orders 
           (user_id, status, payment_status, payment_method, subtotal, shipping_cost, discount_amount, tax, total,
-           customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_province,
-           shipping_postal_code, shipping_country, shipping_method, notes, currency, exchange_rate, created_by)
-          VALUES (?, 'confirmed', 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [finalUserId, payment_method || 'cash', subtotal, shipping_cost || 0, discount_amount || 0, tax, total,
-           customer_name, customer_email || null, customer_phone, shipping_address, shipping_city || null,
-           shipping_province || null, shipping_postal_code || null, shipping_country || 'Indonesia',
-           shipping_method || 'manual', notes || 'Manual order created by admin', 
-           orderCurrency, orderExchangeRate, req.user.id]
+           customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_city_id,
+           shipping_province, shipping_postal_code, shipping_country, shipping_method, 
+           warehouse_id, shipping_cost_id, courier, notes, currency, exchange_rate, created_by)
+          VALUES (?, 'confirmed', 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [finalUserId, payment_method || 'cash', subtotal, shippingCostAmount, totalDiscount, totalTax, total,
+           customer_name, customer_email || null, customer_phone, shipping_address, shipping_city || null, 
+           shipping_city_id || null, shipping_province || null, shipping_postal_code || null, 
+           shipping_country || 'Indonesia', shipping_method || 'manual', 
+           warehouse_id || null, shipping_cost_id || null, courier || null,
+           notes || 'Manual order created by admin', orderCurrency, orderExchangeRate, req.user.id]
         );
       } catch (insertError) {
         // Fallback: try without new columns if they don't exist yet
@@ -499,7 +548,7 @@ exports.createManualOrder = async (req, res) => {
              customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_province,
              shipping_postal_code, shipping_method, notes, created_by)
             VALUES (?, 'confirmed', 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [finalUserId, payment_method || 'cash', subtotal, shipping_cost || 0, discount_amount || 0, tax, total,
+            [finalUserId, payment_method || 'cash', subtotal, shippingCostAmount, totalDiscount, totalTax, total,
              customer_name, customer_email || null, customer_phone, shipping_address, shipping_city || null,
              shipping_province || null, shipping_postal_code || null,
              shipping_method || 'manual', notes || 'Manual order created by admin', req.user.id]
@@ -510,6 +559,42 @@ exports.createManualOrder = async (req, res) => {
       }
 
       const newOrderId = orderResult.insertId;
+
+      // Insert tax details
+      if (taxes && Array.isArray(taxes) && taxes.length > 0) {
+        for (let i = 0; i < taxes.length; i++) {
+          const tax = taxes[i];
+          if (tax.description && tax.amount) {
+            try {
+              await conn.execute(
+                `INSERT INTO order_taxes (order_id, description, amount, sort_order) VALUES (?, ?, ?, ?)`,
+                [newOrderId, tax.description, parseFloat(tax.amount), i]
+              );
+            } catch (e) {
+              // Table might not exist yet, silently continue
+              console.warn('order_taxes table might not exist:', e.message);
+            }
+          }
+        }
+      }
+
+      // Insert discount details
+      if (discounts && Array.isArray(discounts) && discounts.length > 0) {
+        for (let i = 0; i < discounts.length; i++) {
+          const discount = discounts[i];
+          if (discount.description && discount.amount) {
+            try {
+              await conn.execute(
+                `INSERT INTO order_discounts (order_id, description, amount, sort_order) VALUES (?, ?, ?, ?)`,
+                [newOrderId, discount.description, parseFloat(discount.amount), i]
+              );
+            } catch (e) {
+              // Table might not exist yet, silently continue
+              console.warn('order_discounts table might not exist:', e.message);
+            }
+          }
+        }
+      }
 
       // Create order items and update stock
       for (const item of items) {

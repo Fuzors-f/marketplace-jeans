@@ -1,9 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
-import { FaEye, FaTimes, FaFilter, FaPlus, FaSearch, FaTrash, FaUser, FaUserPlus } from 'react-icons/fa';
+import { FaEye, FaTimes, FaFilter, FaPlus, FaSearch, FaTrash, FaUser, FaUserPlus, FaWarehouse, FaTruck, FaMapMarkerAlt, FaHistory, FaClock, FaCheckCircle, FaBox, FaSpinner } from 'react-icons/fa';
 import DataTable from '../../components/admin/DataTable';
 import { useLanguage } from '../../utils/i18n';
+
+// Tracking status configuration
+const TRACKING_STATUS_CONFIG = {
+  pending: { icon: FaClock, color: 'text-yellow-500', bg: 'bg-yellow-100', label: 'Menunggu' },
+  confirmed: { icon: FaCheckCircle, color: 'text-blue-500', bg: 'bg-blue-100', label: 'Dikonfirmasi' },
+  processing: { icon: FaBox, color: 'text-indigo-500', bg: 'bg-indigo-100', label: 'Diproses' },
+  packed: { icon: FaBox, color: 'text-purple-500', bg: 'bg-purple-100', label: 'Dikemas' },
+  shipped: { icon: FaTruck, color: 'text-cyan-500', bg: 'bg-cyan-100', label: 'Dikirim' },
+  in_transit: { icon: FaTruck, color: 'text-orange-500', bg: 'bg-orange-100', label: 'Dalam Perjalanan' },
+  out_for_delivery: { icon: FaTruck, color: 'text-teal-500', bg: 'bg-teal-100', label: 'Sedang Diantar' },
+  delivered: { icon: FaCheckCircle, color: 'text-green-500', bg: 'bg-green-100', label: 'Diterima' },
+  cancelled: { icon: FaTimes, color: 'text-red-500', bg: 'bg-red-100', label: 'Dibatalkan' }
+};
 
 const AdminOrders = () => {
   const { t, formatCurrency, formatDate } = useLanguage();
@@ -37,25 +50,70 @@ const AdminOrders = () => {
   // Exchange rate state
   const [exchangeRate, setExchangeRate] = useState(16000); // Default IDR per USD
   
+  // Warehouse & Shipping state
+  const [warehouses, setWarehouses] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [searchCity, setSearchCity] = useState('');
+  const [citySearchResults, setCitySearchResults] = useState([]);
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [shippingOptions, setShippingOptions] = useState([]);
+  const [selectedShipping, setSelectedShipping] = useState(null);
+  const [loadingShipping, setLoadingShipping] = useState(false);
+  
+  // Dynamic taxes and discounts state
+  const [taxes, setTaxes] = useState([]);
+  const [discounts, setDiscounts] = useState([]);
+  
+  // Tracking state
+  const [showTrackingModal, setShowTrackingModal] = useState(false);
+  const [trackingOrderId, setTrackingOrderId] = useState(null);
+  const [trackingHistory, setTrackingHistory] = useState([]);
+  const [loadingTracking, setLoadingTracking] = useState(false);
+  const [trackingStatuses, setTrackingStatuses] = useState([]);
+  const [newTracking, setNewTracking] = useState({
+    status: '',
+    title: '',
+    description: '',
+    location: ''
+  });
+  const [addingTracking, setAddingTracking] = useState(false);
+  
   const [newOrderData, setNewOrderData] = useState({
     customer_name: '',
     customer_email: '',
     customer_phone: '',
     shipping_address: '',
     shipping_city: '',
+    shipping_city_id: null,
     shipping_province: '',
     shipping_postal_code: '',
     shipping_country: 'Indonesia',
-    shipping_method: 'JNE Regular',
+    shipping_method: '',
+    warehouse_id: null,
+    shipping_cost_id: null,
+    courier: '',
     payment_method: 'bank_transfer',
     shipping_cost: 0,
-    discount_amount: 0,
     notes: ''
   });
 
   useEffect(() => {
     fetchOrders();
   }, [statusFilter, paymentFilter]);
+  
+  // Fetch warehouses on mount
+  useEffect(() => {
+    fetchWarehouses();
+  }, []);
+
+  const fetchWarehouses = async () => {
+    try {
+      const response = await apiClient.get('/warehouses?active_only=true');
+      setWarehouses(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching warehouses:', err);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -125,6 +183,139 @@ const AdminOrders = () => {
       customer_email: '',
       customer_phone: ''
     });
+  };
+
+  // Search cities
+  const handleSearchCity = async (search) => {
+    setSearchCity(search);
+    if (search.length >= 2) {
+      try {
+        const response = await apiClient.get(`/cities?search=${encodeURIComponent(search)}&limit=10`);
+        setCitySearchResults(response.data.data || []);
+      } catch (err) {
+        console.error('Error searching cities:', err);
+        setCitySearchResults([]);
+      }
+    } else {
+      setCitySearchResults([]);
+    }
+  };
+
+  // Select city and calculate shipping
+  const handleSelectCity = async (city) => {
+    setSelectedCity(city);
+    setNewOrderData({
+      ...newOrderData,
+      shipping_city: city.name,
+      shipping_city_id: city.id,
+      shipping_province: city.province,
+      shipping_postal_code: city.postal_code || ''
+    });
+    setSearchCity('');
+    setCitySearchResults([]);
+    
+    // Calculate shipping if warehouse is selected
+    if (newOrderData.warehouse_id) {
+      await calculateShippingOptions(city.id, newOrderData.warehouse_id);
+    }
+  };
+
+  // Clear selected city
+  const handleClearSelectedCity = () => {
+    setSelectedCity(null);
+    setSelectedShipping(null);
+    setShippingOptions([]);
+    setNewOrderData({
+      ...newOrderData,
+      shipping_city: '',
+      shipping_city_id: null,
+      shipping_province: '',
+      shipping_postal_code: '',
+      shipping_cost: 0,
+      shipping_cost_id: null,
+      courier: '',
+      shipping_method: ''
+    });
+  };
+
+  // Handle warehouse change
+  const handleWarehouseChange = async (warehouseId) => {
+    setNewOrderData({
+      ...newOrderData,
+      warehouse_id: warehouseId || null
+    });
+    setSelectedShipping(null);
+    
+    // Recalculate shipping if city is selected
+    if (selectedCity && warehouseId) {
+      await calculateShippingOptions(selectedCity.id, warehouseId);
+    } else {
+      setShippingOptions([]);
+    }
+  };
+
+  // Calculate shipping options
+  const calculateShippingOptions = async (cityId, warehouseId) => {
+    setLoadingShipping(true);
+    try {
+      const response = await apiClient.post('/shipping-costs/calculate', {
+        city_id: cityId,
+        warehouse_id: warehouseId,
+        weight: 1
+      });
+      setShippingOptions(response.data.data || []);
+    } catch (err) {
+      console.error('Error calculating shipping:', err);
+      setShippingOptions([]);
+    } finally {
+      setLoadingShipping(false);
+    }
+  };
+
+  // Select shipping option
+  const handleSelectShipping = (option) => {
+    setSelectedShipping(option);
+    setNewOrderData({
+      ...newOrderData,
+      shipping_cost: option.calculated_cost || option.cost,
+      shipping_cost_id: option.id,
+      courier: option.courier,
+      shipping_method: `${option.courier} - ${option.service || 'Regular'}`
+    });
+  };
+
+  // Add tax item
+  const handleAddTax = () => {
+    setTaxes([...taxes, { description: '', amount: 0 }]);
+  };
+
+  // Update tax item
+  const handleUpdateTax = (index, field, value) => {
+    const newTaxes = [...taxes];
+    newTaxes[index][field] = field === 'amount' ? parseFloat(value) || 0 : value;
+    setTaxes(newTaxes);
+  };
+
+  // Remove tax item
+  const handleRemoveTax = (index) => {
+    setTaxes(taxes.filter((_, i) => i !== index));
+  };
+
+  // Add discount item
+  const handleAddDiscount = () => {
+    setDiscounts([...discounts, { description: '', amount: 0 }]);
+  };
+
+  // Update discount item
+  const handleUpdateDiscount = (index, field, value) => {
+    const newDiscounts = [...discounts];
+    newDiscounts[index][field] = field === 'amount' ? parseFloat(value) || 0 : value;
+    setDiscounts(newDiscounts);
+  };
+
+  // Remove discount item
+  const handleRemoveDiscount = (index) => {
+    setDiscounts(discounts.filter((_, i) => i !== index));
   };
 
   const handleSearchProduct = async (search) => {
@@ -211,14 +402,19 @@ const AdminOrders = () => {
   const calculateOrderTotal = () => {
     const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const shipping = parseFloat(newOrderData.shipping_cost) || 0;
-    const discount = parseFloat(newOrderData.discount_amount) || 0;
-    const tax = subtotal * 0.11; // 11% PPN
+    
+    // Calculate total taxes from dynamic tax items
+    const totalTax = taxes.reduce((sum, tax) => sum + (parseFloat(tax.amount) || 0), 0);
+    
+    // Calculate total discounts from dynamic discount items
+    const totalDiscount = discounts.reduce((sum, disc) => sum + (parseFloat(disc.amount) || 0), 0);
+    
     return {
       subtotal,
       shipping,
-      discount,
-      tax,
-      total: subtotal + shipping + tax - discount
+      taxes: totalTax,
+      discounts: totalDiscount,
+      total: subtotal + shipping + totalTax - totalDiscount
     };
   };
 
@@ -252,6 +448,8 @@ const AdminOrders = () => {
         create_new_user: userMode === 'new' && !selectedUser && newOrderData.customer_email ? true : false,
         currency: isInternational ? 'USD' : 'IDR',
         exchange_rate: isInternational ? exchangeRate : null,
+        taxes: taxes.filter(t => t.description && t.amount > 0),
+        discounts: discounts.filter(d => d.description && d.amount > 0),
         items: orderItems.map(item => ({
           product_id: item.product_id,
           variant_id: item.variant_id,
@@ -284,13 +482,16 @@ const AdminOrders = () => {
       customer_phone: '',
       shipping_address: '',
       shipping_city: '',
+      shipping_city_id: null,
       shipping_province: '',
       shipping_postal_code: '',
       shipping_country: 'Indonesia',
-      shipping_method: 'JNE Regular',
+      shipping_method: '',
+      warehouse_id: null,
+      shipping_cost_id: null,
+      courier: '',
       payment_method: 'bank_transfer',
       shipping_cost: 0,
-      discount_amount: 0,
       notes: ''
     });
     setOrderItems([]);
@@ -300,6 +501,13 @@ const AdminOrders = () => {
     setSelectedUser(null);
     setSearchUser('');
     setUserSearchResults([]);
+    setSelectedCity(null);
+    setSearchCity('');
+    setCitySearchResults([]);
+    setShippingOptions([]);
+    setSelectedShipping(null);
+    setTaxes([]);
+    setDiscounts([]);
   };
 
   const handleStatusUpdate = async (orderId, status) => {
@@ -343,6 +551,88 @@ const AdminOrders = () => {
       setError(t('error') + ': ' + (err.response?.data?.message || err.message));
     } finally {
       setUpdatingOrderId(null);
+    }
+  };
+
+  // Tracking functions
+  const fetchTrackingStatuses = async () => {
+    try {
+      const response = await apiClient.get('/tracking/statuses');
+      if (response.data.success) {
+        setTrackingStatuses(response.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching tracking statuses:', err);
+    }
+  };
+
+  const fetchTrackingHistory = async (orderId) => {
+    try {
+      setLoadingTracking(true);
+      const response = await apiClient.get(`/tracking/order/${orderId}`);
+      if (response.data.success) {
+        setTrackingHistory(response.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching tracking history:', err);
+      setTrackingHistory([]);
+    } finally {
+      setLoadingTracking(false);
+    }
+  };
+
+  const handleOpenTrackingModal = async (orderId) => {
+    setTrackingOrderId(orderId);
+    setShowTrackingModal(true);
+    setNewTracking({ status: '', title: '', description: '', location: '' });
+    await fetchTrackingStatuses();
+    await fetchTrackingHistory(orderId);
+  };
+
+  const handleAddTracking = async (e) => {
+    e.preventDefault();
+    if (!newTracking.status) {
+      setError('Status wajib dipilih');
+      return;
+    }
+
+    try {
+      setAddingTracking(true);
+      const response = await apiClient.post(`/tracking/${trackingOrderId}`, newTracking);
+      
+      if (response.data.success) {
+        setSuccess('Tracking berhasil ditambahkan!');
+        setNewTracking({ status: '', title: '', description: '', location: '' });
+        await fetchTrackingHistory(trackingOrderId);
+        
+        // Update order status in list
+        setOrders(orders.map(order =>
+          order.id === trackingOrderId ? { ...order, status: newTracking.status } : order
+        ));
+        
+        if (selectedOrder?.id === trackingOrderId) {
+          setSelectedOrder({ ...selectedOrder, status: newTracking.status });
+        }
+        
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal menambahkan tracking');
+    } finally {
+      setAddingTracking(false);
+    }
+  };
+
+  const handleDeleteTracking = async (trackingId) => {
+    if (!window.confirm('Hapus tracking ini?')) return;
+    
+    try {
+      await apiClient.delete(`/tracking/${trackingId}`);
+      setSuccess('Tracking berhasil dihapus');
+      await fetchTrackingHistory(trackingOrderId);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal menghapus tracking');
     }
   };
 
@@ -569,12 +859,20 @@ const AdminOrders = () => {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-auto">
             <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
               <h2 className="text-xl font-bold">{t('orderDetails')} #{selectedOrder.id}</h2>
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="p-2 hover:bg-gray-100 rounded"
-              >
-                <FaTimes />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleOpenTrackingModal(selectedOrder.id)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                >
+                  <FaHistory /> Update Tracking
+                </button>
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="p-2 hover:bg-gray-100 rounded"
+                >
+                  <FaTimes />
+                </button>
+              </div>
             </div>
             
             <div className="p-4 lg:p-6">
@@ -665,14 +963,40 @@ const AdminOrders = () => {
                   <span>{formatCurrency(selectedOrder.subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>{t('shippingCost')}</span>
+                  <div>
+                    <span>{t('shippingCost')}</span>
+                    {selectedOrder.warehouse_name && (
+                      <p className="text-xs text-gray-500">dari {selectedOrder.warehouse_name}</p>
+                    )}
+                    {selectedOrder.courier && (
+                      <p className="text-xs text-gray-500">{selectedOrder.courier}</p>
+                    )}
+                  </div>
                   <span>{formatCurrency(selectedOrder.shipping_cost)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>{t('tax')}</span>
-                  <span>{formatCurrency(selectedOrder.tax)}</span>
-                </div>
-                {selectedOrder.discount_amount > 0 && (
+                {/* Show tax details if available */}
+                {selectedOrder.taxes?.length > 0 ? (
+                  selectedOrder.taxes.map((tax, idx) => (
+                    <div key={idx} className="flex justify-between text-blue-600">
+                      <span>{tax.description}</span>
+                      <span>+{formatCurrency(tax.amount)}</span>
+                    </div>
+                  ))
+                ) : selectedOrder.tax > 0 && (
+                  <div className="flex justify-between">
+                    <span>{t('tax')}</span>
+                    <span>{formatCurrency(selectedOrder.tax)}</span>
+                  </div>
+                )}
+                {/* Show discount details if available */}
+                {selectedOrder.discounts?.length > 0 ? (
+                  selectedOrder.discounts.map((disc, idx) => (
+                    <div key={idx} className="flex justify-between text-green-600">
+                      <span>{disc.description}</span>
+                      <span>-{formatCurrency(disc.amount)}</span>
+                    </div>
+                  ))
+                ) : selectedOrder.discount_amount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>{t('discount')}</span>
                     <span>-{formatCurrency(selectedOrder.discount_amount)}</span>
@@ -682,6 +1006,200 @@ const AdminOrders = () => {
                   <span>{t('total')}</span>
                   <span className="text-red-600">{formatCurrency(selectedOrder.total)}</span>
                 </div>
+              </div>
+              
+              {/* Tracking Link */}
+              {selectedOrder.order_number && (
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    <strong>Link Tracking Publik:</strong>{' '}
+                    <a 
+                      href={`/orders/track/${selectedOrder.order_number}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="underline hover:text-blue-900"
+                    >
+                      {window.location.origin}/orders/track/{selectedOrder.order_number}
+                    </a>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tracking Modal */}
+      {showTrackingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto">
+            <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <FaHistory className="text-blue-600" />
+                Update Tracking Pesanan
+              </h2>
+              <button
+                onClick={() => {
+                  setShowTrackingModal(false);
+                  setTrackingOrderId(null);
+                  setTrackingHistory([]);
+                }}
+                className="p-2 hover:bg-gray-100 rounded"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="p-4 lg:p-6">
+              {/* Add New Tracking Form */}
+              <form onSubmit={handleAddTracking} className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="font-bold mb-4">Tambah Update Tracking</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Status *</label>
+                    <select
+                      value={newTracking.status}
+                      onChange={(e) => setNewTracking({
+                        ...newTracking,
+                        status: e.target.value,
+                        title: trackingStatuses.find(s => s.value === e.target.value)?.label || ''
+                      })}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">Pilih Status</option>
+                      {trackingStatuses.map(status => (
+                        <option key={status.value} value={status.value}>{status.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Judul (Opsional)</label>
+                    <input
+                      type="text"
+                      value={newTracking.title}
+                      onChange={(e) => setNewTracking({ ...newTracking, title: e.target.value })}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Default: sesuai status"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Lokasi (Opsional)</label>
+                    <input
+                      type="text"
+                      value={newTracking.location}
+                      onChange={(e) => setNewTracking({ ...newTracking, location: e.target.value })}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Contoh: Gudang Jakarta, DC Surabaya"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Deskripsi (Opsional)</label>
+                    <input
+                      type="text"
+                      value={newTracking.description}
+                      onChange={(e) => setNewTracking({ ...newTracking, description: e.target.value })}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Detail tambahan"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={addingTracking || !newTracking.status}
+                  className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {addingTracking ? (
+                    <>
+                      <FaSpinner className="animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <FaPlus />
+                      Tambah Tracking
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Tracking History */}
+              <div>
+                <h3 className="font-bold mb-4 flex items-center gap-2">
+                  <FaHistory />
+                  Riwayat Tracking
+                </h3>
+                
+                {loadingTracking ? (
+                  <div className="text-center py-8">
+                    <FaSpinner className="animate-spin text-2xl mx-auto text-gray-400" />
+                    <p className="text-gray-500 mt-2">Memuat riwayat...</p>
+                  </div>
+                ) : trackingHistory.length > 0 ? (
+                  <div className="relative">
+                    {/* Timeline line */}
+                    <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+                    
+                    {trackingHistory.map((track, index) => {
+                      const config = TRACKING_STATUS_CONFIG[track.status] || TRACKING_STATUS_CONFIG.pending;
+                      const isFirst = index === 0;
+                      
+                      return (
+                        <div key={track.id || index} className="relative pl-12 pb-6 last:pb-0">
+                          {/* Timeline dot */}
+                          <div className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center ${isFirst ? config.bg : 'bg-gray-100'} border-4 border-white shadow`}>
+                            {React.createElement(config.icon, { 
+                              className: `text-sm ${isFirst ? config.color : 'text-gray-400'}` 
+                            })}
+                          </div>
+                          
+                          {/* Content */}
+                          <div className={`${isFirst ? 'bg-blue-50' : 'bg-gray-50'} rounded-lg p-4 relative group`}>
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <h4 className={`font-semibold ${isFirst ? 'text-gray-900' : 'text-gray-600'}`}>
+                                  {track.title}
+                                </h4>
+                                {track.description && (
+                                  <p className="text-gray-600 text-sm mt-1">{track.description}</p>
+                                )}
+                                {track.location && (
+                                  <p className="text-gray-500 text-sm mt-1 flex items-center gap-1">
+                                    <FaMapMarkerAlt className="text-xs" />
+                                    {track.location}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right text-sm text-gray-500 whitespace-nowrap">
+                                {formatDate(track.created_at)}
+                              </div>
+                            </div>
+                            {track.updated_by && (
+                              <p className="text-xs text-gray-400 mt-2">
+                                Diupdate oleh: {track.updated_by}
+                              </p>
+                            )}
+                            
+                            {/* Delete button */}
+                            <button
+                              onClick={() => handleDeleteTracking(track.id)}
+                              className="absolute top-2 right-2 p-1 text-red-500 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Hapus tracking ini"
+                            >
+                              <FaTrash className="text-xs" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg">
+                    <FaClock className="text-4xl mx-auto mb-3 text-gray-400" />
+                    <p className="text-gray-500">Belum ada riwayat tracking</p>
+                    <p className="text-gray-400 text-sm">Tambahkan tracking pertama di atas</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -858,25 +1376,52 @@ const AdminOrders = () => {
                     />
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold mb-1">{t('city')}</label>
-                      <input
-                        type="text"
-                        value={newOrderData.shipping_city}
-                        onChange={(e) => setNewOrderData({...newOrderData, shipping_city: e.target.value})}
-                        className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold mb-1">{t('province')}</label>
-                      <input
-                        type="text"
-                        value={newOrderData.shipping_province}
-                        onChange={(e) => setNewOrderData({...newOrderData, shipping_province: e.target.value})}
-                        className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-                      />
-                    </div>
+                  {/* City Search with auto-complete */}
+                  <div className="relative">
+                    <label className="block text-sm font-semibold mb-1">
+                      <FaMapMarkerAlt className="inline mr-1" /> Kota Tujuan
+                    </label>
+                    {!selectedCity ? (
+                      <>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={searchCity}
+                            onChange={(e) => handleSearchCity(e.target.value)}
+                            placeholder="Cari kota..."
+                            className="w-full px-4 py-2 pl-10 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                          />
+                          <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                        </div>
+                        {citySearchResults.length > 0 && (
+                          <div className="absolute z-10 w-full bg-white border rounded-lg shadow-lg mt-1 max-h-60 overflow-auto">
+                            {citySearchResults.map((city) => (
+                              <button
+                                key={city.id}
+                                type="button"
+                                onClick={() => handleSelectCity(city)}
+                                className="w-full px-4 py-3 text-left hover:bg-gray-100 border-b last:border-b-0"
+                              >
+                                <p className="font-medium">{city.name}</p>
+                                <p className="text-sm text-gray-500">{city.province}</p>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-green-800">{selectedCity.name}</p>
+                            <p className="text-sm text-green-600">{selectedCity.province}</p>
+                          </div>
+                          <button type="button" onClick={handleClearSelectedCity} className="text-green-600 hover:text-green-800">
+                            <FaTimes />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
@@ -907,6 +1452,98 @@ const AdminOrders = () => {
                       </select>
                     </div>
                   </div>
+
+                  {/* Warehouse Selection */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">
+                      <FaWarehouse className="inline mr-1" /> Gudang Pengirim
+                    </label>
+                    <select
+                      value={newOrderData.warehouse_id || ''}
+                      onChange={(e) => handleWarehouseChange(e.target.value)}
+                      className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                    >
+                      <option value="">-- Pilih Gudang --</option>
+                      {warehouses.map((wh) => (
+                        <option key={wh.id} value={wh.id}>
+                          {wh.name} ({wh.city || wh.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Shipping Options */}
+                  {selectedCity && newOrderData.warehouse_id && (
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <label className="block text-sm font-semibold mb-2">
+                        <FaTruck className="inline mr-1" /> Pilih Kurir & Ongkos Kirim
+                      </label>
+                      {loadingShipping ? (
+                        <div className="text-center py-4">
+                          <div className="animate-spin h-6 w-6 border-2 border-gray-500 border-t-transparent rounded-full mx-auto"></div>
+                          <p className="text-sm text-gray-500 mt-2">Memuat opsi pengiriman...</p>
+                        </div>
+                      ) : shippingOptions.length > 0 ? (
+                        <div className="space-y-2 max-h-40 overflow-auto">
+                          {shippingOptions.map((option, idx) => (
+                            <label
+                              key={idx}
+                              className={`flex items-center justify-between p-3 border rounded cursor-pointer transition ${
+                                selectedShipping?.id === option.id 
+                                  ? 'border-black bg-white' 
+                                  : 'border-gray-200 hover:border-gray-400'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name="shipping_option"
+                                  checked={selectedShipping?.id === option.id}
+                                  onChange={() => handleSelectShipping(option)}
+                                  className="accent-black"
+                                />
+                                <div>
+                                  <p className="font-medium">{option.courier} - {option.service || 'Regular'}</p>
+                                  <p className="text-xs text-gray-500">{option.estimated_days_display}</p>
+                                </div>
+                              </div>
+                              <span className="font-bold">{formatCurrency(option.calculated_cost || option.cost)}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-gray-500">
+                          <p>Tidak ada data ongkir untuk rute ini.</p>
+                          <p className="text-xs mt-1">Anda bisa input manual di bawah.</p>
+                        </div>
+                      )}
+                      
+                      {/* Manual shipping cost input */}
+                      <div className="mt-3 pt-3 border-t">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Atau input manual:</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Metode pengiriman"
+                            value={newOrderData.shipping_method}
+                            onChange={(e) => setNewOrderData({...newOrderData, shipping_method: e.target.value})}
+                            className="flex-1 px-3 py-2 border rounded text-sm"
+                          />
+                          <input
+                            type="number"
+                            placeholder="Ongkir"
+                            min="0"
+                            value={newOrderData.shipping_cost}
+                            onChange={(e) => {
+                              setSelectedShipping(null);
+                              setNewOrderData({...newOrderData, shipping_cost: e.target.value, shipping_cost_id: null});
+                            }}
+                            className="w-32 px-3 py-2 border rounded text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Exchange Rate for International Orders */}
                   {newOrderData.shipping_country && newOrderData.shipping_country !== 'Indonesia' && (
@@ -1083,18 +1720,109 @@ const AdminOrders = () => {
                         value={newOrderData.shipping_cost}
                         onChange={(e) => setNewOrderData({...newOrderData, shipping_cost: e.target.value})}
                         className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                        disabled={selectedShipping}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold mb-1">{t('discount')}</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={newOrderData.discount_amount}
-                        onChange={(e) => setNewOrderData({...newOrderData, discount_amount: e.target.value})}
-                        className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-                      />
+                      <p className="text-sm font-semibold mb-1">Metode: {newOrderData.shipping_method || '-'}</p>
+                      {selectedShipping && (
+                        <p className="text-xs text-gray-500">
+                          {selectedShipping.estimated_days_display}
+                        </p>
+                      )}
                     </div>
+                  </div>
+
+                  {/* Dynamic Taxes */}
+                  <div className="border rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="text-sm font-semibold">Pajak / Tax</label>
+                      <button
+                        type="button"
+                        onClick={handleAddTax}
+                        className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                      >
+                        + Tambah Pajak
+                      </button>
+                    </div>
+                    {taxes.length === 0 ? (
+                      <p className="text-sm text-gray-500">Belum ada pajak. Klik tombol di atas untuk menambah.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {taxes.map((tax, index) => (
+                          <div key={index} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              placeholder="Keterangan (cth: PPN 11%)"
+                              value={tax.description}
+                              onChange={(e) => handleUpdateTax(index, 'description', e.target.value)}
+                              className="flex-1 px-3 py-2 border rounded text-sm"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Nominal"
+                              min="0"
+                              value={tax.amount}
+                              onChange={(e) => handleUpdateTax(index, 'amount', e.target.value)}
+                              className="w-32 px-3 py-2 border rounded text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTax(index)}
+                              className="text-red-600 hover:text-red-800 p-2"
+                            >
+                              <FaTrash />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dynamic Discounts */}
+                  <div className="border rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="text-sm font-semibold">Diskon</label>
+                      <button
+                        type="button"
+                        onClick={handleAddDiscount}
+                        className="text-xs px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                      >
+                        + Tambah Diskon
+                      </button>
+                    </div>
+                    {discounts.length === 0 ? (
+                      <p className="text-sm text-gray-500">Belum ada diskon. Klik tombol di atas untuk menambah.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {discounts.map((discount, index) => (
+                          <div key={index} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              placeholder="Keterangan (cth: Member Discount)"
+                              value={discount.description}
+                              onChange={(e) => handleUpdateDiscount(index, 'description', e.target.value)}
+                              className="flex-1 px-3 py-2 border rounded text-sm"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Nominal"
+                              min="0"
+                              value={discount.amount}
+                              onChange={(e) => handleUpdateDiscount(index, 'amount', e.target.value)}
+                              className="w-32 px-3 py-2 border rounded text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDiscount(index)}
+                              className="text-red-600 hover:text-red-800 p-2"
+                            >
+                              <FaTrash />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   
                   {/* Order Summary */}
@@ -1107,16 +1835,26 @@ const AdminOrders = () => {
                       <span>{t('shippingCost')}</span>
                       <span>{formatCurrency(totals.shipping)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span>{t('tax')} (11%)</span>
-                      <span>{formatCurrency(totals.tax)}</span>
-                    </div>
-                    {totals.discount > 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span>{t('discount')}</span>
-                        <span>-{formatCurrency(totals.discount)}</span>
+                    {/* Show individual taxes */}
+                    {taxes.filter(t => t.amount > 0).map((tax, idx) => (
+                      <div key={idx} className="flex justify-between text-sm text-blue-600">
+                        <span>{tax.description || 'Pajak'}</span>
+                        <span>+{formatCurrency(tax.amount)}</span>
+                      </div>
+                    ))}
+                    {totals.taxes > 0 && taxes.filter(t => t.amount > 0).length === 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span>{t('tax')}</span>
+                        <span>{formatCurrency(totals.taxes)}</span>
                       </div>
                     )}
+                    {/* Show individual discounts */}
+                    {discounts.filter(d => d.amount > 0).map((disc, idx) => (
+                      <div key={idx} className="flex justify-between text-sm text-green-600">
+                        <span>{disc.description || 'Diskon'}</span>
+                        <span>-{formatCurrency(disc.amount)}</span>
+                      </div>
+                    ))}
                     <div className="flex justify-between font-bold border-t pt-2">
                       <span>{t('total')}</span>
                       <span className="text-red-600">{formatCurrency(totals.total)}</span>

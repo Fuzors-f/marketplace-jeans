@@ -21,6 +21,8 @@ const Checkout = () => {
     full_name: '',
     address: '',
     city: '',
+    city_id: null,
+    province: '',
     postal_code: '',
     notes: ''
   });
@@ -30,12 +32,43 @@ const Checkout = () => {
     phone: user?.phone || '',
     address: user?.address || '',
     city: user?.city || '',
+    city_id: null,
+    province: '',
     postal_code: user?.postal_code || '',
     notes: ''
   });
 
-  const [shippingMethod, setShippingMethod] = useState('standard');
+  // Warehouse and shipping state
+  const [warehouses, setWarehouses] = useState([]);
+  const [selectedWarehouse, setSelectedWarehouse] = useState(null);
+  const [searchCity, setSearchCity] = useState('');
+  const [citySearchResults, setCitySearchResults] = useState([]);
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [shippingOptions, setShippingOptions] = useState([]);
+  const [selectedShipping, setSelectedShipping] = useState(null);
+  const [loadingShipping, setLoadingShipping] = useState(false);
+  
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
+
+  // Fetch warehouses on mount
+  useEffect(() => {
+    fetchWarehouses();
+  }, []);
+
+  const fetchWarehouses = async () => {
+    try {
+      const response = await apiClient.get('/warehouses?active_only=true');
+      const warehouseList = response.data.data || [];
+      setWarehouses(warehouseList);
+      // Auto-select main warehouse if available
+      const mainWarehouse = warehouseList.find(w => w.is_main);
+      if (mainWarehouse) {
+        setSelectedWarehouse(mainWarehouse);
+      }
+    } catch (err) {
+      console.error('Error fetching warehouses:', err);
+    }
+  };
 
   // Redirect if no cart items
   useEffect(() => {
@@ -51,6 +84,8 @@ const Checkout = () => {
         phone: user.phone || '',
         address: user.address || '',
         city: user.city || '',
+        city_id: null,
+        province: '',
         postal_code: user.postal_code || '',
         notes: ''
       });
@@ -71,6 +106,102 @@ const Checkout = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  // Search cities
+  const handleSearchCity = async (search) => {
+    setSearchCity(search);
+    if (search.length >= 2) {
+      try {
+        const response = await apiClient.get(`/cities?search=${encodeURIComponent(search)}&limit=10`);
+        setCitySearchResults(response.data.data || []);
+      } catch (err) {
+        console.error('Error searching cities:', err);
+        setCitySearchResults([]);
+      }
+    } else {
+      setCitySearchResults([]);
+    }
+  };
+
+  // Select city
+  const handleSelectCity = async (city) => {
+    setSelectedCity(city);
+    setSearchCity('');
+    setCitySearchResults([]);
+    
+    if (isGuest) {
+      setGuestForm(prev => ({
+        ...prev,
+        city: city.name,
+        city_id: city.id,
+        province: city.province,
+        postal_code: city.postal_code || prev.postal_code
+      }));
+    } else {
+      setUserForm(prev => ({
+        ...prev,
+        city: city.name,
+        city_id: city.id,
+        province: city.province,
+        postal_code: city.postal_code || prev.postal_code
+      }));
+    }
+    
+    // Calculate shipping if warehouse is selected
+    if (selectedWarehouse) {
+      await calculateShipping(city.id, selectedWarehouse.id);
+    }
+  };
+
+  // Clear city selection
+  const handleClearCity = () => {
+    setSelectedCity(null);
+    setSelectedShipping(null);
+    setShippingOptions([]);
+    if (isGuest) {
+      setGuestForm(prev => ({ ...prev, city: '', city_id: null, province: '' }));
+    } else {
+      setUserForm(prev => ({ ...prev, city: '', city_id: null, province: '' }));
+    }
+  };
+
+  // Handle warehouse selection
+  const handleWarehouseChange = async (warehouseId) => {
+    const warehouse = warehouses.find(w => w.id === parseInt(warehouseId));
+    setSelectedWarehouse(warehouse || null);
+    setSelectedShipping(null);
+    
+    // Recalculate shipping
+    const cityId = isGuest ? guestForm.city_id : userForm.city_id;
+    if (cityId && warehouse) {
+      await calculateShipping(cityId, warehouse.id);
+    } else {
+      setShippingOptions([]);
+    }
+  };
+
+  // Calculate shipping options
+  const calculateShipping = async (cityId, warehouseId) => {
+    setLoadingShipping(true);
+    try {
+      const response = await apiClient.post('/shipping-costs/calculate', {
+        city_id: cityId,
+        warehouse_id: warehouseId,
+        weight: 1
+      });
+      const options = response.data.data || [];
+      setShippingOptions(options);
+      // Auto-select first option
+      if (options.length > 0) {
+        setSelectedShipping(options[0]);
+      }
+    } catch (err) {
+      console.error('Error calculating shipping:', err);
+      setShippingOptions([]);
+    } finally {
+      setLoadingShipping(false);
+    }
   };
 
   const validateGuestForm = () => {
@@ -96,11 +227,16 @@ const Checkout = () => {
     return true;
   };
 
+  // Get shipping cost from selected option
+  const getShippingCost = () => {
+    if (selectedShipping) {
+      return selectedShipping.calculated_cost || selectedShipping.cost || 0;
+    }
+    return 0;
+  };
+
   const calculateShippingCost = () => {
-    // Logic untuk menghitung ongkos kirim berdasarkan metode
-    if (shippingMethod === 'express') return 50000;
-    if (shippingMethod === 'same_day') return 100000;
-    return 15000; // standard
+    return getShippingCost();
   };
 
   const subtotal = cartItems.reduce(
@@ -108,7 +244,7 @@ const Checkout = () => {
     0
   );
   const shippingCost = calculateShippingCost();
-  const tax = Math.round(subtotal * 0.1); // 10% tax
+  const tax = Math.round(subtotal * 0.11); // 11% tax
   const total = subtotal + shippingCost + tax;
 
   const handleSubmit = async (e) => {
@@ -128,8 +264,15 @@ const Checkout = () => {
           customer_name: guestForm.full_name,
           customer_email: guestForm.email,
           customer_phone: guestForm.phone,
-          shipping_address: `${guestForm.address}, ${guestForm.city}, ${guestForm.postal_code}`,
-          shipping_method: shippingMethod,
+          shipping_address: guestForm.address,
+          shipping_city: guestForm.city,
+          shipping_city_id: guestForm.city_id,
+          shipping_province: guestForm.province,
+          shipping_postal_code: guestForm.postal_code,
+          warehouse_id: selectedWarehouse?.id || null,
+          shipping_cost_id: selectedShipping?.id || null,
+          courier: selectedShipping?.courier || '',
+          shipping_method: selectedShipping ? `${selectedShipping.courier} - ${selectedShipping.service || 'Regular'}` : 'Standard',
           payment_method: paymentMethod,
           notes: guestForm.notes,
           items: cartItems.map(item => ({
@@ -159,8 +302,15 @@ const Checkout = () => {
 
         // Create user order
         const orderData = {
-          shipping_address: `${userForm.address}, ${userForm.city}, ${userForm.postal_code}`,
-          shipping_method: shippingMethod,
+          shipping_address: userForm.address,
+          shipping_city: userForm.city,
+          shipping_city_id: userForm.city_id,
+          shipping_province: userForm.province,
+          shipping_postal_code: userForm.postal_code,
+          warehouse_id: selectedWarehouse?.id || null,
+          shipping_cost_id: selectedShipping?.id || null,
+          courier: selectedShipping?.courier || '',
+          shipping_method: selectedShipping ? `${selectedShipping.courier} - ${selectedShipping.service || 'Regular'}` : 'Standard',
           payment_method: paymentMethod,
           notes: userForm.notes,
           items: cartItems.map(item => ({
@@ -328,60 +478,70 @@ const Checkout = () => {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
-                    {isGuest && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-semibold mb-2">Kota *</label>
-                          <input
-                            type="text"
-                            name="city"
-                            value={guestForm.city}
-                            onChange={handleGuestChange}
-                            required
-                            className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-                          />
+                  {/* City Search with autocomplete */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold mb-2">Kota Tujuan *</label>
+                    {!selectedCity ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={searchCity}
+                          onChange={(e) => handleSearchCity(e.target.value)}
+                          placeholder="Cari kota..."
+                          className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                        />
+                        {citySearchResults.length > 0 && (
+                          <div className="absolute z-10 w-full bg-white border rounded-lg shadow-lg mt-1 max-h-60 overflow-auto">
+                            {citySearchResults.map((city) => (
+                              <button
+                                key={city.id}
+                                type="button"
+                                onClick={() => handleSelectCity(city)}
+                                className="w-full px-4 py-3 text-left hover:bg-gray-100 border-b last:border-b-0"
+                              >
+                                <p className="font-medium">{city.name}</p>
+                                <p className="text-sm text-gray-500">{city.province}</p>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-green-800">{selectedCity.name}</p>
+                            <p className="text-sm text-green-600">{selectedCity.province}</p>
+                          </div>
+                          <button type="button" onClick={handleClearCity} className="text-green-600 hover:text-green-800">
+                            ✕
+                          </button>
                         </div>
-                        <div>
-                          <label className="block text-sm font-semibold mb-2">Kode Pos *</label>
-                          <input
-                            type="text"
-                            name="postal_code"
-                            value={guestForm.postal_code}
-                            onChange={handleGuestChange}
-                            required
-                            className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-                          />
-                        </div>
-                      </>
+                      </div>
                     )}
+                  </div>
 
-                    {!isGuest && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-semibold mb-2">Kota *</label>
-                          <input
-                            type="text"
-                            name="city"
-                            value={userForm.city}
-                            onChange={handleUserChange}
-                            required
-                            className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold mb-2">Kode Pos *</label>
-                          <input
-                            type="text"
-                            name="postal_code"
-                            value={userForm.postal_code}
-                            onChange={handleUserChange}
-                            required
-                            className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-                          />
-                        </div>
-                      </>
-                    )}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Kode Pos *</label>
+                      <input
+                        type="text"
+                        name="postal_code"
+                        value={isGuest ? guestForm.postal_code : userForm.postal_code}
+                        onChange={isGuest ? handleGuestChange : handleUserChange}
+                        required
+                        className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Provinsi</label>
+                      <input
+                        type="text"
+                        value={isGuest ? guestForm.province : userForm.province}
+                        disabled
+                        className="w-full px-4 py-2 border rounded bg-gray-100"
+                      />
+                    </div>
                   </div>
 
                   <div className="mt-4">
@@ -397,53 +557,76 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                {/* Shipping Method */}
+                {/* Warehouse & Shipping Selection */}
                 <div className="bg-white p-6 rounded shadow">
-                  <h2 className="text-xl font-bold mb-4 uppercase">Metode Pengiriman</h2>
-                  <div className="space-y-3">
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="radio"
-                        name="shipping"
-                        value="standard"
-                        checked={shippingMethod === 'standard'}
-                        onChange={(e) => setShippingMethod(e.target.value)}
-                        className="mr-3"
-                      />
-                      <span className="flex-1">
-                        <span className="font-semibold">Standar (3-5 hari)</span>
-                        <span className="text-gray-600 text-sm"> - Rp 15.000</span>
-                      </span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="radio"
-                        name="shipping"
-                        value="express"
-                        checked={shippingMethod === 'express'}
-                        onChange={(e) => setShippingMethod(e.target.value)}
-                        className="mr-3"
-                      />
-                      <span className="flex-1">
-                        <span className="font-semibold">Express (1-2 hari)</span>
-                        <span className="text-gray-600 text-sm"> - Rp 50.000</span>
-                      </span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="radio"
-                        name="shipping"
-                        value="same_day"
-                        checked={shippingMethod === 'same_day'}
-                        onChange={(e) => setShippingMethod(e.target.value)}
-                        className="mr-3"
-                      />
-                      <span className="flex-1">
-                        <span className="font-semibold">Same Day (Hari yang sama)</span>
-                        <span className="text-gray-600 text-sm"> - Rp 100.000</span>
-                      </span>
-                    </label>
+                  <h2 className="text-xl font-bold mb-4 uppercase">Pilih Gudang & Pengiriman</h2>
+                  
+                  {/* Warehouse Selection */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold mb-2">Dikirim dari Gudang:</label>
+                    <select
+                      value={selectedWarehouse?.id || ''}
+                      onChange={(e) => handleWarehouseChange(e.target.value)}
+                      className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                    >
+                      <option value="">-- Pilih Gudang --</option>
+                      {warehouses.map((wh) => (
+                        <option key={wh.id} value={wh.id}>
+                          {wh.name} ({wh.city || wh.code})
+                        </option>
+                      ))}
+                    </select>
                   </div>
+
+                  {/* Shipping Options */}
+                  {selectedCity && selectedWarehouse ? (
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Pilih Kurir:</label>
+                      {loadingShipping ? (
+                        <div className="text-center py-4">
+                          <div className="animate-spin h-6 w-6 border-2 border-gray-500 border-t-transparent rounded-full mx-auto"></div>
+                          <p className="text-sm text-gray-500 mt-2">Memuat opsi pengiriman...</p>
+                        </div>
+                      ) : shippingOptions.length > 0 ? (
+                        <div className="space-y-2">
+                          {shippingOptions.map((option, idx) => (
+                            <label
+                              key={idx}
+                              className={`flex items-center justify-between p-3 border rounded cursor-pointer transition ${
+                                selectedShipping?.id === option.id 
+                                  ? 'border-black bg-gray-50' 
+                                  : 'border-gray-200 hover:border-gray-400'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="radio"
+                                  name="shipping_option"
+                                  checked={selectedShipping?.id === option.id}
+                                  onChange={() => setSelectedShipping(option)}
+                                  className="accent-black"
+                                />
+                                <div>
+                                  <p className="font-semibold">{option.courier} - {option.service || 'Regular'}</p>
+                                  <p className="text-xs text-gray-500">{option.estimated_days_display}</p>
+                                </div>
+                              </div>
+                              <span className="font-bold">Rp {(option.calculated_cost || option.cost).toLocaleString('id-ID')}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-gray-500 bg-gray-50 rounded">
+                          <p>Tidak ada opsi pengiriman tersedia untuk rute ini.</p>
+                          <p className="text-xs mt-1">Silakan hubungi customer service.</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-gray-500 bg-gray-50 rounded">
+                      <p>Pilih kota tujuan dan gudang pengirim untuk melihat opsi pengiriman.</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Payment Method */}
@@ -529,11 +712,18 @@ const Checkout = () => {
                     <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Pajak (10%)</span>
+                    <span>Pajak (11%)</span>
                     <span>Rp {tax.toLocaleString('id-ID')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Pengiriman</span>
+                    <div>
+                      <span>Pengiriman</span>
+                      {selectedShipping && (
+                        <p className="text-xs text-gray-500">
+                          {selectedShipping.courier} - {selectedShipping.service || 'Regular'}
+                        </p>
+                      )}
+                    </div>
                     <span>Rp {shippingCost.toLocaleString('id-ID')}</span>
                   </div>
                 </div>

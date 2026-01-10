@@ -41,6 +41,7 @@ import AdminWarehouses from './pages/admin/Warehouses';
 import AdminStockOpname from './pages/admin/StockOpname';
 import AdminRoles from './pages/admin/Roles';
 import AdminCityShipping from './pages/admin/CityShipping';
+import AdminExchangeRates from './pages/admin/ExchangeRates';
 
 // Components
 import PrivateRoute from './components/PrivateRoute';
@@ -97,6 +98,7 @@ function App() {
         <Route path="reports" element={<AdminReports />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="roles" element={<AdminRoles />} />
+        <Route path="exchange-rates" element={<AdminExchangeRates />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>
 

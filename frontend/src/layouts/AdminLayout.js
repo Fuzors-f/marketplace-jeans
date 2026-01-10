@@ -5,7 +5,7 @@ import {
   FaHome, FaBox, FaShoppingBag, FaWarehouse, FaChartBar, FaUsers, FaCog, 
   FaSignOutAlt, FaImages, FaTags, FaRuler, FaUserShield, 
   FaChevronDown, FaChevronRight, FaTable, FaClipboardList, FaBoxes, FaCity, FaTruck,
-  FaBars, FaTimes
+  FaBars, FaTimes, FaExchangeAlt
 } from 'react-icons/fa';
 import { logout } from '../redux/slices/authSlice';
 
@@ -83,6 +83,7 @@ const AdminLayout = () => {
         { path: '/admin/roles', icon: FaUserShield, label: 'Role & Permission' },
       ]
     },
+    { path: '/admin/exchange-rates', icon: FaExchangeAlt, label: 'Kurs Mata Uang', adminOnly: true },
     { path: '/admin/settings', icon: FaCog, label: 'Pengaturan', adminOnly: true },
   ];
 
