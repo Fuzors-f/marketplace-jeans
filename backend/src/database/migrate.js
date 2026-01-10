@@ -689,6 +689,51 @@ const migrations = [
   `INSERT IGNORE INTO exchange_rates (currency_from, currency_to, rate, is_active)
    VALUES ('IDR', 'USD', 16000, TRUE);`,
 
+  // 37. Add unique_token column to orders table for shareable URL
+  `ALTER TABLE orders 
+   ADD COLUMN IF NOT EXISTS unique_token VARCHAR(64) UNIQUE AFTER order_number,
+   ADD COLUMN IF NOT EXISTS approved_at DATETIME AFTER status,
+   ADD COLUMN IF NOT EXISTS approved_by INT AFTER approved_at,
+   ADD INDEX idx_unique_token (unique_token);`,
+
+  // 38. Shipping history table for admin manual updates
+  `CREATE TABLE IF NOT EXISTS order_shipping_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    status VARCHAR(50) NOT NULL COMMENT 'Status: pending, approved, processing, packed, shipped, in_transit, out_for_delivery, delivered, cancelled',
+    title VARCHAR(255) NOT NULL COMMENT 'Status title for display',
+    description TEXT COMMENT 'Manual description by admin',
+    location VARCHAR(255) COMMENT 'Location info',
+    created_by INT COMMENT 'Admin who created this update',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_order (order_id),
+    INDEX idx_status (status),
+    INDEX idx_created (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 39. Guest order details table
+  `CREATE TABLE IF NOT EXISTS guest_order_details (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL UNIQUE,
+    guest_name VARCHAR(255) NOT NULL,
+    guest_email VARCHAR(255),
+    guest_phone VARCHAR(20) NOT NULL,
+    address TEXT NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    province VARCHAR(100) NOT NULL,
+    postal_code VARCHAR(10),
+    country VARCHAR(100) DEFAULT 'Indonesia',
+    latitude DECIMAL(10, 8) COMMENT 'GPS latitude',
+    longitude DECIMAL(11, 8) COMMENT 'GPS longitude',
+    address_notes TEXT COMMENT 'Additional address instructions',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    INDEX idx_order (order_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
   // 34. Add bilingual columns to banners table
   `ALTER TABLE banners 
    ADD COLUMN IF NOT EXISTS title_en VARCHAR(255) AFTER title,

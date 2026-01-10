@@ -1,12 +1,28 @@
 const { query, transaction } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 const moment = require('moment');
+const crypto = require('crypto');
+const QRCode = require('qrcode');
+const PDFDocument = require('pdfkit');
+const path = require('path');
+const fs = require('fs');
 
 // Generate unique order number
 const generateOrderNumber = () => {
   const date = moment().format('YYYYMMDD');
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
   return `ORD-${date}-${random}`;
+};
+
+// Generate unique token for shareable URL
+const generateUniqueToken = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
+
+// Get base URL for order tracking
+const getOrderTrackingUrl = (uniqueToken) => {
+  const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  return `${baseUrl}/order/${uniqueToken}`;
 };
 
 // @desc    Create order (checkout)
@@ -42,14 +58,48 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    const orderId = await transaction(async (conn) => {
+    // Guest user validation - require complete address
+    if (!userId) {
+      if (!shipping_address.recipient_name) {
+        return res.status(400).json({
+          success: false,
+          message: 'Nama penerima harus diisi untuk tamu'
+        });
+      }
+      if (!shipping_address.phone) {
+        return res.status(400).json({
+          success: false,
+          message: 'Nomor telepon harus diisi untuk tamu'
+        });
+      }
+      if (!shipping_address.address) {
+        return res.status(400).json({
+          success: false,
+          message: 'Alamat lengkap harus diisi untuk tamu'
+        });
+      }
+      if (!shipping_address.city) {
+        return res.status(400).json({
+          success: false,
+          message: 'Kota harus diisi untuk tamu'
+        });
+      }
+      if (!shipping_address.province) {
+        return res.status(400).json({
+          success: false,
+          message: 'Provinsi harus diisi untuk tamu'
+        });
+      }
+    }
+
+    const orderData = await transaction(async (conn) => {
       // Calculate subtotal
       let subtotal = 0;
       const orderItems = [];
 
       for (const item of items) {
         const [variants] = await conn.execute(
-          `SELECT pv.*, p.name, p.base_price, p.master_cost_price, s.name as size_name
+          `SELECT pv.*, p.name, p.base_price, p.cost_price as master_cost_price, s.name as size_name
            FROM product_variants pv
            JOIN products p ON pv.product_id = p.id
            JOIN sizes s ON pv.size_id = s.id
@@ -67,25 +117,27 @@ exports.createOrder = async (req, res) => {
           throw new Error(`Insufficient stock for ${variant.name}`);
         }
 
-        const unitPrice = variant.base_price + variant.additional_price;
+        const unitPrice = parseFloat(variant.base_price) + parseFloat(variant.additional_price || 0);
         const itemSubtotal = unitPrice * item.quantity;
         subtotal += itemSubtotal;
 
         orderItems.push({
           variant_id: variant.id,
+          product_id: variant.product_id,
           name: variant.name,
           sku: variant.sku_variant,
           size: variant.size_name,
+          size_id: variant.size_id,
           quantity: item.quantity,
           unit_price: unitPrice,
-          unit_cost: variant.master_cost_price,
+          unit_cost: variant.master_cost_price || 0,
           subtotal: itemSubtotal
         });
       }
 
       // Apply member discount if applicable
       let memberDiscountAmount = 0;
-      if (userId && req.user.role === 'member' && req.user.member_discount > 0) {
+      if (userId && req.user && req.user.role === 'member' && req.user.member_discount > 0) {
         memberDiscountAmount = subtotal * (req.user.member_discount / 100);
       }
 
@@ -128,15 +180,21 @@ exports.createOrder = async (req, res) => {
 
       const totalAmount = subtotal - memberDiscountAmount - discountAmount + shippingCost;
 
-      // Create order
+      // Create order with unique token
       const orderNumber = generateOrderNumber();
+      const uniqueToken = generateUniqueToken();
+      
       const [orderResult] = await conn.execute(
         `INSERT INTO orders 
-        (order_number, user_id, guest_email, subtotal, discount_amount, discount_code, 
-         member_discount_amount, shipping_cost, total_amount, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [orderNumber, userId, guestEmail, subtotal, discountAmount, discount_code || null,
-         memberDiscountAmount, shippingCost, totalAmount, notes || null]
+        (order_number, unique_token, user_id, guest_email, status, subtotal, discount_amount, discount_code, 
+         member_discount_amount, shipping_cost, total, customer_name, customer_email, customer_phone,
+         shipping_address, shipping_city, shipping_province, shipping_postal_code, notes)
+        VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [orderNumber, uniqueToken, userId, guestEmail, subtotal, discountAmount, discount_code || null,
+         memberDiscountAmount, shippingCost, totalAmount, 
+         shipping_address.recipient_name, guestEmail || (req.user ? req.user.email : null),
+         shipping_address.phone, shipping_address.address, shipping_address.city,
+         shipping_address.province, shipping_address.postal_code || '', notes || null]
       );
 
       const orderId = orderResult.insertId;
@@ -145,11 +203,11 @@ exports.createOrder = async (req, res) => {
       for (const item of orderItems) {
         await conn.execute(
           `INSERT INTO order_items 
-          (order_id, product_variant_id, product_name, product_sku, size_name, 
-           quantity, unit_price, unit_cost, subtotal)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [orderId, item.variant_id, item.name, item.sku, item.size,
-           item.quantity, item.unit_price, item.unit_cost, item.subtotal]
+          (order_id, product_id, product_variant_id, size_id, product_name, product_sku, size_name, 
+           quantity, price, total)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [orderId, item.product_id, item.variant_id, item.size_id, item.name, item.sku, item.size,
+           item.quantity, item.unit_price, item.subtotal]
         );
 
         // Update stock
@@ -174,7 +232,28 @@ exports.createOrder = async (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [orderId, shipping_address.recipient_name, shipping_address.phone,
          shipping_address.address, shipping_address.city, shipping_address.province,
-         shipping_address.postal_code, shipping_address.country || 'Indonesia']
+         shipping_address.postal_code || '', shipping_address.country || 'Indonesia']
+      );
+
+      // If guest user, insert guest order details with complete address info
+      if (!userId) {
+        await conn.execute(
+          `INSERT INTO guest_order_details 
+          (order_id, guest_name, guest_email, guest_phone, address, city, province, postal_code, country, latitude, longitude, address_notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [orderId, shipping_address.recipient_name, guestEmail, shipping_address.phone,
+           shipping_address.address, shipping_address.city, shipping_address.province,
+           shipping_address.postal_code || '', shipping_address.country || 'Indonesia',
+           shipping_address.latitude || null, shipping_address.longitude || null,
+           shipping_address.address_notes || null]
+        );
+      }
+
+      // Insert initial shipping history
+      await conn.execute(
+        `INSERT INTO order_shipping_history (order_id, status, title, description, created_by)
+         VALUES (?, 'pending', 'Pesanan Dibuat', 'Pesanan berhasil dibuat dan menunggu persetujuan', ?)`,
+        [orderId, userId]
       );
 
       // Clear user cart if logged in
@@ -185,19 +264,567 @@ exports.createOrder = async (req, res) => {
         );
       }
 
-      return orderId;
+      return { orderId, orderNumber, uniqueToken };
     });
+
+    // Generate tracking URL
+    const trackingUrl = getOrderTrackingUrl(orderData.uniqueToken);
 
     res.status(201).json({
       success: true,
       message: 'Order created successfully',
-      data: { order_id: orderId }
+      data: { 
+        order_id: orderData.orderId,
+        order_number: orderData.orderNumber,
+        unique_token: orderData.uniqueToken,
+        tracking_url: trackingUrl
+      }
     });
   } catch (error) {
     console.error('Create order error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Error creating order'
+    });
+  }
+};
+
+// @desc    Get order by unique token (public access)
+// @route   GET /api/orders/track/:token
+// @access  Public
+exports.getOrderByToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const orders = await query(
+      `SELECT 
+        o.id, o.order_number, o.unique_token, o.status, o.payment_status, o.payment_method,
+        o.subtotal, o.discount_amount, o.shipping_cost, o.tax, o.total,
+        o.customer_name, o.customer_email, o.customer_phone,
+        o.shipping_address, o.shipping_city, o.shipping_province, o.shipping_postal_code,
+        o.shipping_method, o.tracking_number, o.courier, o.notes, 
+        o.approved_at, o.created_at, o.updated_at,
+        os.recipient_name, os.phone as shipping_phone, os.address as full_address,
+        w.name as warehouse_name, w.city as warehouse_city
+      FROM orders o
+      LEFT JOIN order_shipping os ON o.id = os.order_id
+      LEFT JOIN warehouses w ON o.warehouse_id = w.id
+      WHERE o.unique_token = ?`,
+      [token]
+    );
+
+    if (orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pesanan tidak ditemukan'
+      });
+    }
+
+    const order = orders[0];
+
+    // Get order items
+    const items = await query(
+      `SELECT 
+        oi.id, oi.quantity, oi.price, oi.total, oi.product_name, oi.size_name,
+        p.id as product_id, p.slug as product_slug,
+        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image
+      FROM order_items oi
+      LEFT JOIN products p ON oi.product_id = p.id
+      WHERE oi.order_id = ?`,
+      [order.id]
+    );
+
+    // Get shipping history
+    const shippingHistory = await query(
+      `SELECT 
+        osh.id, osh.status, osh.title, osh.description, osh.location, osh.created_at,
+        u.full_name as updated_by
+      FROM order_shipping_history osh
+      LEFT JOIN users u ON osh.created_by = u.id
+      WHERE osh.order_id = ?
+      ORDER BY osh.created_at DESC`,
+      [order.id]
+    );
+
+    // Generate QR code URL
+    const trackingUrl = getOrderTrackingUrl(token);
+
+    res.json({
+      success: true,
+      data: {
+        order: {
+          ...order,
+          tracking_url: trackingUrl
+        },
+        items,
+        tracking: shippingHistory
+      }
+    });
+  } catch (error) {
+    console.error('Get order by token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching order',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Generate QR Code for order
+// @route   GET /api/orders/:id/qrcode
+// @access  Private/Public
+exports.generateQRCode = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { format = 'png' } = req.query; // png or svg
+
+    // Get order token
+    const orders = await query(
+      'SELECT unique_token, order_number FROM orders WHERE id = ? OR unique_token = ?',
+      [id, id]
+    );
+
+    if (orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const order = orders[0];
+    const trackingUrl = getOrderTrackingUrl(order.unique_token);
+
+    if (format === 'svg') {
+      const svg = await QRCode.toString(trackingUrl, { type: 'svg' });
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.send(svg);
+    } else {
+      const qrBuffer = await QRCode.toBuffer(trackingUrl, {
+        errorCorrectionLevel: 'H',
+        type: 'png',
+        margin: 2,
+        scale: 8
+      });
+      
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', `attachment; filename="qr-${order.order_number}.png"`);
+      res.send(qrBuffer);
+    }
+  } catch (error) {
+    console.error('Generate QR code error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating QR code',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get QR Code as base64 for display
+// @route   GET /api/orders/:id/qrcode-data
+// @access  Private/Public
+exports.getQRCodeData = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get order token
+    const orders = await query(
+      'SELECT unique_token, order_number FROM orders WHERE id = ? OR unique_token = ?',
+      [id, id]
+    );
+
+    if (orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const order = orders[0];
+    const trackingUrl = getOrderTrackingUrl(order.unique_token);
+
+    const qrDataUrl = await QRCode.toDataURL(trackingUrl, {
+      errorCorrectionLevel: 'H',
+      type: 'image/png',
+      margin: 2,
+      scale: 8
+    });
+
+    res.json({
+      success: true,
+      data: {
+        order_number: order.order_number,
+        tracking_url: trackingUrl,
+        qr_code: qrDataUrl
+      }
+    });
+  } catch (error) {
+    console.error('Get QR code data error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating QR code',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Generate PDF Invoice
+// @route   GET /api/orders/:id/invoice
+// @access  Private/Public
+exports.generateInvoice = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get order details
+    const orders = await query(
+      `SELECT 
+        o.*, 
+        os.recipient_name, os.phone as shipping_phone, os.address as full_address,
+        os.city as ship_city, os.province as ship_province, os.postal_code as ship_postal_code,
+        w.name as warehouse_name, w.address as warehouse_address, w.city as warehouse_city
+      FROM orders o
+      LEFT JOIN order_shipping os ON o.id = os.order_id
+      LEFT JOIN warehouses w ON o.warehouse_id = w.id
+      WHERE o.id = ? OR o.unique_token = ?`,
+      [id, id]
+    );
+
+    if (orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const order = orders[0];
+
+    // Get order items
+    const items = await query(
+      `SELECT 
+        oi.id, oi.quantity, oi.price, oi.total, oi.product_name, oi.product_sku, oi.size_name
+      FROM order_items oi
+      WHERE oi.order_id = ?`,
+      [order.id]
+    );
+
+    // Get taxes and discounts
+    const taxes = await query('SELECT * FROM order_taxes WHERE order_id = ?', [order.id]);
+    const discounts = await query('SELECT * FROM order_discounts WHERE order_id = ?', [order.id]);
+
+    // Create PDF document
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${order.order_number}.pdf"`);
+    
+    // Pipe PDF to response
+    doc.pipe(res);
+
+    // Header
+    doc.fontSize(20).text('INVOICE', { align: 'center' });
+    doc.moveDown();
+    
+    // Company info
+    doc.fontSize(12).text('Marketplace Jeans', { align: 'center' });
+    doc.fontSize(10).text('www.marketplacejeans.com', { align: 'center' });
+    doc.moveDown();
+
+    // Order info
+    doc.fontSize(10);
+    doc.text(`Invoice No: ${order.order_number}`);
+    doc.text(`Tanggal: ${moment(order.created_at).format('DD MMMM YYYY, HH:mm')}`);
+    doc.text(`Status: ${order.status.toUpperCase()}`);
+    if (order.tracking_number) {
+      doc.text(`No. Resi: ${order.tracking_number}`);
+    }
+    doc.moveDown();
+
+    // Shipping info
+    doc.fontSize(11).text('Alamat Pengiriman:', { underline: true });
+    doc.fontSize(10);
+    doc.text(order.recipient_name || order.customer_name);
+    doc.text(order.full_address || order.shipping_address);
+    doc.text(`${order.ship_city || order.shipping_city}, ${order.ship_province || order.shipping_province}`);
+    doc.text(`Telp: ${order.shipping_phone || order.customer_phone}`);
+    doc.moveDown();
+
+    // Table header
+    const tableTop = doc.y;
+    const tableHeaders = ['No', 'Produk', 'Ukuran', 'Qty', 'Harga', 'Total'];
+    const columnWidths = [30, 200, 50, 40, 80, 90];
+    let xPosition = 50;
+
+    doc.fontSize(10).font('Helvetica-Bold');
+    tableHeaders.forEach((header, i) => {
+      doc.text(header, xPosition, tableTop, { width: columnWidths[i], align: i >= 3 ? 'right' : 'left' });
+      xPosition += columnWidths[i];
+    });
+
+    // Draw line
+    doc.moveTo(50, tableTop + 15).lineTo(545, tableTop + 15).stroke();
+
+    // Table rows
+    doc.font('Helvetica');
+    let yPosition = tableTop + 25;
+    
+    items.forEach((item, index) => {
+      xPosition = 50;
+      const rowData = [
+        (index + 1).toString(),
+        item.product_name,
+        item.size_name || '-',
+        item.quantity.toString(),
+        formatCurrencyPDF(item.price),
+        formatCurrencyPDF(item.total)
+      ];
+      
+      rowData.forEach((data, i) => {
+        doc.text(data, xPosition, yPosition, { width: columnWidths[i], align: i >= 3 ? 'right' : 'left' });
+        xPosition += columnWidths[i];
+      });
+      yPosition += 20;
+    });
+
+    // Draw line
+    doc.moveTo(50, yPosition).lineTo(545, yPosition).stroke();
+    yPosition += 10;
+
+    // Totals
+    const totalsX = 380;
+    doc.text('Subtotal:', totalsX, yPosition);
+    doc.text(formatCurrencyPDF(order.subtotal), 455, yPosition, { width: 90, align: 'right' });
+    yPosition += 15;
+
+    doc.text('Ongkos Kirim:', totalsX, yPosition);
+    doc.text(formatCurrencyPDF(order.shipping_cost), 455, yPosition, { width: 90, align: 'right' });
+    yPosition += 15;
+
+    // Show taxes if any
+    if (order.tax && order.tax > 0) {
+      doc.text('Pajak:', totalsX, yPosition);
+      doc.text(formatCurrencyPDF(order.tax), 455, yPosition, { width: 90, align: 'right' });
+      yPosition += 15;
+    }
+
+    taxes.forEach(tax => {
+      doc.text(`${tax.description}:`, totalsX, yPosition);
+      doc.text(formatCurrencyPDF(tax.amount), 455, yPosition, { width: 90, align: 'right' });
+      yPosition += 15;
+    });
+
+    // Show discounts if any
+    if (order.discount_amount > 0) {
+      doc.text('Diskon:', totalsX, yPosition);
+      doc.text(`-${formatCurrencyPDF(order.discount_amount)}`, 455, yPosition, { width: 90, align: 'right' });
+      yPosition += 15;
+    }
+
+    discounts.forEach(discount => {
+      doc.text(`${discount.description}:`, totalsX, yPosition);
+      doc.text(`-${formatCurrencyPDF(discount.amount)}`, 455, yPosition, { width: 90, align: 'right' });
+      yPosition += 15;
+    });
+
+    // Grand total
+    doc.moveTo(380, yPosition).lineTo(545, yPosition).stroke();
+    yPosition += 10;
+    doc.font('Helvetica-Bold');
+    doc.text('TOTAL:', totalsX, yPosition);
+    doc.text(formatCurrencyPDF(order.total || order.total_amount), 455, yPosition, { width: 90, align: 'right' });
+
+    // Footer
+    yPosition = doc.page.height - 100;
+    doc.font('Helvetica').fontSize(9);
+    doc.text('Terima kasih telah berbelanja di Marketplace Jeans!', 50, yPosition, { align: 'center', width: 495 });
+    doc.text(`Invoice ini dibuat secara otomatis pada ${moment().format('DD/MM/YYYY HH:mm')}`, 50, yPosition + 15, { align: 'center', width: 495 });
+
+    // Finalize PDF
+    doc.end();
+
+  } catch (error) {
+    console.error('Generate invoice error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating invoice',
+      error: error.message
+    });
+  }
+};
+
+// Helper function to format currency for PDF
+const formatCurrencyPDF = (amount) => {
+  return 'Rp ' + (amount || 0).toLocaleString('id-ID');
+};
+
+// @desc    Admin approve order (change from pending to processing)
+// @route   PUT /api/orders/:id/approve
+// @access  Private (Admin)
+exports.approveOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.id;
+    const { notes } = req.body;
+
+    // Get current order
+    const orders = await query('SELECT * FROM orders WHERE id = ?', [id]);
+    if (orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const order = orders[0];
+
+    if (order.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only pending orders can be approved'
+      });
+    }
+
+    await transaction(async (conn) => {
+      // Update order status
+      await conn.execute(
+        `UPDATE orders SET status = 'confirmed', approved_at = NOW(), approved_by = ? WHERE id = ?`,
+        [adminId, id]
+      );
+
+      // Add shipping history entry
+      await conn.execute(
+        `INSERT INTO order_shipping_history (order_id, status, title, description, created_by)
+         VALUES (?, 'confirmed', 'Pesanan Disetujui', ?, ?)`,
+        [id, notes || 'Pesanan telah disetujui oleh admin dan sedang diproses', adminId]
+      );
+    });
+
+    res.json({
+      success: true,
+      message: 'Pesanan berhasil disetujui'
+    });
+  } catch (error) {
+    console.error('Approve order error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error approving order',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Admin add shipping history update
+// @route   POST /api/orders/:id/shipping-history
+// @access  Private (Admin)
+exports.addShippingHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.id;
+    const { status, title, description, location, update_order_status } = req.body;
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title is required'
+      });
+    }
+
+    // Validate order exists
+    const orders = await query('SELECT * FROM orders WHERE id = ?', [id]);
+    if (orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    await transaction(async (conn) => {
+      // Add shipping history entry
+      await conn.execute(
+        `INSERT INTO order_shipping_history (order_id, status, title, description, location, created_by)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, status || 'update', title, description || null, location || null, adminId]
+      );
+
+      // Update order status if requested
+      if (update_order_status && status) {
+        await conn.execute(
+          'UPDATE orders SET status = ? WHERE id = ?',
+          [status, id]
+        );
+
+        // Update shipped_at or delivered_at
+        if (status === 'shipped') {
+          await conn.execute(
+            'UPDATE order_shipping SET shipped_at = NOW() WHERE order_id = ?',
+            [id]
+          );
+        } else if (status === 'delivered') {
+          await conn.execute(
+            'UPDATE order_shipping SET delivered_at = NOW() WHERE order_id = ?',
+            [id]
+          );
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Riwayat pengiriman berhasil ditambahkan'
+    });
+  } catch (error) {
+    console.error('Add shipping history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adding shipping history',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get shipping history for order
+// @route   GET /api/orders/:id/shipping-history
+// @access  Private/Public
+exports.getShippingHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Support both id and token
+    const orders = await query(
+      'SELECT id FROM orders WHERE id = ? OR unique_token = ?',
+      [id, id]
+    );
+
+    if (orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const orderId = orders[0].id;
+
+    const history = await query(
+      `SELECT 
+        osh.id, osh.status, osh.title, osh.description, osh.location, osh.created_at,
+        u.full_name as updated_by
+      FROM order_shipping_history osh
+      LEFT JOIN users u ON osh.created_by = u.id
+      WHERE osh.order_id = ?
+      ORDER BY osh.created_at DESC`,
+      [orderId]
+    );
+
+    res.json({
+      success: true,
+      data: history
+    });
+  } catch (error) {
+    console.error('Get shipping history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching shipping history',
+      error: error.message
     });
   }
 };
@@ -228,7 +855,7 @@ exports.getOrders = async (req, res) => {
 
     const orders = await query(
       `SELECT 
-        o.id, o.order_number, o.status, o.payment_status, o.payment_method,
+        o.id, o.order_number, o.unique_token, o.status, o.payment_status, o.payment_method,
         o.subtotal, o.discount_amount, o.shipping_cost, o.tax, o.total,
         o.customer_name, o.customer_email, o.customer_phone,
         o.shipping_address, o.shipping_city, o.shipping_province,
@@ -255,6 +882,7 @@ exports.getOrders = async (req, res) => {
         [order.id]
       );
       order.items = items;
+      order.tracking_url = getOrderTrackingUrl(order.unique_token);
     }
 
     res.json({
@@ -288,11 +916,12 @@ exports.getOrder = async (req, res) => {
     // Get order
     const orders = await query(
       `SELECT 
-        o.id, o.order_number, o.user_id, o.status, o.payment_status, o.payment_method,
+        o.id, o.order_number, o.unique_token, o.user_id, o.status, o.payment_status, o.payment_method,
         o.subtotal, o.discount_amount, o.shipping_cost, o.tax, o.total,
         o.customer_name, o.customer_email, o.customer_phone,
         o.shipping_address, o.shipping_city, o.shipping_province, o.shipping_postal_code,
-        o.shipping_method, o.tracking_number, o.notes, o.created_at, o.updated_at
+        o.shipping_method, o.tracking_number, o.courier, o.notes, 
+        o.approved_at, o.approved_by, o.created_at, o.updated_at
       FROM orders o
       WHERE o.id = ? ${userId ? 'AND (o.user_id = ? OR o.user_id IS NULL)' : ''}`,
       userId ? [id, userId] : [id]
@@ -327,12 +956,26 @@ exports.getOrder = async (req, res) => {
       [id]
     );
 
+    // Get shipping history
+    const shippingHistory = await query(
+      `SELECT 
+        osh.id, osh.status, osh.title, osh.description, osh.location, osh.created_at,
+        u.full_name as updated_by
+      FROM order_shipping_history osh
+      LEFT JOIN users u ON osh.created_by = u.id
+      WHERE osh.order_id = ?
+      ORDER BY osh.created_at DESC`,
+      [id]
+    );
+
     res.json({
       success: true,
       data: {
         ...order,
+        tracking_url: getOrderTrackingUrl(order.unique_token),
         items,
-        payment: payments.length > 0 ? payments[0] : null
+        payment: payments.length > 0 ? payments[0] : null,
+        shipping_history: shippingHistory
       }
     });
   } catch (error) {
@@ -351,9 +994,10 @@ exports.getOrder = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, notes } = req.body;
+    const adminId = req.user.id;
 
-    const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const validStatuses = ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'in_transit', 'out_for_delivery', 'delivered', 'cancelled'];
     
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
@@ -362,7 +1006,35 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
 
-    await query('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
+    const statusTitles = {
+      pending: 'Menunggu Persetujuan',
+      confirmed: 'Pesanan Dikonfirmasi',
+      processing: 'Pesanan Diproses',
+      packed: 'Pesanan Dikemas',
+      shipped: 'Pesanan Dikirim',
+      in_transit: 'Dalam Perjalanan',
+      out_for_delivery: 'Sedang Diantar',
+      delivered: 'Pesanan Diterima',
+      cancelled: 'Pesanan Dibatalkan'
+    };
+
+    await transaction(async (conn) => {
+      await conn.execute('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
+
+      // Add shipping history entry
+      await conn.execute(
+        `INSERT INTO order_shipping_history (order_id, status, title, description, created_by)
+         VALUES (?, ?, ?, ?, ?)`,
+        [id, status, statusTitles[status], notes || null, adminId]
+      );
+
+      // Update timestamps
+      if (status === 'shipped') {
+        await conn.execute('UPDATE order_shipping SET shipped_at = NOW() WHERE order_id = ?', [id]);
+      } else if (status === 'delivered') {
+        await conn.execute('UPDATE order_shipping SET delivered_at = NOW() WHERE order_id = ?', [id]);
+      }
+    });
 
     res.json({
       success: true,
@@ -384,7 +1056,8 @@ exports.updateOrderStatus = async (req, res) => {
 exports.addTracking = async (req, res) => {
   try {
     const { id } = req.params;
-    const { tracking_number, shipping_method } = req.body;
+    const { tracking_number, shipping_method, courier } = req.body;
+    const adminId = req.user.id;
 
     if (!tracking_number) {
       return res.status(400).json({
@@ -402,8 +1075,15 @@ exports.addTracking = async (req, res) => {
       );
 
       await conn.execute(
-        `UPDATE orders SET status = 'shipped' WHERE id = ?`,
-        [id]
+        `UPDATE orders SET status = 'shipped', tracking_number = ?, courier = ? WHERE id = ?`,
+        [tracking_number, courier || null, id]
+      );
+
+      // Add shipping history entry
+      await conn.execute(
+        `INSERT INTO order_shipping_history (order_id, status, title, description, created_by)
+         VALUES (?, 'shipped', 'Pesanan Dikirim', ?, ?)`,
+        [id, `No. Resi: ${tracking_number}${courier ? ` (${courier})` : ''}`, adminId]
       );
     });
 

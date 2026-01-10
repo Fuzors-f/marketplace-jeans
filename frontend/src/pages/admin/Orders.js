@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
-import { FaEye, FaTimes, FaFilter, FaPlus, FaSearch, FaTrash, FaUser, FaUserPlus, FaWarehouse, FaTruck, FaMapMarkerAlt, FaHistory, FaClock, FaCheckCircle, FaBox, FaSpinner } from 'react-icons/fa';
+import { FaEye, FaTimes, FaFilter, FaPlus, FaSearch, FaTrash, FaUser, FaUserPlus, FaWarehouse, FaTruck, FaMapMarkerAlt, FaHistory, FaClock, FaCheckCircle, FaBox, FaSpinner, FaFilePdf, FaQrcode, FaCheck, FaLink } from 'react-icons/fa';
 import DataTable from '../../components/admin/DataTable';
 import { useLanguage } from '../../utils/i18n';
 
@@ -77,6 +77,10 @@ const AdminOrders = () => {
     location: ''
   });
   const [addingTracking, setAddingTracking] = useState(false);
+  
+  // Approve order state
+  const [approvingOrderId, setApprovingOrderId] = useState(null);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(null);
   
   const [newOrderData, setNewOrderData] = useState({
     customer_name: '',
@@ -556,26 +560,38 @@ const AdminOrders = () => {
 
   // Tracking functions
   const fetchTrackingStatuses = async () => {
-    try {
-      const response = await apiClient.get('/tracking/statuses');
-      if (response.data.success) {
-        setTrackingStatuses(response.data.data);
-      }
-    } catch (err) {
-      console.error('Error fetching tracking statuses:', err);
-    }
+    // Define statuses directly since we don't need API call
+    setTrackingStatuses([
+      { value: 'pending', label: 'Menunggu Persetujuan' },
+      { value: 'confirmed', label: 'Dikonfirmasi' },
+      { value: 'processing', label: 'Diproses' },
+      { value: 'packed', label: 'Dikemas' },
+      { value: 'shipped', label: 'Dikirim' },
+      { value: 'in_transit', label: 'Dalam Perjalanan' },
+      { value: 'out_for_delivery', label: 'Sedang Diantar' },
+      { value: 'delivered', label: 'Diterima' },
+      { value: 'cancelled', label: 'Dibatalkan' }
+    ]);
   };
 
   const fetchTrackingHistory = async (orderId) => {
     try {
       setLoadingTracking(true);
-      const response = await apiClient.get(`/tracking/order/${orderId}`);
+      const response = await apiClient.get(`/orders/${orderId}/shipping-history`);
       if (response.data.success) {
         setTrackingHistory(response.data.data);
       }
     } catch (err) {
       console.error('Error fetching tracking history:', err);
-      setTrackingHistory([]);
+      // Fallback to old endpoint
+      try {
+        const response = await apiClient.get(`/tracking/order/${orderId}`);
+        if (response.data.success) {
+          setTrackingHistory(response.data.data);
+        }
+      } catch (err2) {
+        setTrackingHistory([]);
+      }
     } finally {
       setLoadingTracking(false);
     }
@@ -598,10 +614,17 @@ const AdminOrders = () => {
 
     try {
       setAddingTracking(true);
-      const response = await apiClient.post(`/tracking/${trackingOrderId}`, newTracking);
+      // Use new shipping history endpoint
+      const response = await apiClient.post(`/orders/${trackingOrderId}/shipping-history`, {
+        status: newTracking.status,
+        title: newTracking.title || getDefaultTitle(newTracking.status),
+        description: newTracking.description,
+        location: newTracking.location,
+        update_order_status: true
+      });
       
       if (response.data.success) {
-        setSuccess('Tracking berhasil ditambahkan!');
+        setSuccess('Riwayat pengiriman berhasil ditambahkan!');
         setNewTracking({ status: '', title: '', description: '', location: '' });
         await fetchTrackingHistory(trackingOrderId);
         
@@ -623,6 +646,22 @@ const AdminOrders = () => {
     }
   };
 
+  // Get default title based on status
+  const getDefaultTitle = (status) => {
+    const titles = {
+      pending: 'Menunggu Persetujuan',
+      confirmed: 'Pesanan Dikonfirmasi',
+      processing: 'Pesanan Diproses',
+      packed: 'Pesanan Dikemas',
+      shipped: 'Pesanan Dikirim',
+      in_transit: 'Dalam Perjalanan',
+      out_for_delivery: 'Sedang Diantar',
+      delivered: 'Pesanan Diterima',
+      cancelled: 'Pesanan Dibatalkan'
+    };
+    return titles[status] || status;
+  };
+
   const handleDeleteTracking = async (trackingId) => {
     if (!window.confirm('Hapus tracking ini?')) return;
     
@@ -634,6 +673,83 @@ const AdminOrders = () => {
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal menghapus tracking');
     }
+  };
+
+  // Approve order function
+  const handleApproveOrder = async (orderId) => {
+    if (!window.confirm('Setujui pesanan ini? Status akan berubah menjadi Dikonfirmasi.')) return;
+    
+    try {
+      setApprovingOrderId(orderId);
+      await apiClient.put(`/orders/${orderId}/approve`, { notes: 'Pesanan disetujui oleh admin' });
+      setSuccess('Pesanan berhasil disetujui!');
+      
+      // Update order status in list
+      setOrders(orders.map(order =>
+        order.id === orderId ? { ...order, status: 'confirmed' } : order
+      ));
+      
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder({ ...selectedOrder, status: 'confirmed' });
+      }
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal menyetujui pesanan');
+    } finally {
+      setApprovingOrderId(null);
+    }
+  };
+
+  // Download invoice PDF
+  const handleDownloadInvoice = async (orderId, orderNumber) => {
+    try {
+      setDownloadingInvoice(orderId);
+      const response = await apiClient.get(`/orders/${orderId}/invoice`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `invoice-${orderNumber || orderId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Gagal mengunduh invoice');
+    } finally {
+      setDownloadingInvoice(null);
+    }
+  };
+
+  // Download QR code
+  const handleDownloadQRCode = async (orderId, orderNumber) => {
+    try {
+      const response = await apiClient.get(`/orders/${orderId}/qrcode`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `qr-${orderNumber || orderId}.png`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Gagal mengunduh QR Code');
+    }
+  };
+
+  // Copy tracking URL
+  const handleCopyTrackingUrl = (uniqueToken) => {
+    const url = `${window.location.origin}/order/${uniqueToken}`;
+    navigator.clipboard.writeText(url);
+    setSuccess('Link tracking tersalin!');
+    setTimeout(() => setSuccess(''), 2000);
   };
 
   const getStatusBadgeColor = (status) => {
@@ -860,6 +976,20 @@ const AdminOrders = () => {
             <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
               <h2 className="text-xl font-bold">{t('orderDetails')} #{selectedOrder.id}</h2>
               <div className="flex items-center gap-2">
+                {/* Approve button for pending orders */}
+                {selectedOrder.status === 'pending' && (
+                  <button
+                    onClick={() => handleApproveOrder(selectedOrder.id)}
+                    disabled={approvingOrderId === selectedOrder.id}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-50"
+                  >
+                    {approvingOrderId === selectedOrder.id ? (
+                      <><FaSpinner className="animate-spin" /> Menyetujui...</>
+                    ) : (
+                      <><FaCheck /> Setujui Pesanan</>
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={() => handleOpenTrackingModal(selectedOrder.id)}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
@@ -1011,17 +1141,59 @@ const AdminOrders = () => {
               {/* Tracking Link */}
               {selectedOrder.order_number && (
                 <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-700">
+                  <p className="text-sm text-blue-700 mb-3">
                     <strong>Link Tracking Publik:</strong>{' '}
-                    <a 
-                      href={`/orders/track/${selectedOrder.order_number}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="underline hover:text-blue-900"
-                    >
-                      {window.location.origin}/orders/track/{selectedOrder.order_number}
-                    </a>
+                    {selectedOrder.unique_token ? (
+                      <a 
+                        href={`/order/${selectedOrder.unique_token}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="underline hover:text-blue-900"
+                      >
+                        {window.location.origin}/order/{selectedOrder.unique_token}
+                      </a>
+                    ) : (
+                      <a 
+                        href={`/orders/track/${selectedOrder.order_number}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="underline hover:text-blue-900"
+                      >
+                        {window.location.origin}/orders/track/{selectedOrder.order_number}
+                      </a>
+                    )}
                   </p>
+                  
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleDownloadInvoice(selectedOrder.id, selectedOrder.order_number)}
+                      disabled={downloadingInvoice === selectedOrder.id}
+                      className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {downloadingInvoice === selectedOrder.id ? (
+                        <><FaSpinner className="animate-spin" /> Mengunduh...</>
+                      ) : (
+                        <><FaFilePdf /> Download Invoice</>
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={() => handleDownloadQRCode(selectedOrder.id, selectedOrder.order_number)}
+                      className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+                    >
+                      <FaQrcode /> Download QR Code
+                    </button>
+                    
+                    {selectedOrder.unique_token && (
+                      <button
+                        onClick={() => handleCopyTrackingUrl(selectedOrder.unique_token)}
+                        className="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                      >
+                        <FaLink /> Salin Link
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

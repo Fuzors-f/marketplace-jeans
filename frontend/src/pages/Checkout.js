@@ -205,25 +205,77 @@ const Checkout = () => {
   };
 
   const validateGuestForm = () => {
-    const { email, phone, full_name, address, city, postal_code } = guestForm;
-    if (!email || !phone || !full_name || !address || !city || !postal_code) {
-      setError('Semua field harus diisi');
+    const { email, phone, full_name, address, city, province, postal_code } = guestForm;
+    
+    if (!email) {
+      setError('Email harus diisi');
       return false;
     }
+    if (!phone) {
+      setError('Nomor telepon harus diisi');
+      return false;
+    }
+    if (!full_name) {
+      setError('Nama lengkap harus diisi');
+      return false;
+    }
+    if (!address) {
+      setError('Alamat lengkap harus diisi');
+      return false;
+    }
+    if (!city) {
+      setError('Kota harus diisi');
+      return false;
+    }
+    if (!province) {
+      setError('Provinsi harus diisi');
+      return false;
+    }
+    if (!postal_code) {
+      setError('Kode pos harus diisi');
+      return false;
+    }
+    
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setError('Email tidak valid');
       return false;
     }
+    
+    // Phone validation
+    const phoneRegex = /^[0-9+\-\s()]{8,20}$/;
+    if (!phoneRegex.test(phone)) {
+      setError('Nomor telepon tidak valid');
+      return false;
+    }
+    
     return true;
   };
 
   const validateUserForm = () => {
-    const { phone, address, city, postal_code } = userForm;
-    if (!phone || !address || !city || !postal_code) {
-      setError('Semua field harus diisi');
+    const { phone, address, city, province, postal_code } = userForm;
+    
+    if (!phone) {
+      setError('Nomor telepon harus diisi');
       return false;
     }
+    if (!address) {
+      setError('Alamat harus diisi');
+      return false;
+    }
+    if (!city) {
+      setError('Kota harus diisi');
+      return false;
+    }
+    if (!province) {
+      setError('Provinsi harus diisi');
+      return false;
+    }
+    if (!postal_code) {
+      setError('Kode pos harus diisi');
+      return false;
+    }
+    
     return true;
   };
 

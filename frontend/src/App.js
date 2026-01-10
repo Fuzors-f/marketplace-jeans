@@ -17,6 +17,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import OrderSuccess from './pages/OrderSuccess';
 import OrderTracking from './pages/OrderTracking';
+import OrderPage from './pages/OrderPage';
 
 // Private Pages
 import Profile from './pages/Profile';
@@ -76,6 +77,7 @@ function App() {
         <Route path="login" element={<Login />} />
         <Route path="register" element={<Register />} />
         <Route path="orders/track/:trackingNumber" element={<OrderTracking />} />
+        <Route path="order/:token" element={<OrderPage />} />
         <Route path="orders/:orderId/success" element={<OrderSuccess />} />
         
         {/* Private Routes */}

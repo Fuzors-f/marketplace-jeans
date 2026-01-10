@@ -65,17 +65,17 @@ exports.getAdminOrders = async (req, res) => {
     // Get orders with user info
     const orders = await query(
       `SELECT 
-        o.id, o.order_number, o.user_id, o.guest_email, o.status, o.payment_status,
+        o.id, o.order_number, o.unique_token, o.user_id, o.guest_email, o.status, o.payment_status,
         o.subtotal, o.shipping_cost, o.discount_amount, o.discount_code,
-        o.member_discount_amount, o.total_amount as total,
-        o.notes, o.created_at, o.updated_at,
+        o.member_discount_amount, o.total_amount as total, o.total,
+        o.customer_name, o.customer_email, o.customer_phone,
+        o.shipping_address, o.shipping_city, o.shipping_province, o.courier, o.tracking_number,
+        o.notes, o.approved_at, o.created_at, o.updated_at,
         u.full_name as user_name, u.email as user_email, u.phone as user_phone,
-        ua.recipient_name as customer_name, ua.phone as customer_phone,
-        ua.address as shipping_address, ua.city as shipping_city,
-        ua.province as shipping_province, ua.postal_code as shipping_postal_code
+        w.name as warehouse_name, w.city as warehouse_city
       FROM orders o
       LEFT JOIN users u ON o.user_id = u.id
-      LEFT JOIN user_addresses ua ON o.user_id = ua.user_id AND ua.is_default = 1
+      LEFT JOIN warehouses w ON o.warehouse_id = w.id
       ${whereClause}
       ORDER BY o.${sortColumn} ${sortOrder}
       LIMIT ? OFFSET ?`,
