@@ -29,16 +29,16 @@ const getSalesReport = async (req, res) => {
         DATE(o.created_at) as date,
         COUNT(DISTINCT o.id) as total_orders,
         COUNT(DISTINCT o.user_id) as unique_customers,
-        SUM(oi.quantity) as items_sold,
-        SUM(oi.price * oi.quantity) as gross_sales,
-        SUM(o.discount_amount) as total_discounts,
-        SUM(o.shipping_cost) as total_shipping,
-        SUM(o.total) as net_sales,
-        SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as total_cost,
-        SUM(o.total) - SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as gross_profit,
-        ROUND(((SUM(o.total) - SUM(oi.quantity * COALESCE(pv.cost_price, 0))) / NULLIF(SUM(o.total), 0) * 100), 2) as profit_margin
+        COALESCE(SUM(oi.quantity), 0) as items_sold,
+        COALESCE(SUM(oi.subtotal), 0) as gross_sales,
+        COALESCE(SUM(DISTINCT o.discount_amount), 0) as total_discounts,
+        COALESCE(SUM(DISTINCT o.shipping_cost), 0) as total_shipping,
+        COALESCE(SUM(DISTINCT o.total_amount), 0) as net_sales,
+        COALESCE(SUM(oi.quantity * COALESCE(oi.unit_cost, pv.cost_price, 0)), 0) as total_cost,
+        COALESCE(SUM(DISTINCT o.total_amount), 0) - COALESCE(SUM(oi.quantity * COALESCE(oi.unit_cost, pv.cost_price, 0)), 0) as gross_profit,
+        ROUND(((COALESCE(SUM(DISTINCT o.total_amount), 0) - COALESCE(SUM(oi.quantity * COALESCE(oi.unit_cost, pv.cost_price, 0)), 0)) / NULLIF(COALESCE(SUM(DISTINCT o.total_amount), 0), 0) * 100), 2) as profit_margin
       FROM orders o
-      JOIN order_items oi ON o.id = oi.order_id
+      LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN product_variants pv ON oi.product_variant_id = pv.id
       ${whereClause}
       GROUP BY DATE(o.created_at)
@@ -51,16 +51,16 @@ const getSalesReport = async (req, res) => {
       `SELECT 
         COUNT(DISTINCT o.id) as total_orders,
         COUNT(DISTINCT o.user_id) as unique_customers,
-        SUM(oi.quantity) as total_items_sold,
-        SUM(oi.price * oi.quantity) as total_gross_sales,
-        SUM(o.discount_amount) as total_discounts,
-        SUM(o.shipping_cost) as total_shipping,
-        SUM(o.total) as total_net_sales,
-        SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as total_cost,
-        SUM(o.total) - SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as total_profit,
-        ROUND(((SUM(o.total) - SUM(oi.quantity * COALESCE(pv.cost_price, 0))) / NULLIF(SUM(o.total), 0) * 100), 2) as avg_profit_margin
+        COALESCE(SUM(oi.quantity), 0) as total_items_sold,
+        COALESCE(SUM(oi.subtotal), 0) as total_gross_sales,
+        COALESCE(SUM(DISTINCT o.discount_amount), 0) as total_discounts,
+        COALESCE(SUM(DISTINCT o.shipping_cost), 0) as total_shipping,
+        COALESCE(SUM(DISTINCT o.total_amount), 0) as total_net_sales,
+        COALESCE(SUM(oi.quantity * COALESCE(oi.unit_cost, pv.cost_price, 0)), 0) as total_cost,
+        COALESCE(SUM(DISTINCT o.total_amount), 0) - COALESCE(SUM(oi.quantity * COALESCE(oi.unit_cost, pv.cost_price, 0)), 0) as total_profit,
+        ROUND(((COALESCE(SUM(DISTINCT o.total_amount), 0) - COALESCE(SUM(oi.quantity * COALESCE(oi.unit_cost, pv.cost_price, 0)), 0)) / NULLIF(COALESCE(SUM(DISTINCT o.total_amount), 0), 0) * 100), 2) as avg_profit_margin
       FROM orders o
-      JOIN order_items oi ON o.id = oi.order_id
+      LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN product_variants pv ON oi.product_variant_id = pv.id
       ${whereClause}`,
       params
@@ -112,20 +112,20 @@ const getProductReport = async (req, res) => {
         p.name as product_name,
         p.sku as sku_code,
         c.name as category_name,
-        SUM(oi.quantity) as units_sold,
-        SUM(oi.price * oi.quantity) as revenue,
-        SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as cost,
-        SUM(oi.price * oi.quantity) - SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as profit,
-        ROUND(((SUM(oi.price * oi.quantity) - SUM(oi.quantity * COALESCE(pv.cost_price, 0))) / NULLIF(SUM(oi.price * oi.quantity), 0) * 100), 2) as profit_margin,
-        AVG(oi.price) as avg_selling_price,
-        AVG(pv.cost_price) as avg_cost_price,
+        COALESCE(SUM(oi.quantity), 0) as units_sold,
+        COALESCE(SUM(oi.subtotal), 0) as revenue,
+        COALESCE(SUM(oi.quantity * COALESCE(oi.unit_cost, pv.cost_price, 0)), 0) as cost,
+        COALESCE(SUM(oi.subtotal), 0) - COALESCE(SUM(oi.quantity * COALESCE(oi.unit_cost, pv.cost_price, 0)), 0) as profit,
+        ROUND(((COALESCE(SUM(oi.subtotal), 0) - COALESCE(SUM(oi.quantity * COALESCE(oi.unit_cost, pv.cost_price, 0)), 0)) / NULLIF(COALESCE(SUM(oi.subtotal), 0), 0) * 100), 2) as profit_margin,
+        AVG(oi.unit_price) as avg_selling_price,
+        AVG(COALESCE(oi.unit_cost, pv.cost_price)) as avg_cost_price,
         COUNT(DISTINCT o.id) as orders_count,
-        SUM(COALESCE(pv.stock_quantity, 0)) as current_stock
+        (SELECT COALESCE(SUM(pv2.stock_quantity), 0) FROM product_variants pv2 WHERE pv2.product_id = p.id) as current_stock
       FROM products p
-      LEFT JOIN order_items oi ON p.id = oi.product_id
+      LEFT JOIN product_variants pv ON p.id = pv.product_id
+      LEFT JOIN order_items oi ON pv.id = oi.product_variant_id
       LEFT JOIN orders o ON oi.order_id = o.id
       LEFT JOIN categories c ON p.category_id = c.id
-      LEFT JOIN product_variants pv ON p.id = pv.product_id
       ${whereClause}
       GROUP BY p.id, p.name, p.sku, c.name
       HAVING units_sold > 0
@@ -262,16 +262,16 @@ const exportSalesReport = async (req, res) => {
         DATE(o.created_at) as date,
         COUNT(DISTINCT o.id) as total_orders,
         COUNT(DISTINCT o.user_id) as unique_customers,
-        SUM(oi.quantity) as items_sold,
-        SUM(oi.price * oi.quantity) as gross_sales,
-        SUM(o.discount_amount) as total_discounts,
-        SUM(o.shipping_cost) as total_shipping,
-        SUM(o.total) as net_sales,
-        SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as total_cost,
-        SUM(o.total) - SUM(oi.quantity * COALESCE(pv.cost_price, 0)) as gross_profit,
-        ROUND(((SUM(o.total) - SUM(oi.quantity * COALESCE(pv.cost_price, 0))) / NULLIF(SUM(o.total), 0) * 100), 2) as profit_margin
+        COALESCE(SUM(oi.quantity), 0) as items_sold,
+        COALESCE(SUM(oi.subtotal), 0) as gross_sales,
+        COALESCE(SUM(DISTINCT o.discount_amount), 0) as total_discounts,
+        COALESCE(SUM(DISTINCT o.shipping_cost), 0) as total_shipping,
+        COALESCE(SUM(DISTINCT o.total_amount), 0) as net_sales,
+        COALESCE(SUM(oi.quantity * COALESCE(oi.unit_cost, pv.cost_price, 0)), 0) as total_cost,
+        COALESCE(SUM(DISTINCT o.total_amount), 0) - COALESCE(SUM(oi.quantity * COALESCE(oi.unit_cost, pv.cost_price, 0)), 0) as gross_profit,
+        ROUND(((COALESCE(SUM(DISTINCT o.total_amount), 0) - COALESCE(SUM(oi.quantity * COALESCE(oi.unit_cost, pv.cost_price, 0)), 0)) / NULLIF(COALESCE(SUM(DISTINCT o.total_amount), 0), 0) * 100), 2) as profit_margin
       FROM orders o
-      JOIN order_items oi ON o.id = oi.order_id
+      LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN product_variants pv ON oi.product_variant_id = pv.id
       ${whereClause}
       GROUP BY DATE(o.created_at)

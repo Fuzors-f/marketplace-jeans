@@ -180,201 +180,205 @@ const ExchangeRates = () => {
         <title>Kurs Mata Uang - Admin</title>
       </Helmet>
 
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <FaExchangeAlt className="text-blue-600" />
-              Kurs Mata Uang
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Kelola nilai tukar mata uang untuk konversi harga
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleViewLogs()}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-            >
-              <FaHistory />
-              Riwayat Perubahan
-            </button>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
-            >
-              <FaPlus />
-              Tambah Kurs
-            </button>
-          </div>
-        </div>
-
-        {/* Messages */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            {error}
-            <button onClick={() => setError('')} className="float-right">&times;</button>
-          </div>
-        )}
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-            {success}
-          </div>
-        )}
-
-        {/* Rates List */}
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          {loading ? (
-            <div className="p-8 text-center">
-              <FaSpinner className="animate-spin text-3xl mx-auto text-gray-400" />
-              <p className="text-gray-500 mt-2">Memuat data...</p>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold flex items-center gap-2">
+                  <FaExchangeAlt className="text-blue-600" />
+                  Kurs Mata Uang
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  Kelola nilai tukar mata uang untuk konversi harga
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleViewLogs()}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                >
+                  <FaHistory />
+                  Riwayat Perubahan
+                </button>
+                <button
+                  onClick={() => setShowCreateForm(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
+                >
+                  <FaPlus />
+                  Tambah Kurs
+                </button>
+              </div>
             </div>
-          ) : rates.length === 0 ? (
-            <div className="p-8 text-center">
-              <FaDollarSign className="text-5xl mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500">Belum ada kurs yang dikonfigurasi</p>
-              <button
-                onClick={() => setShowCreateForm(true)}
-                className="mt-4 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
-              >
-                Tambah Kurs Pertama
-              </button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Dari</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Ke</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Nilai Kurs</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Contoh Konversi</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Terakhir Update</th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {rates.map((rate) => (
-                    <tr key={rate.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-medium">
-                          {rate.currency_from}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium">
-                          {rate.currency_to}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {editingId === rate.id ? (
-                          <div className="space-y-2">
-                            <input
-                              type="number"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              className="w-40 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              min="0"
-                              step="0.01"
-                              autoFocus
-                            />
-                            <input
-                              type="text"
-                              value={editReason}
-                              onChange={(e) => setEditReason(e.target.value)}
-                              placeholder="Alasan perubahan (opsional)"
-                              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                            />
-                          </div>
-                        ) : (
-                          <span className="text-xl font-bold text-gray-900">
-                            {new Intl.NumberFormat('id-ID').format(rate.rate)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        <div className="space-y-1">
-                          <p>1 {rate.currency_to} = {formatCurrencyValue(rate.rate, rate.currency_from)}</p>
-                          <p className="text-gray-400">
-                            {formatCurrencyValue(1000000, rate.currency_from)} = {formatCurrencyValue(1000000 / rate.rate, rate.currency_to)}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        <div>
-                          {formatDate(rate.updated_at)}
-                        </div>
-                        {rate.updated_by_name && (
-                          <div className="text-xs text-gray-400">
-                            oleh {rate.updated_by_name}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          {editingId === rate.id ? (
-                            <>
-                              <button
-                                onClick={() => handleSave(rate.id)}
-                                disabled={saving}
-                                className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                                title="Simpan"
-                              >
-                                {saving ? <FaSpinner className="animate-spin" /> : <FaSave />}
-                              </button>
-                              <button
-                                onClick={handleCancelEdit}
-                                className="p-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-                                title="Batal"
-                              >
-                                <FaTimes />
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => handleEdit(rate)}
-                                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                                title="Edit Kurs"
-                              >
-                                <FaEdit />
-                              </button>
-                              <button
-                                onClick={() => handleViewLogs(rate.id)}
-                                className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
-                                title="Lihat Riwayat"
-                              >
-                                <FaHistory />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(rate.id)}
-                                className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
-                                title="Nonaktifkan"
-                              >
-                                <FaTrash />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
 
-        {/* Info Card */}
-        <div className="bg-blue-50 rounded-xl p-6">
-          <h3 className="font-semibold text-blue-800 mb-2">Informasi Penggunaan</h3>
-          <ul className="text-sm text-blue-700 space-y-1">
-            <li>• Kurs digunakan untuk mengkonversi harga saat pengguna memilih bahasa Inggris</li>
-            <li>• Harga asli dalam Rupiah (IDR) akan dikonversi ke Dollar (USD) secara otomatis</li>
-            <li>• Update kurs secara berkala sesuai dengan nilai tukar terkini</li>
-            <li>• Semua perubahan kurs dicatat dalam log untuk audit</li>
-          </ul>
+            {/* Messages */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {error}
+                <button onClick={() => setError('')} className="float-right">&times;</button>
+              </div>
+            )}
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                {success}
+              </div>
+            )}
+
+            {/* Rates List */}
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              {loading ? (
+                <div className="p-8 text-center">
+                  <FaSpinner className="animate-spin text-3xl mx-auto text-gray-400" />
+                  <p className="text-gray-500 mt-2">Memuat data...</p>
+                </div>
+              ) : rates.length === 0 ? (
+                <div className="p-8 text-center">
+                  <FaDollarSign className="text-5xl mx-auto text-gray-300 mb-4" />
+                  <p className="text-gray-500">Belum ada kurs yang dikonfigurasi</p>
+                  <button
+                    onClick={() => setShowCreateForm(true)}
+                    className="mt-4 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
+                  >
+                    Tambah Kurs Pertama
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Dari</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Ke</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Nilai Kurs</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Contoh Konversi</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Terakhir Update</th>
+                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {rates.map((rate) => (
+                        <tr key={rate.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-medium">
+                              {rate.currency_from}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium">
+                              {rate.currency_to}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {editingId === rate.id ? (
+                              <div className="space-y-2">
+                                <input
+                                  type="number"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  className="w-40 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  min="0"
+                                  step="0.01"
+                                  autoFocus
+                                />
+                                <input
+                                  type="text"
+                                  value={editReason}
+                                  onChange={(e) => setEditReason(e.target.value)}
+                                  placeholder="Alasan perubahan (opsional)"
+                                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                />
+                              </div>
+                            ) : (
+                              <span className="text-xl font-bold text-gray-900">
+                                {new Intl.NumberFormat('id-ID').format(rate.rate)}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            <div className="space-y-1">
+                              <p>1 {rate.currency_to} = {formatCurrencyValue(rate.rate, rate.currency_from)}</p>
+                              <p className="text-gray-400">
+                                {formatCurrencyValue(1000000, rate.currency_from)} = {formatCurrencyValue(1000000 / rate.rate, rate.currency_to)}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            <div>
+                              {formatDate(rate.updated_at)}
+                            </div>
+                            {rate.updated_by_name && (
+                              <div className="text-xs text-gray-400">
+                                oleh {rate.updated_by_name}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-center gap-2">
+                              {editingId === rate.id ? (
+                                <>
+                                  <button
+                                    onClick={() => handleSave(rate.id)}
+                                    disabled={saving}
+                                    className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                                    title="Simpan"
+                                  >
+                                    {saving ? <FaSpinner className="animate-spin" /> : <FaSave />}
+                                  </button>
+                                  <button
+                                    onClick={handleCancelEdit}
+                                    className="p-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                                    title="Batal"
+                                  >
+                                    <FaTimes />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => handleEdit(rate)}
+                                    className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                    title="Edit Kurs"
+                                  >
+                                    <FaEdit />
+                                  </button>
+                                  <button
+                                    onClick={() => handleViewLogs(rate.id)}
+                                    className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
+                                    title="Lihat Riwayat"
+                                  >
+                                    <FaHistory />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(rate.id)}
+                                    className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
+                                    title="Nonaktifkan"
+                                  >
+                                    <FaTrash />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Info Card */}
+            <div className="bg-blue-50 rounded-xl p-6">
+              <h3 className="font-semibold text-blue-800 mb-2">Informasi Penggunaan</h3>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Kurs digunakan untuk mengkonversi harga saat pengguna memilih bahasa Inggris</li>
+                <li>• Harga asli dalam Rupiah (IDR) akan dikonversi ke Dollar (USD) secara otomatis</li>
+                <li>• Update kurs secara berkala sesuai dengan nilai tukar terkini</li>
+                <li>• Semua perubahan kurs dicatat dalam log untuk audit</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
 

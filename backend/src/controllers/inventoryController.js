@@ -1,4 +1,5 @@
 const { query, transaction } = require('../config/database');
+const { logActivity } = require('../middleware/activityLogger');
 
 // @desc    Get inventory based on product variants
 // @route   GET /api/inventory/variants
@@ -475,6 +476,11 @@ const createAdjustment = async (req, res) => {
         conn
       );
     });
+
+    // Log activity
+    await logActivity(req.user.id, 'stock_adjustment', 'inventory', product_id, 
+      `Stock ${adjustment_type} adjustment: ${quantity}`, req, 
+      { warehouse_id, product_id, quantity, adjustment_type, notes });
 
     res.status(201).json({
       success: true,

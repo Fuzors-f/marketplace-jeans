@@ -53,18 +53,16 @@ exports.getInventoryMovementReport = async (req, res) => {
     // Get movements
     const movements = await query(
       `SELECT 
-        sm.id, sm.product_id, sm.product_variant_id, sm.warehouse_id,
-        sm.movement_type, sm.quantity, sm.stock_before, sm.stock_after,
+        sm.id, sm.product_id, sm.warehouse_id,
+        sm.movement_type, sm.quantity_change as quantity, sm.quantity_before as stock_before, sm.quantity_after as stock_after,
         sm.reference_type, sm.reference_id, sm.notes, sm.created_at,
         p.name as product_name, p.sku as product_sku,
-        pv.sku_variant,
         s.name as size_name,
         w.name as warehouse_name,
         u.full_name as created_by_name
       FROM stock_movements sm
       LEFT JOIN products p ON sm.product_id = p.id
-      LEFT JOIN product_variants pv ON sm.product_variant_id = pv.id
-      LEFT JOIN sizes s ON pv.size_id = s.id
+      LEFT JOIN sizes s ON sm.size_id = s.id
       LEFT JOIN warehouses w ON sm.warehouse_id = w.id
       LEFT JOIN users u ON sm.created_by = u.id
       ${whereClause}
@@ -120,7 +118,7 @@ exports.getInventoryMovementSummary = async (req, res) => {
       `SELECT 
         movement_type,
         COUNT(*) as total_transactions,
-        SUM(ABS(quantity)) as total_quantity
+        SUM(ABS(quantity_change)) as total_quantity
       FROM stock_movements sm
       ${whereClause}
       GROUP BY movement_type
@@ -134,8 +132,8 @@ exports.getInventoryMovementSummary = async (req, res) => {
         w.id as warehouse_id,
         w.name as warehouse_name,
         COUNT(*) as total_transactions,
-        SUM(CASE WHEN sm.quantity > 0 THEN sm.quantity ELSE 0 END) as total_in,
-        SUM(CASE WHEN sm.quantity < 0 THEN ABS(sm.quantity) ELSE 0 END) as total_out
+        SUM(CASE WHEN sm.quantity_change > 0 THEN sm.quantity_change ELSE 0 END) as total_in,
+        SUM(CASE WHEN sm.quantity_change < 0 THEN ABS(sm.quantity_change) ELSE 0 END) as total_out
       FROM stock_movements sm
       LEFT JOIN warehouses w ON sm.warehouse_id = w.id
       ${whereClause}
@@ -149,8 +147,8 @@ exports.getInventoryMovementSummary = async (req, res) => {
       `SELECT 
         DATE(sm.created_at) as date,
         COUNT(*) as total_transactions,
-        SUM(CASE WHEN sm.quantity > 0 THEN sm.quantity ELSE 0 END) as total_in,
-        SUM(CASE WHEN sm.quantity < 0 THEN ABS(sm.quantity) ELSE 0 END) as total_out
+        SUM(CASE WHEN sm.quantity_change > 0 THEN sm.quantity_change ELSE 0 END) as total_in,
+        SUM(CASE WHEN sm.quantity_change < 0 THEN ABS(sm.quantity_change) ELSE 0 END) as total_out
       FROM stock_movements sm
       ${whereClause}
       GROUP BY DATE(sm.created_at)
@@ -166,7 +164,7 @@ exports.getInventoryMovementSummary = async (req, res) => {
         p.name as product_name,
         p.sku as product_sku,
         COUNT(*) as total_transactions,
-        SUM(ABS(sm.quantity)) as total_quantity_moved
+        SUM(ABS(sm.quantity_change)) as total_quantity_moved
       FROM stock_movements sm
       LEFT JOIN products p ON sm.product_id = p.id
       ${whereClause}
@@ -224,17 +222,15 @@ exports.exportInventoryMovement = async (req, res) => {
 
     const movements = await query(
       `SELECT 
-        sm.id, sm.movement_type, sm.quantity, sm.stock_before, sm.stock_after,
+        sm.id, sm.movement_type, sm.quantity_change as quantity, sm.quantity_before as stock_before, sm.quantity_after as stock_after,
         sm.reference_type, sm.reference_id, sm.notes, sm.created_at,
         p.name as product_name, p.sku as product_sku,
-        pv.sku_variant,
         s.name as size_name,
         w.name as warehouse_name,
         u.full_name as created_by_name
       FROM stock_movements sm
       LEFT JOIN products p ON sm.product_id = p.id
-      LEFT JOIN product_variants pv ON sm.product_variant_id = pv.id
-      LEFT JOIN sizes s ON pv.size_id = s.id
+      LEFT JOIN sizes s ON sm.size_id = s.id
       LEFT JOIN warehouses w ON sm.warehouse_id = w.id
       LEFT JOIN users u ON sm.created_by = u.id
       ${whereClause}
@@ -252,7 +248,6 @@ exports.exportInventoryMovement = async (req, res) => {
       { header: 'Tanggal', key: 'created_at', width: 20 },
       { header: 'Produk', key: 'product_name', width: 30 },
       { header: 'SKU', key: 'product_sku', width: 15 },
-      { header: 'Varian SKU', key: 'sku_variant', width: 15 },
       { header: 'Ukuran', key: 'size_name', width: 10 },
       { header: 'Gudang', key: 'warehouse_name', width: 20 },
       { header: 'Tipe', key: 'movement_type', width: 15 },

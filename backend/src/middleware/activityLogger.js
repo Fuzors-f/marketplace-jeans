@@ -55,21 +55,51 @@ const ACTION_TYPES = {
   API_REQUEST: 'api_request'
 };
 
-// Log activity helper
-const logActivity = async (userId, action, entityType = null, entityId = null, description = null, req = null, metadata = null) => {
+// Log activity helper - supports both individual params and object format
+const logActivity = async (userIdOrOptions, action = null, entityType = null, entityId = null, description = null, req = null, metadata = null) => {
   try {
-    const ipAddress = req ? (req.headers['x-forwarded-for'] || req.connection?.remoteAddress || req.ip) : null;
-    const userAgent = req ? req.headers['user-agent'] : null;
-    const requestUrl = req ? req.originalUrl : null;
-    const requestMethod = req ? req.method : null;
+    let userId, ipAddress, userAgent, requestUrl, requestMethod, finalMetadata;
 
-    await query(
+    // Check if first argument is an object (new format)
+    if (typeof userIdOrOptions === 'object' && userIdOrOptions !== null && !Array.isArray(userIdOrOptions)) {
+      const options = userIdOrOptions;
+      userId = options.userId || options.user_id || null;
+      action = options.action || 'unknown';
+      entityType = options.targetType || options.entityType || options.entity_type || null;
+      entityId = options.targetId || options.entityId || options.entity_id || null;
+      description = options.details || options.description || null;
+      req = options.req || null;
+      finalMetadata = options.metadata || null;
+      
+      // Extract IP and user agent from req if provided
+      ipAddress = req ? (req.headers?.['x-forwarded-for'] || req.connection?.remoteAddress || req.ip) : (options.ip_address || options.ipAddress || null);
+      userAgent = req ? req.headers?.['user-agent'] : (options.user_agent || options.userAgent || null);
+      requestUrl = req ? req.originalUrl : (options.request_url || options.requestUrl || null);
+      requestMethod = req ? req.method : (options.request_method || options.requestMethod || null);
+    } else {
+      // Old format with individual parameters
+      userId = userIdOrOptions;
+      ipAddress = req ? (req.headers?.['x-forwarded-for'] || req.connection?.remoteAddress || req.ip) : null;
+      userAgent = req ? req.headers?.['user-agent'] : null;
+      requestUrl = req ? req.originalUrl : null;
+      requestMethod = req ? req.method : null;
+      finalMetadata = metadata;
+    }
+
+    // Debug log to verify the insert is happening
+    console.log(`[ActivityLog] Inserting: user=${userId}, action=${action}, entity=${entityType}:${entityId}`);
+
+    const result = await query(
       `INSERT INTO activity_logs (user_id, action, entity_type, entity_id, description, ip_address, user_agent, request_url, request_method, metadata) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, action, entityType, entityId, description, ipAddress, userAgent, requestUrl, requestMethod, metadata ? JSON.stringify(metadata) : null]
+      [userId, action, entityType, entityId, description, ipAddress, userAgent, requestUrl, requestMethod, finalMetadata ? JSON.stringify(finalMetadata) : null]
     );
+
+    console.log(`[ActivityLog] Inserted successfully, ID: ${result.insertId}`);
+    return result;
   } catch (error) {
-    console.error('Error logging activity:', error);
+    console.error('[ActivityLog] Error logging activity:', error);
+    // Don't throw - just log the error so it doesn't break the main flow
   }
 };
 

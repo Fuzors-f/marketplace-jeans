@@ -6,6 +6,7 @@ const QRCode = require('qrcode');
 const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
+const { logActivity } = require('../middleware/activityLogger');
 
 // Generate unique order number
 const generateOrderNumber = () => {
@@ -269,6 +270,11 @@ exports.createOrder = async (req, res) => {
 
     // Generate tracking URL
     const trackingUrl = getOrderTrackingUrl(orderData.uniqueToken);
+
+    // Log activity
+    await logActivity(userId, 'create_order', 'order', orderData.orderId, 
+      `Created order ${orderData.orderNumber}`, req, 
+      { order_number: orderData.orderNumber, tracking_url: trackingUrl });
 
     res.status(201).json({
       success: true,
@@ -1035,6 +1041,10 @@ exports.updateOrderStatus = async (req, res) => {
         await conn.execute('UPDATE order_shipping SET delivered_at = NOW() WHERE order_id = ?', [id]);
       }
     });
+
+    // Log activity
+    await logActivity(adminId, 'update_order', 'order', id, 
+      `Updated order status to ${status}`, req, { status, notes });
 
     res.json({
       success: true,

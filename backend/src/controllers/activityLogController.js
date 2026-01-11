@@ -65,11 +65,12 @@ exports.getActivityLogs = async (req, res) => {
     );
     const total = countResult[0].total;
 
-    // Get logs - using al.* to avoid column not found issues
+    // Get logs - using explicit columns for better control
     const logs = await query(
       `SELECT 
         al.id, al.user_id, al.action, al.entity_type, al.entity_id,
-        al.description, al.ip_address, al.user_agent, al.created_at,
+        al.description, al.ip_address, al.user_agent, al.request_url, al.request_method,
+        al.metadata, al.created_at,
         u.full_name as user_name, u.email as user_email, u.role as user_role
       FROM activity_logs al
       LEFT JOIN users u ON al.user_id = u.id

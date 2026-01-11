@@ -1,4 +1,5 @@
 const { query } = require('../config/database');
+const { logActivity } = require('../middleware/activityLogger');
 
 // @desc    Get all users (Admin)
 // @route   GET /api/users
@@ -89,6 +90,10 @@ exports.updateUser = async (req, res) => {
     values.push(id);
     await query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values);
     
+    // Log activity
+    await logActivity(req.user.id, 'update_user', 'user', id, 
+      `Updated user settings`, req, { role, is_active, member_discount });
+
     res.json({ success: true, message: 'User updated' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -102,6 +107,11 @@ exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
     await query('DELETE FROM users WHERE id = ?', [id]);
+    
+    // Log activity
+    await logActivity(req.user.id, 'delete_user', 'user', id, 
+      `Deleted user`, req);
+
     res.json({ success: true, message: 'User deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
