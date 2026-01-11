@@ -328,7 +328,7 @@ const Checkout = () => {
           payment_method: paymentMethod,
           notes: guestForm.notes,
           items: cartItems.map(item => ({
-            product_id: item.product_id,
+            product_variant_id: item.variant_id,
             quantity: item.quantity,
             price: item.price
           })),
@@ -366,7 +366,7 @@ const Checkout = () => {
           payment_method: paymentMethod,
           notes: userForm.notes,
           items: cartItems.map(item => ({
-            product_id: item.product_id,
+            product_variant_id: item.variant_id,
             quantity: item.quantity,
             price: item.price
           })),

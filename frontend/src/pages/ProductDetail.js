@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import api from '../services/api';
 import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../utils/imageUtils';
+import { useAlert } from '../utils/AlertContext';
 
 export default function ProductDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { showSuccess, showError, showWarning, showInfo } = useAlert();
   
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -16,6 +18,8 @@ export default function ProductDetail() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [addingToWishlist, setAddingToWishlist] = useState(false);
 
   useEffect(() => {
     fetchProduct();
@@ -44,12 +48,12 @@ export default function ProductDetail() {
 
   const handleAddToCart = async () => {
     if (!selectedVariant) {
-      alert('Pilih ukuran terlebih dahulu');
+      showWarning('Pilih ukuran terlebih dahulu');
       return;
     }
     
     if (quantity > selectedVariant.stock_quantity) {
-      alert('Jumlah melebihi stok yang tersedia');
+      showWarning('Jumlah melebihi stok yang tersedia');
       return;
     }
 
@@ -61,18 +65,47 @@ export default function ProductDetail() {
       });
       
       if (response.data.success) {
-        alert('Produk berhasil ditambahkan ke keranjang!');
+        showSuccess('Produk berhasil ditambahkan ke keranjang!', 'Berhasil');
         // Optionally dispatch to redux to update cart count
       }
     } catch (err) {
       if (err.response?.status === 401) {
-        alert('Silakan login terlebih dahulu');
+        showInfo('Silakan login terlebih dahulu untuk menambahkan ke keranjang');
         navigate('/login');
       } else {
-        alert(err.response?.data?.message || 'Gagal menambahkan ke keranjang');
+        showError(err.response?.data?.message || 'Gagal menambahkan ke keranjang');
       }
     } finally {
       setAddingToCart(false);
+    }
+  };
+
+  const handleAddToWishlist = async () => {
+    if (!product) return;
+    
+    try {
+      setAddingToWishlist(true);
+      
+      if (isWishlisted) {
+        // Remove from wishlist
+        await api.delete(`/wishlist/${product.id}`);
+        setIsWishlisted(false);
+        showSuccess('Produk dihapus dari wishlist');
+      } else {
+        // Add to wishlist
+        await api.post('/wishlist', { product_id: product.id });
+        setIsWishlisted(true);
+        showSuccess('Produk ditambahkan ke wishlist!', 'Berhasil');
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        showInfo('Silakan login terlebih dahulu untuk menyimpan ke wishlist');
+        navigate('/login');
+      } else {
+        showError(err.response?.data?.message || 'Gagal memperbarui wishlist');
+      }
+    } finally {
+      setAddingToWishlist(false);
     }
   };
 
@@ -109,7 +142,7 @@ export default function ProductDetail() {
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Produk Tidak Ditemukan</h2>
         <p className="text-gray-600 mb-6">{error || 'Produk yang Anda cari tidak tersedia'}</p>
         <button
-          onClick={() => navigate('/catalog')}
+          onClick={() => navigate('/products')}
           className="px-6 py-2 bg-black text-white rounded hover:bg-gray-800"
         >
           Kembali ke Katalog
@@ -135,7 +168,7 @@ export default function ProductDetail() {
             </li>
             <li className="text-gray-400">/</li>
             <li>
-              <button onClick={() => navigate('/catalog')} className="text-gray-500 hover:text-gray-700">
+              <button onClick={() => navigate('/products')} className="text-gray-500 hover:text-gray-700">
                 Katalog
               </button>
             </li>
@@ -144,7 +177,7 @@ export default function ProductDetail() {
                 <li className="text-gray-400">/</li>
                 <li>
                   <button 
-                    onClick={() => navigate(`/catalog?category=${product.category_id}`)} 
+                    onClick={() => navigate(`/products?category=${product.category_id}`)} 
                     className="text-gray-500 hover:text-gray-700"
                   >
                     {product.category_name}
@@ -286,7 +319,7 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {/* Add to Cart */}
+              {/* Add to Cart & Wishlist */}
               <div className="flex gap-3">
                 <button
                   onClick={handleAddToCart}
@@ -298,6 +331,33 @@ export default function ProductDetail() {
                   }`}
                 >
                   {addingToCart ? 'Menambahkan...' : 'Tambah ke Keranjang'}
+                </button>
+                
+                {/* Wishlist Button */}
+                <button
+                  onClick={handleAddToWishlist}
+                  disabled={addingToWishlist}
+                  className={`px-4 py-3 rounded-lg font-semibold transition border-2 ${
+                    isWishlisted
+                      ? 'bg-red-50 border-red-500 text-red-500 hover:bg-red-100'
+                      : 'border-gray-300 text-gray-700 hover:border-gray-500 hover:bg-gray-50'
+                  } ${addingToWishlist ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={isWishlisted ? 'Hapus dari Wishlist' : 'Tambah ke Wishlist'}
+                >
+                  {addingToWishlist ? (
+                    <svg className="w-6 h-6 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg 
+                      className="w-6 h-6" 
+                      fill={isWishlisted ? "currentColor" : "none"} 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  )}
                 </button>
               </div>
 

@@ -10,6 +10,7 @@ import './index.css';
 import App from './App';
 import { store, persistor } from './redux/store';
 import { LanguageProvider } from './utils/i18n';
+import { AlertProvider } from './utils/AlertContext';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -18,20 +19,22 @@ root.render(
       <PersistGate loading={null} persistor={persistor}>
         <HelmetProvider>
           <LanguageProvider>
-            <BrowserRouter>
-              <App />
-              <ToastContainer
-                position="top-right"
-                autoClose={3000}
-                hideProgressBar={false}
-                newestOnTop={false}
-                closeOnClick
-                rtl={false}
-                pauseOnFocusLoss
-                draggable
-                pauseOnHover
-              />
-            </BrowserRouter>
+            <AlertProvider>
+              <BrowserRouter>
+                <App />
+                <ToastContainer
+                  position="top-right"
+                  autoClose={3000}
+                  hideProgressBar={false}
+                  newestOnTop={false}
+                  closeOnClick
+                  rtl={false}
+                  pauseOnFocusLoss
+                  draggable
+                  pauseOnHover
+                />
+              </BrowserRouter>
+            </AlertProvider>
           </LanguageProvider>
         </HelmetProvider>
       </PersistGate>

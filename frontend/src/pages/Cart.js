@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../utils/imageUtils';
+import { useAlert } from '../utils/AlertContext';
 
 export default function Cart() {
   const navigate = useNavigate();
+  const { showError, showConfirm } = useAlert();
   const [cart, setCart] = useState({ items: [], total: 0 });
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
@@ -37,38 +39,38 @@ export default function Cart() {
       await api.put(`/cart/${itemId}`, { quantity: newQuantity });
       await fetchCart();
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal mengupdate jumlah');
+      showError(err.response?.data?.message || 'Gagal mengupdate jumlah');
     } finally {
       setUpdating(null);
     }
   };
 
   const handleRemoveItem = async (itemId) => {
-    if (!window.confirm('Hapus item dari keranjang?')) return;
-    
-    try {
-      setUpdating(itemId);
-      await api.delete(`/cart/${itemId}`);
-      await fetchCart();
-    } catch (err) {
-      alert('Gagal menghapus item');
-    } finally {
-      setUpdating(null);
-    }
+    showConfirm('Hapus item dari keranjang?', async () => {
+      try {
+        setUpdating(itemId);
+        await api.delete(`/cart/${itemId}`);
+        await fetchCart();
+      } catch (err) {
+        showError('Gagal menghapus item');
+      } finally {
+        setUpdating(null);
+      }
+    }, { title: 'Konfirmasi Hapus' });
   };
 
   const handleClearCart = async () => {
-    if (!window.confirm('Kosongkan semua item di keranjang?')) return;
-    
-    try {
-      setLoading(true);
-      await api.delete('/cart');
-      setCart({ items: [], total: 0 });
-    } catch (err) {
-      alert('Gagal mengosongkan keranjang');
-    } finally {
-      setLoading(false);
-    }
+    showConfirm('Kosongkan semua item di keranjang?', async () => {
+      try {
+        setLoading(true);
+        await api.delete('/cart');
+        setCart({ items: [], total: 0 });
+      } catch (err) {
+        showError('Gagal mengosongkan keranjang');
+      } finally {
+        setLoading(false);
+      }
+    }, { title: 'Konfirmasi' });
   };
 
   const formatCurrency = (value) => {
@@ -108,7 +110,7 @@ export default function Cart() {
             <h2 className="text-xl font-semibold mb-2">Keranjang Kosong</h2>
             <p className="text-gray-600 mb-6">Anda belum menambahkan produk apapun ke keranjang</p>
             <button
-              onClick={() => navigate('/catalog')}
+              onClick={() => navigate('/products')}
               className="px-6 py-2 bg-black text-white rounded hover:bg-gray-800"
             >
               Mulai Belanja
@@ -217,7 +219,7 @@ export default function Cart() {
                 </button>
                 
                 <button
-                  onClick={() => navigate('/catalog')}
+                  onClick={() => navigate('/products')}
                   className="w-full py-3 mt-2 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50"
                 >
                   Lanjut Belanja

@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
 import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../../utils/imageUtils';
+import { useAlert } from '../../utils/AlertContext';
 
 const AdminProducts = () => {
+  const { showSuccess, showError, showConfirm } = useAlert();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [fittings, setFittings] = useState([]);
@@ -44,7 +46,10 @@ const AdminProducts = () => {
     sku: '',
     weight: '',
     is_active: true,
-    is_featured: false
+    is_featured: false,
+    // Variant default values for new products
+    initial_stock: 0,
+    additional_price: 0
   });
 
   // Variant form state
@@ -275,13 +280,13 @@ const AdminProducts = () => {
       let productResponse;
       if (editingProduct) {
         productResponse = await apiClient.put(`/products/${editingProduct.id}`, payload);
-        setSuccess('Produk berhasil diupdate!');
+        showSuccess('Produk berhasil diupdate!');
         setProducts(products.map(p =>
           p.id === editingProduct.id ? { ...p, ...payload } : p
         ));
       } else {
         productResponse = await apiClient.post('/products', payload);
-        setSuccess('Produk berhasil dibuat!');
+        showSuccess('Produk berhasil dibuat!');
         fetchProducts();
       }
 
@@ -298,11 +303,11 @@ const AdminProducts = () => {
                 await apiClient.post(`/products/${productId}/variants`, {
                   size_id: sizeId,
                   warehouse_id: warehouseId,
-                  sku_variant: `${formData.sku}-${sizeId}-W${warehouseId}`,
+                  sku_variant: `${formData.sku || 'SKU'}-${sizeId}-W${warehouseId}`,
                   additional_price: parseFloat(formData.additional_price) || 0,
-                  stock_quantity: parseInt(formData.stock_quantity) || 0,
-                  minimum_stock:  parseInt(formData.minimum_stock) || 5,
-                  cost_price: parseFloat(formData.cost_price) || 0
+                  stock_quantity: parseInt(formData.initial_stock) || 0,
+                  minimum_stock: 5,
+                  cost_price: parseFloat(formData.master_cost_price) || 0
                 });
               }
             }
@@ -322,9 +327,9 @@ const AdminProducts = () => {
               await apiClient.post(`/products/${productId}/variants`, {
                 size_id: sizeId,
                 warehouse_id: 1, // Default warehouse
-                sku_variant: `${formData.sku}-${sizeId}`,
-                additional_price: 0,
-                stock_quantity: 0,
+                sku_variant: `${formData.sku || 'SKU'}-${sizeId}`,
+                additional_price: parseFloat(formData.additional_price) || 0,
+                stock_quantity: parseInt(formData.initial_stock) || 0,
                 minimum_stock: 5,
                 cost_price: parseFloat(formData.master_cost_price) || 0
               });
@@ -346,14 +351,13 @@ const AdminProducts = () => {
           await apiClient.post(`/products/${productId}/images`, imageFormData);
         } catch (imgErr) {
           console.error('Error uploading images:', imgErr);
-          setError('Produk berhasil disimpan, tetapi gagal mengupload gambar');
+          showError('Produk berhasil disimpan, tetapi gagal mengupload gambar');
         }
       }
 
       resetForm();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal menyimpan produk');
+      showError(err.response?.data?.message || 'Gagal menyimpan produk');
     }
   };
 
@@ -393,16 +397,15 @@ const AdminProducts = () => {
   };
 
   const handleDeleteVariant = async (variantId) => {
-    if (!window.confirm('Yakin ingin menghapus varian ini?')) return;
-    
-    try {
-      await apiClient.delete(`/products/variants/${variantId}`);
-      setSuccess('Varian berhasil dihapus!');
-      fetchProductVariants(selectedProduct.id);
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError('Gagal menghapus varian');
-    }
+    showConfirm('Yakin ingin menghapus varian ini?', async () => {
+      try {
+        await apiClient.delete(`/products/variants/${variantId}`);
+        showSuccess('Varian berhasil dihapus!');
+        fetchProductVariants(selectedProduct.id);
+      } catch (err) {
+        showError('Gagal menghapus varian');
+      }
+    }, { title: 'Konfirmasi Hapus' });
   };
 
   const handleEdit = (product) => {
@@ -435,16 +438,15 @@ const AdminProducts = () => {
   };
 
   const handleDelete = async (productId) => {
-    if (!window.confirm('Yakin ingin menghapus produk ini?')) return;
-    
-    try {
-      await apiClient.delete(`/products/${productId}`);
-      setSuccess('Produk berhasil dihapus!');
-      setProducts(products.filter(p => p.id !== productId));
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError('Gagal menghapus produk: ' + err.message);
-    }
+    showConfirm('Yakin ingin menghapus produk ini?', async () => {
+      try {
+        await apiClient.delete(`/products/${productId}`);
+        showSuccess('Produk berhasil dihapus!');
+        setProducts(products.filter(p => p.id !== productId));
+      } catch (err) {
+        showError('Gagal menghapus produk: ' + err.message);
+      }
+    }, { title: 'Konfirmasi Hapus' });
   };
 
   const handleManageVariants = async (product) => {
