@@ -24,6 +24,7 @@ import Profile from './pages/Profile';
 import Addresses from './pages/Addresses';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
+import Wishlist from './pages/Wishlist';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -85,6 +86,7 @@ function App() {
         <Route path="addresses" element={<PrivateRoute><Addresses /></PrivateRoute>} />
         <Route path="orders" element={<PrivateRoute><Orders /></PrivateRoute>} />
         <Route path="orders/:orderId" element={<PrivateRoute><OrderDetail /></PrivateRoute>} />
+        <Route path="wishlist" element={<PrivateRoute><Wishlist /></PrivateRoute>} />
       </Route>
 
       {/* Admin Routes */}

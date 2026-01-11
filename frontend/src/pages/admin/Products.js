@@ -286,59 +286,11 @@ const AdminProducts = () => {
         ));
       } else {
         productResponse = await apiClient.post('/products', payload);
-        showSuccess('Produk berhasil dibuat!');
+        showSuccess('Produk berhasil dibuat! Silakan tambahkan varian melalui tombol "Kelola Varian".');
         fetchProducts();
       }
 
-      // Handle size variant creation
-      if (selectedSizes.length > 0 && selectedWarehouses.length > 0) {
-        const productId = editingProduct ? editingProduct.id : productResponse.data.data.id;
-        
-        try {
-          for (const sizeId of selectedSizes) {
-            for (const warehouseId of selectedWarehouses) {
-              // Check if variant already exists (for edit case)
-              const variantExists = productVariants.some(v => v.size_id == sizeId && v.warehouse_id == warehouseId);
-              if (!variantExists) {
-                await apiClient.post(`/products/${productId}/variants`, {
-                  size_id: sizeId,
-                  warehouse_id: warehouseId,
-                  sku_variant: `${formData.sku || 'SKU'}-${sizeId}-W${warehouseId}`,
-                  additional_price: parseFloat(formData.additional_price) || 0,
-                  stock_quantity: parseInt(formData.initial_stock) || 0,
-                  minimum_stock: 5,
-                  cost_price: parseFloat(formData.master_cost_price) || 0
-                });
-              }
-            }
-          }
-        } catch (varErr) {
-          console.error('Error creating variants:', varErr);
-          // Don't fail the whole operation if variants fail
-        }
-      } else if (selectedSizes.length > 0) {
-        // Fallback: create variants with default warehouse (id=1) if no warehouse selected
-        const productId = editingProduct ? editingProduct.id : productResponse.data.data.id;
-        
-        try {
-          for (const sizeId of selectedSizes) {
-            const variantExists = productVariants.some(v => v.size_id == sizeId);
-            if (!variantExists) {
-              await apiClient.post(`/products/${productId}/variants`, {
-                size_id: sizeId,
-                warehouse_id: 1, // Default warehouse
-                sku_variant: `${formData.sku || 'SKU'}-${sizeId}`,
-                additional_price: parseFloat(formData.additional_price) || 0,
-                stock_quantity: parseInt(formData.initial_stock) || 0,
-                minimum_stock: 5,
-                cost_price: parseFloat(formData.master_cost_price) || 0
-              });
-            }
-          }
-        } catch (varErr) {
-          console.error('Error creating variants:', varErr);
-        }
-      }
+      // Upload images if any
       if (selectedImages.length > 0) {
         const productId = editingProduct ? editingProduct.id : productResponse.data.data.id;
         const imageFormData = new FormData();
@@ -368,10 +320,24 @@ const AdminProducts = () => {
       setError('Size dan Warehouse harus dipilih');
       return;
     }
+
+    // Get size and warehouse names for auto SKU generation
+    const selectedSize = sizes.find(s => s.id === parseInt(variantForm.size_id));
+    const selectedWarehouse = warehouses.find(w => w.id === parseInt(variantForm.warehouse_id));
+    
+    // Auto-generate SKU if empty
+    let skuVariant = variantForm.sku_variant;
+    if (!skuVariant || skuVariant.trim() === '') {
+      const productSku = selectedProduct.sku || selectedProduct.name.substring(0, 3).toUpperCase();
+      const sizeName = selectedSize?.name || variantForm.size_id;
+      const warehouseCode = selectedWarehouse?.code || `W${variantForm.warehouse_id}`;
+      skuVariant = `${productSku}-${sizeName}-${warehouseCode}`.toUpperCase().replace(/\s+/g, '');
+    }
     
     try {
       await apiClient.post(`/products/${selectedProduct.id}/variants`, {
         ...variantForm,
+        sku_variant: skuVariant,
         size_id: parseInt(variantForm.size_id),
         warehouse_id: parseInt(variantForm.warehouse_id),
         additional_price: parseFloat(variantForm.additional_price) || 0,
@@ -379,8 +345,10 @@ const AdminProducts = () => {
         minimum_stock: parseInt(variantForm.minimum_stock) || 5,
         cost_price: parseFloat(variantForm.cost_price) || 0
       });
-      setSuccess('Varian berhasil ditambahkan!');
+      showSuccess('Varian berhasil ditambahkan!');
       fetchProductVariants(selectedProduct.id);
+      // Refresh product list to update stock count
+      fetchProducts();
       setVariantForm({
         size_id: '',
         warehouse_id: '',
@@ -390,9 +358,8 @@ const AdminProducts = () => {
         minimum_stock: 5,
         cost_price: 0
       });
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal menambah varian');
+      showError(err.response?.data?.message || 'Gagal menambah varian');
     }
   };
 
@@ -402,6 +369,8 @@ const AdminProducts = () => {
         await apiClient.delete(`/products/variants/${variantId}`);
         showSuccess('Varian berhasil dihapus!');
         fetchProductVariants(selectedProduct.id);
+        // Refresh product list to update stock count
+        fetchProducts();
       } catch (err) {
         showError('Gagal menghapus varian');
       }
@@ -570,64 +539,6 @@ const AdminProducts = () => {
                       ))}
                     </select>
                   </div>
-                </div>
-
-                {/* Size Selection */}
-                <div>
-                  <label className="block text-sm font-semibold mb-3">Pilih Ukuran (Size)</label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                    {sizes.map(size => (
-                      <label key={size.id} className="flex items-center cursor-pointer p-3 border rounded hover:bg-gray-50">
-                        <input
-                          type="checkbox"
-                          checked={selectedSizes.includes(size.id)}
-                          onChange={() => handleSizeToggle(size.id)}
-                          className="mr-2 w-4 h-4 rounded"
-                        />
-                        <span className="text-sm font-medium">{size.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                  {selectedSizes.length > 0 && (
-                    <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
-                      <p className="text-sm text-blue-800">
-                        ✓ Terpilih: <strong>{selectedSizes.length} ukuran</strong> akan dibuat variannya
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Warehouse Selection */}
-                <div>
-                  <label className="block text-sm font-semibold mb-3">Pilih Gudang untuk Stok (Optional)</label>
-                  <p className="text-xs text-gray-600 mb-3">Pilih gudang tempat varian ini akan di-track untuk stok</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {warehouses && warehouses.length > 0 ? (
-                      warehouses.map(warehouse => (
-                        <label key={warehouse.id} className="flex items-center cursor-pointer p-3 border rounded hover:bg-gray-50">
-                          <input
-                            type="checkbox"
-                            checked={selectedWarehouses.includes(warehouse.id)}
-                            onChange={() => handleWarehouseToggle(warehouse.id)}
-                            className="mr-2 w-4 h-4 rounded"
-                          />
-                          <div>
-                            <span className="text-sm font-medium">{warehouse.name}</span>
-                            <p className="text-xs text-gray-500">{warehouse.location || 'Lokasi tidak tersedia'}</p>
-                          </div>
-                        </label>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500">Tidak ada gudang tersedia</p>
-                    )}
-                  </div>
-                  {selectedWarehouses.length > 0 && (
-                    <div className="mt-3 p-3 bg-green-50 rounded border border-green-200">
-                      <p className="text-sm text-green-800">
-                        ✓ Terpilih: <strong>{selectedWarehouses.length} gudang</strong> akan dibuat stoknya
-                      </p>
-                    </div>
-                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

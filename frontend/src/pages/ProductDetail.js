@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import api from '../services/api';
 import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../utils/imageUtils';
 import { useAlert } from '../utils/AlertContext';
@@ -9,6 +9,7 @@ export default function ProductDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector((state) => state.auth);
   const { showSuccess, showError, showWarning, showInfo } = useAlert();
   
   const [product, setProduct] = useState(null);
@@ -24,6 +25,25 @@ export default function ProductDetail() {
   useEffect(() => {
     fetchProduct();
   }, [slug]);
+
+  // Check wishlist status when product loads
+  useEffect(() => {
+    if (product && isAuthenticated) {
+      checkWishlistStatus();
+    }
+  }, [product, isAuthenticated]);
+
+  const checkWishlistStatus = async () => {
+    try {
+      const response = await api.get(`/wishlist/check/${product.id}`);
+      if (response.data.success) {
+        setIsWishlisted(response.data.data.isInWishlist);
+      }
+    } catch (err) {
+      // Silently fail - user may not be logged in
+      console.log('Could not check wishlist status');
+    }
+  };
 
   const fetchProduct = async () => {
     try {

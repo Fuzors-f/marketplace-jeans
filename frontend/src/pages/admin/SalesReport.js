@@ -293,11 +293,11 @@ const SalesReport = () => {
                           <td className="px-4 py-3 text-right text-green-600">{formatCurrency(product.profit)}</td>
                           <td className="px-4 py-3 text-right">
                             <span className={`px-2 py-1 rounded text-xs ${
-                              product.profit_margin > 30 ? 'bg-green-100 text-green-800' :
-                              product.profit_margin > 15 ? 'bg-yellow-100 text-yellow-800' :
+                              parseFloat(product.profit_margin) > 30 ? 'bg-green-100 text-green-800' :
+                              parseFloat(product.profit_margin) > 15 ? 'bg-yellow-100 text-yellow-800' :
                               'bg-red-100 text-red-800'
                             }`}>
-                              {product.profit_margin?.toFixed(1)}%
+                              {parseFloat(product.profit_margin || 0).toFixed(1)}%
                             </span>
                           </td>
                         </tr>
@@ -338,7 +338,7 @@ const SalesReport = () => {
                           <td className="px-4 py-3 text-right text-red-600">-{formatCurrency(day.total_discounts)}</td>
                           <td className="px-4 py-3 text-right font-medium">{formatCurrency(day.net_sales)}</td>
                           <td className="px-4 py-3 text-right text-green-600">{formatCurrency(day.gross_profit)}</td>
-                          <td className="px-4 py-3 text-right">{day.profit_margin?.toFixed(1)}%</td>
+                          <td className="px-4 py-3 text-right">{parseFloat(day.profit_margin || 0).toFixed(1)}%</td>
                         </tr>
                       ))}
                     </tbody>

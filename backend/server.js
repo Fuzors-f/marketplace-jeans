@@ -39,6 +39,7 @@ const trackingRoutes = require('./src/routes/trackingRoutes');
 const exchangeRateRoutes = require('./src/routes/exchangeRateRoutes');
 const activityLogRoutes = require('./src/routes/activityLogRoutes');
 const contentRoutes = require('./src/routes/contentRoutes');
+const wishlistRoutes = require('./src/routes/wishlistRoutes');
 
 // Import middleware
 const errorHandler = require('./src/middleware/errorHandler');
@@ -113,6 +114,7 @@ app.use('/api/tracking', trackingRoutes);
 app.use('/api/exchange-rates', exchangeRateRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/content', contentRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

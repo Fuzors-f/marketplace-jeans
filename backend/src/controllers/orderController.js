@@ -100,7 +100,7 @@ exports.createOrder = async (req, res) => {
 
       for (const item of items) {
         const [variants] = await conn.execute(
-          `SELECT pv.*, p.name, p.base_price, p.cost_price as master_cost_price, s.name as size_name
+          `SELECT pv.*, p.name, p.base_price, p.master_cost_price, s.name as size_name
            FROM product_variants pv
            JOIN products p ON pv.product_id = p.id
            JOIN sizes s ON pv.size_id = s.id
@@ -188,14 +188,10 @@ exports.createOrder = async (req, res) => {
       const [orderResult] = await conn.execute(
         `INSERT INTO orders 
         (order_number, unique_token, user_id, guest_email, status, subtotal, discount_amount, discount_code, 
-         member_discount_amount, shipping_cost, total, customer_name, customer_email, customer_phone,
-         shipping_address, shipping_city, shipping_province, shipping_postal_code, notes)
-        VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [orderNumber, uniqueToken, userId, guestEmail, subtotal, discountAmount, discount_code || null,
-         memberDiscountAmount, shippingCost, totalAmount, 
-         shipping_address.recipient_name, guestEmail || (req.user ? req.user.email : null),
-         shipping_address.phone, shipping_address.address, shipping_address.city,
-         shipping_address.province, shipping_address.postal_code || '', notes || null]
+         member_discount_amount, shipping_cost, total_amount, notes)
+        VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)`,
+        [orderNumber, uniqueToken, userId || null, guestEmail || null, subtotal, discountAmount, discount_code || null,
+         memberDiscountAmount, shippingCost, totalAmount, notes || null]
       );
 
       const orderId = orderResult.insertId;
@@ -204,11 +200,11 @@ exports.createOrder = async (req, res) => {
       for (const item of orderItems) {
         await conn.execute(
           `INSERT INTO order_items 
-          (order_id, product_id, product_variant_id, size_id, product_name, product_sku, size_name, 
-           quantity, price, total)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [orderId, item.product_id, item.variant_id, item.size_id, item.name, item.sku, item.size,
-           item.quantity, item.unit_price, item.subtotal]
+          (order_id, product_variant_id, product_name, product_sku, size_name, 
+           quantity, unit_price, unit_cost, subtotal)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [orderId, item.variant_id, item.name || '', item.sku || '', item.size || '',
+           item.quantity, item.unit_price, item.unit_cost || 0, item.subtotal]
         );
 
         // Update stock
@@ -222,7 +218,7 @@ exports.createOrder = async (req, res) => {
           `INSERT INTO inventory_movements 
           (product_variant_id, type, quantity, reference_type, reference_id, created_by)
           VALUES (?, 'out', ?, 'order', ?, ?)`,
-          [item.variant_id, item.quantity, orderId, userId]
+          [item.variant_id, item.quantity, orderId, userId || null]
         );
       }
 
@@ -231,8 +227,8 @@ exports.createOrder = async (req, res) => {
         `INSERT INTO order_shipping 
         (order_id, recipient_name, phone, address, city, province, postal_code, country)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [orderId, shipping_address.recipient_name, shipping_address.phone,
-         shipping_address.address, shipping_address.city, shipping_address.province,
+        [orderId, shipping_address.recipient_name || '', shipping_address.phone || '',
+         shipping_address.address || '', shipping_address.city || '', shipping_address.province || '',
          shipping_address.postal_code || '', shipping_address.country || 'Indonesia']
       );
 
@@ -242,8 +238,8 @@ exports.createOrder = async (req, res) => {
           `INSERT INTO guest_order_details 
           (order_id, guest_name, guest_email, guest_phone, address, city, province, postal_code, country, latitude, longitude, address_notes)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [orderId, shipping_address.recipient_name, guestEmail, shipping_address.phone,
-           shipping_address.address, shipping_address.city, shipping_address.province,
+          [orderId, shipping_address.recipient_name || '', guestEmail || null, shipping_address.phone || '',
+           shipping_address.address || '', shipping_address.city || '', shipping_address.province || '',
            shipping_address.postal_code || '', shipping_address.country || 'Indonesia',
            shipping_address.latitude || null, shipping_address.longitude || null,
            shipping_address.address_notes || null]
@@ -254,7 +250,7 @@ exports.createOrder = async (req, res) => {
       await conn.execute(
         `INSERT INTO order_shipping_history (order_id, status, title, description, created_by)
          VALUES (?, 'pending', 'Pesanan Dibuat', 'Pesanan berhasil dibuat dan menunggu persetujuan', ?)`,
-        [orderId, userId]
+        [orderId, userId || null]
       );
 
       // Clear user cart if logged in
@@ -861,12 +857,13 @@ exports.getOrders = async (req, res) => {
 
     const orders = await query(
       `SELECT 
-        o.id, o.order_number, o.unique_token, o.status, o.payment_status, o.payment_method,
-        o.subtotal, o.discount_amount, o.shipping_cost, o.tax, o.total,
-        o.customer_name, o.customer_email, o.customer_phone,
-        o.shipping_address, o.shipping_city, o.shipping_province,
-        o.shipping_method, o.tracking_number, o.notes, o.created_at
+        o.id, o.order_number, o.unique_token, o.status, o.payment_status,
+        o.subtotal, o.discount_amount, o.shipping_cost, o.total_amount as total,
+        o.notes, o.created_at,
+        os.recipient_name as customer_name, os.phone as customer_phone, os.address as shipping_address,
+        os.city as shipping_city, os.province as shipping_province, os.shipping_method, os.tracking_number
       FROM orders o
+      LEFT JOIN order_shipping os ON o.id = os.order_id
       ${whereClause}
       ORDER BY o.created_at DESC
       LIMIT ? OFFSET ?`,
@@ -877,13 +874,13 @@ exports.getOrders = async (req, res) => {
     for (let order of orders) {
       const items = await query(
         `SELECT 
-          oi.id, oi.quantity, oi.price, oi.total,
-          p.name as product_name, p.slug as product_slug,
-          s.name as size_name,
-          (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image
+          oi.id, oi.quantity, oi.unit_price as price, oi.subtotal as total,
+          oi.product_name, oi.product_sku, oi.size_name,
+          pv.product_id,
+          (SELECT image_url FROM product_images WHERE product_id = pv.product_id AND is_primary = true LIMIT 1) as product_image,
+          (SELECT slug FROM products WHERE id = pv.product_id LIMIT 1) as product_slug
         FROM order_items oi
-        LEFT JOIN products p ON oi.product_id = p.id
-        LEFT JOIN sizes s ON oi.size_id = s.id
+        LEFT JOIN product_variants pv ON oi.product_variant_id = pv.id
         WHERE oi.order_id = ?`,
         [order.id]
       );
@@ -922,13 +919,14 @@ exports.getOrder = async (req, res) => {
     // Get order
     const orders = await query(
       `SELECT 
-        o.id, o.order_number, o.unique_token, o.user_id, o.status, o.payment_status, o.payment_method,
-        o.subtotal, o.discount_amount, o.shipping_cost, o.tax, o.total,
-        o.customer_name, o.customer_email, o.customer_phone,
-        o.shipping_address, o.shipping_city, o.shipping_province, o.shipping_postal_code,
-        o.shipping_method, o.tracking_number, o.courier, o.notes, 
-        o.approved_at, o.approved_by, o.created_at, o.updated_at
+        o.id, o.order_number, o.unique_token, o.user_id, o.guest_email, o.status, o.payment_status,
+        o.subtotal, o.discount_amount, o.shipping_cost, o.total_amount as total,
+        o.notes, o.approved_at, o.approved_by, o.created_at, o.updated_at,
+        os.recipient_name as customer_name, os.phone as customer_phone, os.address as shipping_address,
+        os.city as shipping_city, os.province as shipping_province, os.postal_code as shipping_postal_code,
+        os.shipping_method, os.tracking_number, os.country
       FROM orders o
+      LEFT JOIN order_shipping os ON o.id = os.order_id
       WHERE o.id = ? ${userId ? 'AND (o.user_id = ? OR o.user_id IS NULL)' : ''}`,
       userId ? [id, userId] : [id]
     );
@@ -945,13 +943,13 @@ exports.getOrder = async (req, res) => {
     // Get order items with product details
     const items = await query(
       `SELECT 
-        oi.id, oi.quantity, oi.price, oi.total,
-        p.id as product_id, p.name as product_name, p.slug as product_slug,
-        s.id as size_id, s.name as size_name,
-        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image
+        oi.id, oi.quantity, oi.unit_price as price, oi.subtotal as total,
+        oi.product_name, oi.product_sku, oi.size_name,
+        pv.product_id, pv.size_id,
+        (SELECT slug FROM products WHERE id = pv.product_id LIMIT 1) as product_slug,
+        (SELECT image_url FROM product_images WHERE product_id = pv.product_id AND is_primary = true LIMIT 1) as product_image
       FROM order_items oi
-      LEFT JOIN products p ON oi.product_id = p.id
-      LEFT JOIN sizes s ON oi.size_id = s.id
+      LEFT JOIN product_variants pv ON oi.product_variant_id = pv.id
       WHERE oi.order_id = ?`,
       [id]
     );

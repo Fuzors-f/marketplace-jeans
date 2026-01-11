@@ -34,7 +34,7 @@ exports.getAdminOrders = async (req, res) => {
     }
 
     if (search) {
-      whereConditions.push('(o.id LIKE ? OR o.customer_name LIKE ? OR o.customer_email LIKE ?)');
+      whereConditions.push('(o.order_number LIKE ? OR os.recipient_name LIKE ? OR o.guest_email LIKE ?)');
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
@@ -51,8 +51,8 @@ exports.getAdminOrders = async (req, res) => {
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     // Validate sort column
-    const validSortColumns = ['id', 'created_at', 'total', 'status', 'payment_status'];
-    const sortColumn = validSortColumns.includes(sort) ? sort : 'created_at';
+    const validSortColumns = ['id', 'created_at', 'total_amount', 'status', 'payment_status'];
+    const sortColumn = validSortColumns.includes(sort) ? (sort === 'total' ? 'total_amount' : sort) : 'created_at';
     const sortOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     // Get total count
@@ -67,15 +67,15 @@ exports.getAdminOrders = async (req, res) => {
       `SELECT 
         o.id, o.order_number, o.unique_token, o.user_id, o.guest_email, o.status, o.payment_status,
         o.subtotal, o.shipping_cost, o.discount_amount, o.discount_code,
-        o.member_discount_amount, o.total_amount as total, o.total,
-        o.customer_name, o.customer_email, o.customer_phone,
-        o.shipping_address, o.shipping_city, o.shipping_province, o.courier, o.tracking_number,
+        o.member_discount_amount, o.total_amount as total,
+        os.recipient_name as customer_name, o.guest_email as customer_email, os.phone as customer_phone,
+        os.address as shipping_address, os.city as shipping_city, os.province as shipping_province,
+        os.shipping_method, os.tracking_number,
         o.notes, o.approved_at, o.created_at, o.updated_at,
-        u.full_name as user_name, u.email as user_email, u.phone as user_phone,
-        w.name as warehouse_name, w.city as warehouse_city
+        u.full_name as user_name, u.email as user_email, u.phone as user_phone
       FROM orders o
+      LEFT JOIN order_shipping os ON o.id = os.order_id
       LEFT JOIN users u ON o.user_id = u.id
-      LEFT JOIN warehouses w ON o.warehouse_id = w.id
       ${whereClause}
       ORDER BY o.${sortColumn} ${sortOrder}
       LIMIT ? OFFSET ?`,
@@ -87,22 +87,17 @@ exports.getAdminOrders = async (req, res) => {
       try {
         const items = await query(
           `SELECT 
-            oi.id, oi.quantity, oi.price, oi.total, oi.product_name, oi.size_name,
-            p.name as product_name_fallback, p.slug as product_slug,
-            s.name as size_name_fallback,
-            (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image
+            oi.id, oi.quantity, oi.unit_price as price, oi.subtotal as total, 
+            oi.product_name, oi.size_name, oi.product_sku,
+            pv.product_id,
+            (SELECT slug FROM products WHERE id = pv.product_id LIMIT 1) as product_slug,
+            (SELECT image_url FROM product_images WHERE product_id = pv.product_id AND is_primary = true LIMIT 1) as product_image
           FROM order_items oi
-          LEFT JOIN products p ON oi.product_id = p.id
-          LEFT JOIN sizes s ON oi.size_id = s.id
+          LEFT JOIN product_variants pv ON oi.product_variant_id = pv.id
           WHERE oi.order_id = ?`,
           [order.id]
         );
-        // Map items to use fallback names if needed
-        order.items = items.map(item => ({
-          ...item,
-          product_name: item.product_name || item.product_name_fallback || 'Unknown Product',
-          size_name: item.size_name || item.size_name_fallback || '-'
-        }));
+        order.items = items;
       } catch (itemError) {
         console.error(`Error fetching items for order ${order.id}:`, itemError);
         order.items = [];
@@ -138,16 +133,20 @@ exports.getAdminOrderDetail = async (req, res) => {
 
     const orders = await query(
       `SELECT 
-        o.*, 
-        u.name as user_name, u.email as user_email,
+        o.id, o.order_number, o.unique_token, o.user_id, o.guest_email, o.status, o.payment_status,
+        o.subtotal, o.shipping_cost, o.discount_amount, o.discount_code, o.member_discount_amount,
+        o.total_amount as total, o.notes, o.approved_at, o.approved_by, o.created_at, o.updated_at,
+        os.recipient_name as customer_name, o.guest_email as customer_email, os.phone as customer_phone,
+        os.address as shipping_address, os.city as shipping_city, os.province as shipping_province,
+        os.postal_code as shipping_postal_code, os.country, os.shipping_method, os.tracking_number,
+        u.full_name as user_name, u.email as user_email,
         p.transaction_id, p.payment_method as payment_method_detail, 
         p.amount as payment_amount, p.status as payment_detail_status,
-        p.paid_at,
-        w.name as warehouse_name, w.code as warehouse_code, w.city as warehouse_city
+        p.paid_at
       FROM orders o
+      LEFT JOIN order_shipping os ON o.id = os.order_id
       LEFT JOIN users u ON o.user_id = u.id
       LEFT JOIN payments p ON o.id = p.order_id
-      LEFT JOIN warehouses w ON o.warehouse_id = w.id
       WHERE o.id = ?`,
       [id]
     );
@@ -164,13 +163,13 @@ exports.getAdminOrderDetail = async (req, res) => {
     // Get order items
     const items = await query(
       `SELECT 
-        oi.*, 
-        p.name as product_name, p.slug as product_slug,
-        s.name as size_name,
-        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image
+        oi.id, oi.quantity, oi.unit_price as price, oi.subtotal as total, oi.unit_cost,
+        oi.product_name, oi.size_name, oi.product_sku,
+        pv.product_id,
+        (SELECT slug FROM products WHERE id = pv.product_id LIMIT 1) as product_slug,
+        (SELECT image_url FROM product_images WHERE product_id = pv.product_id AND is_primary = true LIMIT 1) as product_image
       FROM order_items oi
-      LEFT JOIN products p ON oi.product_id = p.id
-      LEFT JOIN sizes s ON oi.size_id = s.id
+      LEFT JOIN product_variants pv ON oi.product_variant_id = pv.id
       WHERE oi.order_id = ?`,
       [id]
     );
