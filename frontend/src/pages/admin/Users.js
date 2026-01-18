@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaUserEdit, FaTrash, FaUserShield, FaUser, FaUserTie, FaTimes, FaMapMarkerAlt, FaPlus, FaStar } from 'react-icons/fa';
+import { FaUserEdit, FaTrash, FaUserShield, FaUser, FaUserTie, FaTimes, FaMapMarkerAlt, FaPlus, FaStar, FaShoppingBag, FaEye } from 'react-icons/fa';
 import apiClient from '../../services/api';
 import DataTable from '../../components/admin/DataTable';
 
@@ -9,6 +9,7 @@ export default function AdminUsers() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [roleFilter, setRoleFilter] = useState('');
   const [formData, setFormData] = useState({
@@ -16,6 +17,23 @@ export default function AdminUsers() {
     is_active: true,
     member_discount: 0
   });
+
+  // Create user form
+  const [createFormData, setCreateFormData] = useState({
+    email: '',
+    password: '',
+    full_name: '',
+    phone: '',
+    role: 'customer',
+    member_discount: 0
+  });
+
+  // Transaction modal states
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [transactionUser, setTransactionUser] = useState(null);
+  const [userOrders, setUserOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [userStats, setUserStats] = useState(null);
 
   // Address modal states
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -79,6 +97,52 @@ export default function AdminUsers() {
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal mengupdate user');
+    }
+  };
+
+  // Handle create user
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    try {
+      if (!createFormData.email || !createFormData.password || !createFormData.full_name) {
+        setError('Email, password, dan nama lengkap harus diisi');
+        return;
+      }
+      await apiClient.post('/users', createFormData);
+      setSuccess('User berhasil dibuat!');
+      setShowCreateModal(false);
+      setCreateFormData({
+        email: '',
+        password: '',
+        full_name: '',
+        phone: '',
+        role: 'customer',
+        member_discount: 0
+      });
+      fetchUsers();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal membuat user');
+    }
+  };
+
+  // Handle view transactions
+  const handleViewTransactions = async (user) => {
+    setTransactionUser(user);
+    setShowTransactionModal(true);
+    setLoadingOrders(true);
+    try {
+      const [ordersRes, userRes] = await Promise.all([
+        apiClient.get(`/users/${user.id}/orders`),
+        apiClient.get(`/users/${user.id}`)
+      ]);
+      setUserOrders(ordersRes.data.data || []);
+      setUserStats(userRes.data.data?.order_stats || null);
+    } catch (err) {
+      console.error('Error fetching user orders:', err);
+      setUserOrders([]);
+    } finally {
+      setLoadingOrders(false);
     }
   };
 
@@ -310,7 +374,14 @@ export default function AdminUsers() {
       label: 'Aksi',
       sortable: false,
       render: (_, user) => (
-        <div className="flex gap-2">
+        <div className="flex gap-1">
+          <button
+            onClick={() => handleViewTransactions(user)}
+            className="p-2 text-purple-600 hover:bg-purple-50 rounded"
+            title="Lihat Transaksi"
+          >
+            <FaShoppingBag />
+          </button>
           <button
             onClick={() => handleViewAddresses(user)}
             className="p-2 text-green-600 hover:bg-green-50 rounded"
@@ -384,7 +455,13 @@ export default function AdminUsers() {
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-3 border-t">
+      <div className="flex flex-wrap justify-end gap-2 pt-3 border-t">
+        <button
+          onClick={() => handleViewTransactions(user)}
+          className="px-3 py-1 text-purple-600 hover:bg-purple-50 rounded text-sm flex items-center gap-1"
+        >
+          <FaShoppingBag /> Transaksi
+        </button>
         <button
           onClick={() => handleViewAddresses(user)}
           className="px-3 py-1 text-green-600 hover:bg-green-50 rounded text-sm flex items-center gap-1"
@@ -414,17 +491,25 @@ export default function AdminUsers() {
           <h1 className="text-2xl lg:text-3xl font-bold">Manajemen User</h1>
           <p className="text-gray-600">Kelola pengguna aplikasi</p>
         </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          <FaPlus /> Tambah User
+        </button>
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
+        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded flex justify-between items-center">
           {error}
+          <button onClick={() => setError('')}><FaTimes /></button>
         </div>
       )}
 
       {success && (
-        <div className="mb-4 p-4 bg-green-100 text-green-700 rounded">
+        <div className="mb-4 p-4 bg-green-100 text-green-700 rounded flex justify-between items-center">
           {success}
+          <button onClick={() => setSuccess('')}><FaTimes /></button>
         </div>
       )}
 
@@ -784,6 +869,223 @@ export default function AdminUsers() {
                     </button>
                   </div>
                 </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Tambah User Baru</h2>
+              <button 
+                onClick={() => setShowCreateModal(false)} 
+                className="p-2 hover:bg-gray-100 rounded"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Nama Lengkap *</label>
+                <input
+                  type="text"
+                  value={createFormData.full_name}
+                  onChange={(e) => setCreateFormData({ ...createFormData, full_name: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Email *</label>
+                <input
+                  type="email"
+                  value={createFormData.email}
+                  onChange={(e) => setCreateFormData({ ...createFormData, email: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Password *</label>
+                <input
+                  type="password"
+                  value={createFormData.password}
+                  onChange={(e) => setCreateFormData({ ...createFormData, password: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">No. Telepon</label>
+                <input
+                  type="tel"
+                  value={createFormData.phone}
+                  onChange={(e) => setCreateFormData({ ...createFormData, phone: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Role</label>
+                  <select
+                    value={createFormData.role}
+                    onChange={(e) => setCreateFormData({ ...createFormData, role: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="customer">Customer</option>
+                    <option value="staff">Staff</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Diskon Member (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={createFormData.member_discount}
+                    onChange={(e) => setCreateFormData({ ...createFormData, member_discount: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Buat User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Transaction Modal */}
+      {showTransactionModal && transactionUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+              <div>
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <FaShoppingBag className="text-purple-600" />
+                  Riwayat Transaksi
+                </h2>
+                <p className="text-sm text-gray-600">{transactionUser.full_name} ({transactionUser.email})</p>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowTransactionModal(false);
+                  setTransactionUser(null);
+                  setUserOrders([]);
+                  setUserStats(null);
+                }} 
+                className="p-2 hover:bg-gray-200 rounded"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {/* Stats */}
+              {userStats && (
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="bg-purple-50 rounded-lg p-4 text-center">
+                    <p className="text-2xl font-bold text-purple-600">{userStats.total_orders || 0}</p>
+                    <p className="text-sm text-gray-600">Total Order</p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-4 text-center">
+                    <p className="text-xl font-bold text-green-600">
+                      Rp {(userStats.total_spending || 0).toLocaleString('id-ID')}
+                    </p>
+                    <p className="text-sm text-gray-600">Total Belanja</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-4 text-center">
+                    <p className="text-sm font-bold text-blue-600">
+                      {userStats.last_order_date 
+                        ? new Date(userStats.last_order_date).toLocaleDateString('id-ID')
+                        : '-'}
+                    </p>
+                    <p className="text-sm text-gray-600">Order Terakhir</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Orders List */}
+              {loadingOrders ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                  <p className="mt-2 text-gray-500">Memuat transaksi...</p>
+                </div>
+              ) : userOrders.length === 0 ? (
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <FaShoppingBag className="text-4xl text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500">Belum ada transaksi</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {userOrders.map((order) => (
+                    <div 
+                      key={order.id}
+                      className="border rounded-lg p-4 hover:bg-gray-50"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-mono font-bold text-blue-600">#{order.order_number}</p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(order.created_at).toLocaleDateString('id-ID', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                          <p className="text-sm text-gray-600 mt-1">{order.item_count} item(s)</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold">Rp {(order.total_amount || 0).toLocaleString('id-ID')}</p>
+                          <div className="flex gap-2 mt-1">
+                            <span className={`px-2 py-0.5 rounded text-xs ${
+                              order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
+                              order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {order.status}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-xs ${
+                              order.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
+                              order.payment_status === 'failed' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {order.payment_status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>

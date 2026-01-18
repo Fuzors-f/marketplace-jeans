@@ -60,6 +60,12 @@ const Checkout = () => {
   
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+
   // Fetch cart from API on mount
   useEffect(() => {
     fetchCart();
@@ -377,6 +383,42 @@ const Checkout = () => {
     return true;
   };
 
+  // Coupon handlers
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Masukkan kode kupon');
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError('');
+
+    try {
+      const response = await apiClient.post('/coupons/validate', {
+        code: couponCode.toUpperCase(),
+        subtotal: subtotal,
+        user_id: user?.id || null,
+        guest_email: isGuest ? guestForm.email : null
+      });
+
+      if (response.data.success) {
+        setAppliedCoupon(response.data.data);
+        setCouponCode('');
+      }
+    } catch (err) {
+      setCouponError(err.response?.data?.message || 'Kupon tidak valid');
+      setAppliedCoupon(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError('');
+  };
+
   // Get shipping cost from selected option
   const getShippingCost = () => {
     if (selectedShipping) {
@@ -394,8 +436,9 @@ const Checkout = () => {
     0
   );
   const shippingCost = calculateShippingCost();
-  const tax = Math.round(subtotal * 0.11); // 11% tax
-  const total = subtotal + shippingCost + tax;
+  const couponDiscount = appliedCoupon?.discount_amount || 0;
+  const tax = Math.round((subtotal - couponDiscount) * 0.11); // 11% tax after discount
+  const total = subtotal + shippingCost + tax - couponDiscount;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -426,6 +469,9 @@ const Checkout = () => {
           shipping_method: selectedShipping ? `${selectedShipping.courier} - ${selectedShipping.service || 'Regular'}` : 'Standard',
           payment_method: paymentMethod,
           notes: guestForm.notes || null,
+          coupon_id: appliedCoupon?.id || null,
+          coupon_code: appliedCoupon?.code || null,
+          coupon_discount: couponDiscount,
           items: cartItems.map(item => ({
             product_variant_id: item.variant_id,
             quantity: item.quantity,
@@ -463,6 +509,9 @@ const Checkout = () => {
           shipping_method: selectedShipping ? `${selectedShipping.courier} - ${selectedShipping.service || 'Regular'}` : 'Standard',
           payment_method: paymentMethod,
           notes: userForm.notes || null,
+          coupon_id: appliedCoupon?.id || null,
+          coupon_code: appliedCoupon?.code || null,
+          coupon_discount: couponDiscount,
           items: cartItems.map(item => ({
             product_variant_id: item.variant_id,
             quantity: item.quantity,
@@ -942,11 +991,65 @@ const Checkout = () => {
                   ))}
                 </div>
 
+                {/* Coupon Section */}
+                <div className="mb-6 pb-6 border-b">
+                  <h3 className="text-sm font-semibold mb-3">Punya Kupon?</h3>
+                  {appliedCoupon ? (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-mono font-bold text-green-700">{appliedCoupon.code}</p>
+                          <p className="text-xs text-green-600">{appliedCoupon.name}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          className="text-red-500 text-sm hover:underline"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                      <p className="text-sm text-green-700 mt-2 font-semibold">
+                        -Rp {appliedCoupon.discount_amount.toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          placeholder="Masukkan kode"
+                          className="flex-1 px-3 py-2 border rounded text-sm uppercase focus:outline-none focus:ring-2 focus:ring-black"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyCoupon}
+                          disabled={couponLoading}
+                          className="px-4 py-2 bg-black text-white text-sm rounded hover:bg-gray-800 disabled:opacity-50"
+                        >
+                          {couponLoading ? '...' : 'Pakai'}
+                        </button>
+                      </div>
+                      {couponError && (
+                        <p className="text-xs text-red-500 mt-2">{couponError}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-3 mb-6 pb-6 border-b text-sm">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
                     <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                   </div>
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Diskon ({appliedCoupon.code})</span>
+                      <span>-Rp {couponDiscount.toLocaleString('id-ID')}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>Pajak (11%)</span>
                     <span>Rp {tax.toLocaleString('id-ID')}</span>

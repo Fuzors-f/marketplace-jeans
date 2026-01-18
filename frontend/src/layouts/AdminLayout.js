@@ -5,7 +5,8 @@ import {
   FaHome, FaBox, FaShoppingBag, FaWarehouse, FaChartBar, FaUsers, FaCog, 
   FaSignOutAlt, FaImages, FaTags, FaRuler, FaUserShield, 
   FaChevronDown, FaChevronRight, FaTable, FaClipboardList, FaBoxes, FaCity, FaTruck,
-  FaBars, FaTimes, FaExchangeAlt, FaHistory, FaFileImport, FaMoneyBillWave, FaArrowsAltH, FaGlobe
+  FaBars, FaTimes, FaExchangeAlt, FaHistory, FaFileImport, FaMoneyBillWave, FaArrowsAltH, FaGlobe,
+  FaTicketAlt
 } from 'react-icons/fa';
 import { logout } from '../redux/slices/authSlice';
 
@@ -64,6 +65,7 @@ const AdminLayout = () => {
       ]
     },
     { path: '/admin/orders', icon: FaShoppingBag, label: 'Pesanan' },
+    { path: '/admin/coupons', icon: FaTicketAlt, label: 'Kupon Diskon' },
     { 
       key: 'inventory',
       icon: FaWarehouse, 

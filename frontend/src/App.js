@@ -49,6 +49,7 @@ import AdminSalesReport from './pages/admin/SalesReport';
 import AdminInventoryMovementReport from './pages/admin/InventoryMovementReport';
 import AdminProductImport from './pages/admin/ProductImport';
 import AdminContentSettings from './pages/admin/ContentSettings';
+import AdminCoupons from './pages/admin/Coupons';
 
 // Components
 import PrivateRoute from './components/PrivateRoute';
@@ -110,6 +111,7 @@ function App() {
         <Route path="activity-logs" element={<AdminActivityLogs />} />
         <Route path="products/import" element={<AdminProductImport />} />
         <Route path="content" element={<AdminContentSettings />} />
+        <Route path="coupons" element={<AdminCoupons />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="roles" element={<AdminRoles />} />
         <Route path="exchange-rates" element={<AdminExchangeRates />} />

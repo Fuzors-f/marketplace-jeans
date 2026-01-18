@@ -198,4 +198,19 @@ export const shippingCostAPI = {
   bulkCreate: (data) => apiClient.post('/shipping-costs/bulk', data)
 };
 
+// =====================================
+// COUPONS API
+// =====================================
+
+export const couponAPI = {
+  getAll: (params) => apiClient.get('/coupons', { params }),
+  getById: (id) => apiClient.get(`/coupons/${id}`),
+  getPublic: () => apiClient.get('/coupons/public'),
+  getStats: () => apiClient.get('/coupons/stats'),
+  validate: (data) => apiClient.post('/coupons/validate', data),
+  create: (data) => apiClient.post('/coupons', data),
+  update: (id, data) => apiClient.put(`/coupons/${id}`, data),
+  delete: (id) => apiClient.delete(`/coupons/${id}`)
+};
+
 export default apiClient;

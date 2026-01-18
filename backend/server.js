@@ -6,7 +6,10 @@ const compression = require('compression');
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Load environment variables
+// Load environment-specific config
+const envFile = process.env.NODE_ENV ? `.env.${process.env.NODE_ENV}` : '.env';
+dotenv.config({ path: envFile });
+// Fallback to .env if environment file doesn't exist
 dotenv.config();
 
 // Import routes
@@ -40,6 +43,7 @@ const exchangeRateRoutes = require('./src/routes/exchangeRateRoutes');
 const activityLogRoutes = require('./src/routes/activityLogRoutes');
 const contentRoutes = require('./src/routes/contentRoutes');
 const wishlistRoutes = require('./src/routes/wishlistRoutes');
+const couponRoutes = require('./src/routes/couponRoutes');
 
 // Import middleware
 const errorHandler = require('./src/middleware/errorHandler');
@@ -115,6 +119,7 @@ app.use('/api/exchange-rates', exchangeRateRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/coupons', couponRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
