@@ -270,10 +270,10 @@ const deleteRole = async (req, res) => {
 const getAllPermissions = async (req, res) => {
   try {
     const permissions = await query(
-      `SELECT * FROM permissions ORDER BY module, action`
+      `SELECT id, name, resource as module, action, description, created_at FROM permissions ORDER BY resource, action`
     );
 
-    // Group permissions by module
+    // Group permissions by resource (aliased as module for frontend compatibility)
     const groupedPermissions = permissions.reduce((acc, perm) => {
       if (!acc[perm.module]) {
         acc[perm.module] = [];
@@ -399,7 +399,7 @@ const getUserRolesAndPermissions = async (req, res) => {
       JOIN role_permissions rp ON p.id = rp.permission_id
       JOIN user_roles ur ON rp.role_id = ur.role_id
       WHERE ur.user_id = ?
-      ORDER BY p.module, p.action`,
+      ORDER BY p.resource, p.action`,
       [userId]
     );
 
@@ -427,47 +427,123 @@ const initializePermissions = async (req, res) => {
   try {
     const defaultPermissions = [
       // Dashboard
-      { name: 'View Dashboard', module: 'dashboard', action: 'view', description: 'Can view dashboard' },
+      { name: 'View Dashboard', resource: 'dashboard', action: 'view', description: 'Melihat halaman dashboard' },
       
       // Products
-      { name: 'View Products', module: 'products', action: 'view', description: 'Can view products' },
-      { name: 'Create Products', module: 'products', action: 'create', description: 'Can create products' },
-      { name: 'Update Products', module: 'products', action: 'update', description: 'Can update products' },
-      { name: 'Delete Products', module: 'products', action: 'delete', description: 'Can delete products' },
+      { name: 'View Products', resource: 'products', action: 'view', description: 'Melihat daftar produk' },
+      { name: 'Create Products', resource: 'products', action: 'create', description: 'Membuat produk baru' },
+      { name: 'Update Products', resource: 'products', action: 'update', description: 'Mengubah data produk' },
+      { name: 'Delete Products', resource: 'products', action: 'delete', description: 'Menghapus produk' },
+      { name: 'Import Products', resource: 'products', action: 'import', description: 'Import produk dari file' },
       
       // Categories
-      { name: 'View Categories', module: 'categories', action: 'view', description: 'Can view categories' },
-      { name: 'Manage Categories', module: 'categories', action: 'manage', description: 'Can create/edit/delete categories' },
+      { name: 'View Categories', resource: 'categories', action: 'view', description: 'Melihat daftar kategori' },
+      { name: 'Create Categories', resource: 'categories', action: 'create', description: 'Membuat kategori baru' },
+      { name: 'Update Categories', resource: 'categories', action: 'update', description: 'Mengubah kategori' },
+      { name: 'Delete Categories', resource: 'categories', action: 'delete', description: 'Menghapus kategori' },
+      
+      // Fittings
+      { name: 'View Fittings', resource: 'fittings', action: 'view', description: 'Melihat daftar fitting' },
+      { name: 'Create Fittings', resource: 'fittings', action: 'create', description: 'Membuat fitting baru' },
+      { name: 'Update Fittings', resource: 'fittings', action: 'update', description: 'Mengubah fitting' },
+      { name: 'Delete Fittings', resource: 'fittings', action: 'delete', description: 'Menghapus fitting' },
+      
+      // Sizes
+      { name: 'View Sizes', resource: 'sizes', action: 'view', description: 'Melihat daftar ukuran' },
+      { name: 'Create Sizes', resource: 'sizes', action: 'create', description: 'Membuat ukuran baru' },
+      { name: 'Update Sizes', resource: 'sizes', action: 'update', description: 'Mengubah ukuran' },
+      { name: 'Delete Sizes', resource: 'sizes', action: 'delete', description: 'Menghapus ukuran' },
+      
+      // Size Charts
+      { name: 'View Size Charts', resource: 'size_charts', action: 'view', description: 'Melihat size chart' },
+      { name: 'Create Size Charts', resource: 'size_charts', action: 'create', description: 'Membuat size chart' },
+      { name: 'Update Size Charts', resource: 'size_charts', action: 'update', description: 'Mengubah size chart' },
+      { name: 'Delete Size Charts', resource: 'size_charts', action: 'delete', description: 'Menghapus size chart' },
       
       // Orders
-      { name: 'View Orders', module: 'orders', action: 'view', description: 'Can view orders' },
-      { name: 'Update Orders', module: 'orders', action: 'update', description: 'Can update order status' },
-      { name: 'Delete Orders', module: 'orders', action: 'delete', description: 'Can cancel/delete orders' },
+      { name: 'View Orders', resource: 'orders', action: 'view', description: 'Melihat daftar pesanan' },
+      { name: 'Create Orders', resource: 'orders', action: 'create', description: 'Membuat pesanan baru' },
+      { name: 'Update Orders', resource: 'orders', action: 'update', description: 'Mengubah status pesanan' },
+      { name: 'Delete Orders', resource: 'orders', action: 'delete', description: 'Membatalkan/menghapus pesanan' },
+      { name: 'Process Payments', resource: 'orders', action: 'payment', description: 'Memproses pembayaran' },
       
       // Inventory
-      { name: 'View Inventory', module: 'inventory', action: 'view', description: 'Can view inventory' },
-      { name: 'Manage Stock', module: 'inventory', action: 'manage', description: 'Can add/adjust stock' },
-      { name: 'Stock Opname', module: 'inventory', action: 'opname', description: 'Can perform stock opname' },
+      { name: 'View Inventory', resource: 'inventory', action: 'view', description: 'Melihat stok barang' },
+      { name: 'Create Inventory', resource: 'inventory', action: 'create', description: 'Menambah stok baru' },
+      { name: 'Update Inventory', resource: 'inventory', action: 'update', description: 'Mengubah stok' },
+      { name: 'Delete Inventory', resource: 'inventory', action: 'delete', description: 'Menghapus data stok' },
+      { name: 'Stock Opname', resource: 'inventory', action: 'opname', description: 'Melakukan stock opname' },
+      { name: 'Stock Transfer', resource: 'inventory', action: 'transfer', description: 'Transfer stok antar gudang' },
       
       // Warehouses
-      { name: 'View Warehouses', module: 'warehouses', action: 'view', description: 'Can view warehouses' },
-      { name: 'Manage Warehouses', module: 'warehouses', action: 'manage', description: 'Can create/edit warehouses' },
+      { name: 'View Warehouses', resource: 'warehouses', action: 'view', description: 'Melihat daftar gudang' },
+      { name: 'Create Warehouses', resource: 'warehouses', action: 'create', description: 'Membuat gudang baru' },
+      { name: 'Update Warehouses', resource: 'warehouses', action: 'update', description: 'Mengubah data gudang' },
+      { name: 'Delete Warehouses', resource: 'warehouses', action: 'delete', description: 'Menghapus gudang' },
       
       // Reports
-      { name: 'View Reports', module: 'reports', action: 'view', description: 'Can view reports' },
-      { name: 'Export Reports', module: 'reports', action: 'export', description: 'Can export reports' },
+      { name: 'View Reports', resource: 'reports', action: 'view', description: 'Melihat laporan' },
+      { name: 'Export Reports', resource: 'reports', action: 'export', description: 'Export laporan ke file' },
+      { name: 'Sales Report', resource: 'reports', action: 'sales', description: 'Melihat laporan penjualan' },
+      { name: 'Inventory Report', resource: 'reports', action: 'inventory', description: 'Melihat laporan inventori' },
       
       // Users
-      { name: 'View Users', module: 'users', action: 'view', description: 'Can view users' },
-      { name: 'Manage Users', module: 'users', action: 'manage', description: 'Can create/edit/delete users' },
+      { name: 'View Users', resource: 'users', action: 'view', description: 'Melihat daftar pengguna' },
+      { name: 'Create Users', resource: 'users', action: 'create', description: 'Membuat pengguna baru' },
+      { name: 'Update Users', resource: 'users', action: 'update', description: 'Mengubah data pengguna' },
+      { name: 'Delete Users', resource: 'users', action: 'delete', description: 'Menghapus pengguna' },
+      { name: 'View User Transactions', resource: 'users', action: 'transactions', description: 'Melihat transaksi pengguna' },
       
-      // Roles
-      { name: 'View Roles', module: 'roles', action: 'view', description: 'Can view roles' },
-      { name: 'Manage Roles', module: 'roles', action: 'manage', description: 'Can create/edit/delete roles' },
+      // Roles & Permissions
+      { name: 'View Roles', resource: 'roles', action: 'view', description: 'Melihat daftar role' },
+      { name: 'Create Roles', resource: 'roles', action: 'create', description: 'Membuat role baru' },
+      { name: 'Update Roles', resource: 'roles', action: 'update', description: 'Mengubah role' },
+      { name: 'Delete Roles', resource: 'roles', action: 'delete', description: 'Menghapus role' },
+      { name: 'Assign Roles', resource: 'roles', action: 'assign', description: 'Menetapkan role ke user' },
+      
+      // Banners
+      { name: 'View Banners', resource: 'banners', action: 'view', description: 'Melihat daftar banner' },
+      { name: 'Create Banners', resource: 'banners', action: 'create', description: 'Membuat banner baru' },
+      { name: 'Update Banners', resource: 'banners', action: 'update', description: 'Mengubah banner' },
+      { name: 'Delete Banners', resource: 'banners', action: 'delete', description: 'Menghapus banner' },
+      
+      // Content
+      { name: 'View Content', resource: 'content', action: 'view', description: 'Melihat konten website' },
+      { name: 'Create Content', resource: 'content', action: 'create', description: 'Membuat konten baru' },
+      { name: 'Update Content', resource: 'content', action: 'update', description: 'Mengubah konten' },
+      { name: 'Delete Content', resource: 'content', action: 'delete', description: 'Menghapus konten' },
+      
+      // Coupons & Discounts
+      { name: 'View Coupons', resource: 'coupons', action: 'view', description: 'Melihat daftar kupon' },
+      { name: 'Create Coupons', resource: 'coupons', action: 'create', description: 'Membuat kupon baru' },
+      { name: 'Update Coupons', resource: 'coupons', action: 'update', description: 'Mengubah kupon' },
+      { name: 'Delete Coupons', resource: 'coupons', action: 'delete', description: 'Menghapus kupon' },
+      
+      // Shipping
+      { name: 'View Shipping', resource: 'shipping', action: 'view', description: 'Melihat pengaturan pengiriman' },
+      { name: 'Create Shipping', resource: 'shipping', action: 'create', description: 'Membuat aturan pengiriman' },
+      { name: 'Update Shipping', resource: 'shipping', action: 'update', description: 'Mengubah pengaturan pengiriman' },
+      { name: 'Delete Shipping', resource: 'shipping', action: 'delete', description: 'Menghapus aturan pengiriman' },
+      
+      // City Shipping
+      { name: 'View City Shipping', resource: 'city_shipping', action: 'view', description: 'Melihat ongkir per kota' },
+      { name: 'Create City Shipping', resource: 'city_shipping', action: 'create', description: 'Menambah ongkir kota' },
+      { name: 'Update City Shipping', resource: 'city_shipping', action: 'update', description: 'Mengubah ongkir kota' },
+      { name: 'Delete City Shipping', resource: 'city_shipping', action: 'delete', description: 'Menghapus ongkir kota' },
+      
+      // Exchange Rates
+      { name: 'View Exchange Rates', resource: 'exchange_rates', action: 'view', description: 'Melihat kurs mata uang' },
+      { name: 'Create Exchange Rates', resource: 'exchange_rates', action: 'create', description: 'Menambah kurs baru' },
+      { name: 'Update Exchange Rates', resource: 'exchange_rates', action: 'update', description: 'Mengubah kurs' },
+      { name: 'Delete Exchange Rates', resource: 'exchange_rates', action: 'delete', description: 'Menghapus kurs' },
       
       // Settings
-      { name: 'View Settings', module: 'settings', action: 'view', description: 'Can view settings' },
-      { name: 'Manage Settings', module: 'settings', action: 'manage', description: 'Can update settings' },
+      { name: 'View Settings', resource: 'settings', action: 'view', description: 'Melihat pengaturan sistem' },
+      { name: 'Update Settings', resource: 'settings', action: 'update', description: 'Mengubah pengaturan sistem' },
+      
+      // Activity Logs
+      { name: 'View Activity Logs', resource: 'activity_logs', action: 'view', description: 'Melihat log aktivitas' },
+      { name: 'Delete Activity Logs', resource: 'activity_logs', action: 'delete', description: 'Menghapus log aktivitas' },
     ];
 
     let insertedCount = 0;
@@ -475,30 +551,172 @@ const initializePermissions = async (req, res) => {
 
     for (const perm of defaultPermissions) {
       const existing = await query(
-        'SELECT id FROM permissions WHERE module = ? AND action = ?',
-        [perm.module, perm.action]
+        'SELECT id FROM permissions WHERE resource = ? AND action = ?',
+        [perm.resource, perm.action]
       );
 
       if (existing.length === 0) {
         await query(
-          'INSERT INTO permissions (name, module, action, description) VALUES (?, ?, ?, ?)',
-          [perm.name, perm.module, perm.action, perm.description]
+          'INSERT INTO permissions (name, resource, action, description) VALUES (?, ?, ?, ?)',
+          [perm.name, perm.resource, perm.action, perm.description]
         );
         insertedCount++;
       } else {
+        // Update existing permission name/description
+        await query(
+          'UPDATE permissions SET name = ?, description = ? WHERE resource = ? AND action = ?',
+          [perm.name, perm.description, perm.resource, perm.action]
+        );
         skippedCount++;
       }
     }
 
     res.json({
       success: true,
-      message: `Permissions initialized. Created: ${insertedCount}, Skipped: ${skippedCount}`
+      message: `Permissions initialized. Created: ${insertedCount}, Updated: ${skippedCount}`,
+      data: { created: insertedCount, updated: skippedCount }
     });
   } catch (error) {
     console.error('Initialize permissions error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to initialize permissions',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Create superadmin role with all permissions
+// @route   POST /api/roles/create-superadmin
+// @access  Private (Admin)
+const createSuperadminRole = async (req, res) => {
+  try {
+    // Check if superadmin role already exists
+    const existingRole = await query(
+      'SELECT id FROM roles WHERE name = ?',
+      ['Superadmin']
+    );
+
+    let roleId;
+
+    if (existingRole.length > 0) {
+      roleId = existingRole[0].id;
+      // Update existing role
+      await query(
+        'UPDATE roles SET description = ?, updated_at = NOW() WHERE id = ?',
+        ['Role dengan akses penuh ke semua fitur sistem', roleId]
+      );
+    } else {
+      // Create new superadmin role
+      const result = await query(
+        'INSERT INTO roles (name, description) VALUES (?, ?)',
+        ['Superadmin', 'Role dengan akses penuh ke semua fitur sistem']
+      );
+      roleId = result.insertId;
+    }
+
+    // Get all permissions
+    const allPermissions = await query('SELECT id FROM permissions');
+
+    // Remove existing role permissions
+    await query('DELETE FROM role_permissions WHERE role_id = ?', [roleId]);
+
+    // Assign all permissions to superadmin
+    if (allPermissions.length > 0) {
+      // Insert permissions one by one to avoid MariaDB syntax issues
+      for (const perm of allPermissions) {
+        await query(
+          'INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
+          [roleId, perm.id]
+        );
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Superadmin role created/updated with ${allPermissions.length} permissions`,
+      data: {
+        role_id: roleId,
+        permissions_count: allPermissions.length
+      }
+    });
+  } catch (error) {
+    console.error('Create superadmin error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create superadmin role',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Assign superadmin role to user
+// @route   POST /api/roles/assign-superadmin/:userId
+// @access  Private (Admin)
+const assignSuperadminToUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Get superadmin role
+    const superadminRole = await query(
+      'SELECT id FROM roles WHERE name = ?',
+      ['Superadmin']
+    );
+
+    if (superadminRole.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Superadmin role not found. Please run init-permissions and create-superadmin first.'
+      });
+    }
+
+    const roleId = superadminRole[0].id;
+
+    // Check if user exists
+    const user = await query('SELECT id, email, full_name FROM users WHERE id = ?', [userId]);
+    if (user.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if assignment already exists
+    const existing = await query(
+      'SELECT id FROM user_roles WHERE user_id = ? AND role_id = ?',
+      [userId, roleId]
+    );
+
+    if (existing.length > 0) {
+      return res.json({
+        success: true,
+        message: 'User already has superadmin role',
+        data: { user: user[0], role_id: roleId }
+      });
+    }
+
+    // Assign superadmin role
+    await query(
+      'INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)',
+      [userId, roleId]
+    );
+
+    // Also update user role to admin if not already
+    await query(
+      'UPDATE users SET role = ? WHERE id = ? AND role != ?',
+      ['admin', userId, 'admin']
+    );
+
+    res.json({
+      success: true,
+      message: `Superadmin role assigned to ${user[0].full_name || user[0].email}`,
+      data: { user: user[0], role_id: roleId }
+    });
+  } catch (error) {
+    console.error('Assign superadmin error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to assign superadmin role',
       error: error.message
     });
   }
@@ -514,5 +732,7 @@ module.exports = {
   assignRoleToUser,
   removeRoleFromUser,
   getUserRolesAndPermissions,
-  initializePermissions
+  initializePermissions,
+  createSuperadminRole,
+  assignSuperadminToUser
 };

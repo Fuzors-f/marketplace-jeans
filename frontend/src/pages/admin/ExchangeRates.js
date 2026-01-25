@@ -337,24 +337,24 @@ const ExchangeRates = () => {
                                 <>
                                   <button
                                     onClick={() => handleEdit(rate)}
-                                    className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                     title="Edit Kurs"
                                   >
-                                    <FaEdit />
+                                    <FaEdit size={16} />
                                   </button>
                                   <button
                                     onClick={() => handleViewLogs(rate.id)}
-                                    className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
+                                    className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                                     title="Lihat Riwayat"
                                   >
-                                    <FaHistory />
+                                    <FaHistory size={16} />
                                   </button>
                                   <button
                                     onClick={() => handleDelete(rate.id)}
-                                    className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
+                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                     title="Nonaktifkan"
                                   >
-                                    <FaTrash />
+                                    <FaTrash size={16} />
                                   </button>
                                 </>
                               )}

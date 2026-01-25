@@ -10,7 +10,9 @@ const {
   assignRoleToUser,
   removeRoleFromUser,
   getUserRolesAndPermissions,
-  initializePermissions
+  initializePermissions,
+  createSuperadminRole,
+  assignSuperadminToUser
 } = require('../controllers/roleController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -21,6 +23,10 @@ router.use(authorize('admin'));
 // Permission routes
 router.get('/permissions', getAllPermissions);
 router.post('/init-permissions', initializePermissions);
+
+// Superadmin routes
+router.post('/create-superadmin', createSuperadminRole);
+router.post('/assign-superadmin/:userId', assignSuperadminToUser);
 
 // Role management routes
 router.get('/', getAllRoles);

@@ -239,20 +239,20 @@ const ContentSettings = () => {
                         {content.sort_order}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handleEdit(content)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Edit"
                           >
-                            <FaEdit />
+                            <FaEdit size={16} />
                           </button>
                           <button
                             onClick={() => handleDelete(content.id, content.section_key)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded"
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Hapus"
                           >
-                            <FaTrash />
+                            <FaTrash size={16} />
                           </button>
                         </div>
                       </td>

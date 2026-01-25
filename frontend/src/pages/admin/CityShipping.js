@@ -434,24 +434,24 @@ const CityShipping = () => {
                         <div className="flex flex-col gap-1">
                           <button
                             onClick={() => handleOpenShippingModal(null, city.id)}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded"
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                             title="Tambah Ongkir"
                           >
-                            <FaTruck size={14} />
+                            <FaTruck size={16} />
                           </button>
                           <button
                             onClick={() => handleOpenCityModal(city)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Edit"
                           >
-                            <FaEdit size={14} />
+                            <FaEdit size={16} />
                           </button>
                           <button
                             onClick={() => handleDeleteCity(city.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded"
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Hapus"
                           >
-                            <FaTrash size={14} />
+                            <FaTrash size={16} />
                           </button>
                         </div>
                       </div>

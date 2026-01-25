@@ -159,12 +159,27 @@ export const userAPI = {
   getProfile: () => apiClient.get('/users/profile'),
   updateProfile: (data) => apiClient.put('/users/profile', data),
   updatePassword: (data) => apiClient.put('/users/password', data),
+  changePassword: (data) => apiClient.put('/auth/change-password', data),
+  uploadProfilePicture: (formData) => apiClient.post('/auth/profile-picture', formData),
   getAddresses: () => apiClient.get('/addresses'),
   getAddress: (id) => apiClient.get(`/addresses/${id}`),
   createAddress: (data) => apiClient.post('/addresses', data),
   updateAddress: (id, data) => apiClient.put(`/addresses/${id}`, data),
   deleteAddress: (id) => apiClient.delete(`/addresses/${id}`),
   setDefaultAddress: (id) => apiClient.put(`/addresses/${id}/default`)
+};
+
+// =====================================
+// SETTINGS API
+// =====================================
+
+export const settingsAPI = {
+  getPublic: () => apiClient.get('/settings'),
+  getAll: () => apiClient.get('/settings/all'),
+  init: () => apiClient.post('/settings/init'),
+  update: (key, value) => apiClient.put(`/settings/${key}`, { value }),
+  bulkUpdate: (settings) => apiClient.put('/settings', { settings }),
+  uploadImage: (formData) => apiClient.post('/settings/upload', formData)
 };
 
 // =====================================

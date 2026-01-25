@@ -114,20 +114,20 @@ export default function AdminSizes() {
       label: 'Actions',
       sortable: false,
       render: (_, size) => (
-        <div className="flex gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => handleEdit(size)}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             title="Edit"
           >
-            <FaEdit />
+            <FaEdit size={16} />
           </button>
           <button
             onClick={() => handleDelete(size.id)}
-            className="p-2 text-red-600 hover:bg-red-50 rounded"
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title="Hapus"
           >
-            <FaTrash />
+            <FaTrash size={16} />
           </button>
         </div>
       )
@@ -146,18 +146,18 @@ export default function AdminSizes() {
           {size.is_active ? 'Active' : 'Inactive'}
         </span>
       </div>
-      <div className="flex justify-end gap-2 mt-3 pt-3 border-t">
+      <div className="flex justify-end gap-1 mt-3 pt-3 border-t">
         <button
           onClick={() => handleEdit(size)}
-          className="px-3 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm flex items-center gap-1"
+          className="px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg text-sm flex items-center gap-1 transition-colors"
         >
-          <FaEdit /> Edit
+          <FaEdit size={14} /> Edit
         </button>
         <button
           onClick={() => handleDelete(size.id)}
-          className="px-3 py-1 text-red-600 hover:bg-red-50 rounded text-sm flex items-center gap-1"
+          className="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg text-sm flex items-center gap-1 transition-colors"
         >
-          <FaTrash /> Hapus
+          <FaTrash size={14} /> Hapus
         </button>
       </div>
     </div>

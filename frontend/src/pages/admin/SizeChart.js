@@ -281,14 +281,14 @@ const SizeChart = () => {
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Edit"
                       >
-                        <FaEdit size={14} />
+                        <FaEdit size={16} />
                       </button>
                       <button
                         onClick={() => handleDelete(chart.id)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Hapus"
                       >
-                        <FaTrash size={14} />
+                        <FaTrash size={16} />
                       </button>
                     </div>
                   </td>

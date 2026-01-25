@@ -832,10 +832,10 @@ const AdminOrders = () => {
       render: (_, order) => (
         <button
           onClick={() => setSelectedOrder(order)}
-          className="p-2 text-blue-600 hover:bg-blue-50 rounded flex items-center gap-1"
+          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1"
           title={t('viewDetails')}
         >
-          <FaEye /> <span className="hidden sm:inline">{t('viewDetails')}</span>
+          <FaEye size={16} /> <span className="hidden sm:inline">{t('viewDetails')}</span>
         </button>
       )
     }

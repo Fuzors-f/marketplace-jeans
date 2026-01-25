@@ -120,20 +120,20 @@ export default function AdminCategories() {
       label: 'Aksi',
       sortable: false,
       render: (_, item) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => handleEdit(item)}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             title="Edit"
           >
-            <FaEdit size={14} />
+            <FaEdit size={16} />
           </button>
           <button
             onClick={() => handleDelete(item.id)}
-            className="p-2 text-red-600 hover:bg-red-50 rounded"
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title="Hapus"
           >
-            <FaTrash size={14} />
+            <FaTrash size={16} />
           </button>
         </div>
       )
@@ -155,13 +155,13 @@ export default function AdminCategories() {
       <div className="flex items-center gap-1 ml-3">
         <button
           onClick={() => handleEdit(category)}
-          className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
         >
           <FaEdit size={16} />
         </button>
         <button
           onClick={() => handleDelete(category.id)}
-          className="p-2 text-red-600 hover:bg-red-50 rounded"
+          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
         >
           <FaTrash size={16} />
         </button>

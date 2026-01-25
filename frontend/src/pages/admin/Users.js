@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FaUserEdit, FaTrash, FaUserShield, FaUser, FaUserTie, FaTimes, FaMapMarkerAlt, FaPlus, FaStar, FaShoppingBag, FaEye } from 'react-icons/fa';
+import { FaUserEdit, FaTrash, FaUserShield, FaUser, FaUserTie, FaTimes, FaMapMarkerAlt, FaPlus, FaStar, FaShoppingBag, FaEye, FaUsers, FaUserCheck, FaUserSlash, FaSearch, FaFilter, FaExclamationTriangle } from 'react-icons/fa';
 import apiClient from '../../services/api';
 import DataTable from '../../components/admin/DataTable';
+import { useAlert } from '../../utils/AlertContext';
 
 export default function AdminUsers() {
+  const { showError, showSuccess, showWarning } = useAlert();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -91,25 +93,48 @@ export default function AdminUsers() {
     try {
       await apiClient.put(`/users/${editingUser.id}`, formData);
       setSuccess('User berhasil diupdate!');
+      showSuccess('Data user berhasil diperbarui!', 'Berhasil');
       setShowModal(false);
       setEditingUser(null);
       fetchUsers();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal mengupdate user');
+      const errMsg = err.response?.data?.message || 'Gagal mengupdate user';
+      setError(errMsg);
+      showError(errMsg, 'Gagal Update');
     }
   };
 
   // Handle create user
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    setError('');
+    
+    // Validation
+    const errors = [];
+    if (!createFormData.full_name || createFormData.full_name.trim() === '') {
+      errors.push('Nama lengkap wajib diisi');
+    }
+    if (!createFormData.email || createFormData.email.trim() === '') {
+      errors.push('Email wajib diisi');
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createFormData.email)) {
+      errors.push('Format email tidak valid');
+    }
+    if (!createFormData.password || createFormData.password.length < 6) {
+      errors.push('Password minimal 6 karakter');
+    }
+    
+    if (errors.length > 0) {
+      const errorMessage = errors.join('\n• ');
+      setError('• ' + errorMessage);
+      showError('Validasi Gagal:\n• ' + errorMessage, 'Form Tidak Lengkap');
+      return;
+    }
+    
     try {
-      if (!createFormData.email || !createFormData.password || !createFormData.full_name) {
-        setError('Email, password, dan nama lengkap harus diisi');
-        return;
-      }
       await apiClient.post('/users', createFormData);
       setSuccess('User berhasil dibuat!');
+      showSuccess('User baru berhasil ditambahkan ke sistem!', 'Berhasil');
       setShowCreateModal(false);
       setCreateFormData({
         email: '',
@@ -122,7 +147,9 @@ export default function AdminUsers() {
       fetchUsers();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal membuat user');
+      const errMsg = err.response?.data?.message || 'Gagal membuat user';
+      setError(errMsg);
+      showError(errMsg, 'Gagal Membuat User');
     }
   };
 
@@ -151,10 +178,13 @@ export default function AdminUsers() {
     try {
       await apiClient.delete(`/users/${id}`);
       setSuccess('User berhasil dihapus!');
+      showSuccess('User berhasil dihapus dari sistem!', 'Berhasil');
       fetchUsers();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal menghapus user');
+      const errMsg = err.response?.data?.message || 'Gagal menghapus user';
+      setError(errMsg);
+      showError(errMsg, 'Gagal Hapus');
     }
   };
 
@@ -163,9 +193,12 @@ export default function AdminUsers() {
       await apiClient.put(`/users/${user.id}`, {
         is_active: !user.is_active
       });
+      showSuccess(`User ${user.is_active ? 'dinonaktifkan' : 'diaktifkan'}!`, 'Berhasil');
       fetchUsers();
     } catch (err) {
-      setError('Gagal mengubah status user');
+      const errMsg = 'Gagal mengubah status user';
+      setError(errMsg);
+      showError(errMsg, 'Error');
     }
   };
 
@@ -374,34 +407,34 @@ export default function AdminUsers() {
       label: 'Aksi',
       sortable: false,
       render: (_, user) => (
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => handleViewTransactions(user)}
-            className="p-2 text-purple-600 hover:bg-purple-50 rounded"
+            className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
             title="Lihat Transaksi"
           >
-            <FaShoppingBag />
+            <FaShoppingBag size={16} />
           </button>
           <button
             onClick={() => handleViewAddresses(user)}
-            className="p-2 text-green-600 hover:bg-green-50 rounded"
+            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
             title="Kelola Alamat"
           >
-            <FaMapMarkerAlt />
+            <FaMapMarkerAlt size={16} />
           </button>
           <button
             onClick={() => handleEdit(user)}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             title="Edit"
           >
-            <FaUserEdit />
+            <FaUserEdit size={16} />
           </button>
           <button
             onClick={() => handleDelete(user.id)}
-            className="p-2 text-red-600 hover:bg-red-50 rounded"
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title="Hapus"
           >
-            <FaTrash />
+            <FaTrash size={16} />
           </button>
         </div>
       )
@@ -484,120 +517,218 @@ export default function AdminUsers() {
     </div>
   );
 
+  // Calculate stats
+  const totalUsers = users.length;
+  const activeUsers = users.filter(u => u.is_active).length;
+  const adminUsers = users.filter(u => u.role === 'admin').length;
+  const staffUsers = users.filter(u => u.role === 'staff').length;
+  const customerUsers = users.filter(u => u.role === 'customer').length;
+
   return (
-    <div className="p-4 lg:p-6">
+    <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
+      {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">Manajemen User</h1>
-          <p className="text-gray-600">Kelola pengguna aplikasi</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <FaUsers className="text-blue-600" />
+            </div>
+            Manajemen User
+          </h1>
+          <p className="text-gray-500 mt-1">Kelola pengguna dan hak akses aplikasi</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105"
         >
           <FaPlus /> Tambah User
         </button>
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total User</p>
+              <p className="text-2xl font-bold text-gray-800">{totalUsers}</p>
+            </div>
+            <div className="p-3 bg-blue-100 rounded-full">
+              <FaUsers className="text-blue-600 text-xl" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Aktif</p>
+              <p className="text-2xl font-bold text-green-600">{activeUsers}</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-full">
+              <FaUserCheck className="text-green-600 text-xl" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Admin</p>
+              <p className="text-2xl font-bold text-red-600">{adminUsers}</p>
+            </div>
+            <div className="p-3 bg-red-100 rounded-full">
+              <FaUserShield className="text-red-600 text-xl" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-indigo-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Staff</p>
+              <p className="text-2xl font-bold text-indigo-600">{staffUsers}</p>
+            </div>
+            <div className="p-3 bg-indigo-100 rounded-full">
+              <FaUserTie className="text-indigo-600 text-xl" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-gray-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Customer</p>
+              <p className="text-2xl font-bold text-gray-600">{customerUsers}</p>
+            </div>
+            <div className="p-3 bg-gray-100 rounded-full">
+              <FaUser className="text-gray-600 text-xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {error && (
-        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded flex justify-between items-center">
-          {error}
-          <button onClick={() => setError('')}><FaTimes /></button>
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex justify-between items-center">
+          <span className="flex items-center gap-2">
+            <FaTimes className="text-red-500" /> {error}
+          </span>
+          <button onClick={() => setError('')} className="p-1 hover:bg-red-100 rounded">
+            <FaTimes />
+          </button>
         </div>
       )}
 
       {success && (
-        <div className="mb-4 p-4 bg-green-100 text-green-700 rounded flex justify-between items-center">
-          {success}
-          <button onClick={() => setSuccess('')}><FaTimes /></button>
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg flex justify-between items-center">
+          <span className="flex items-center gap-2">
+            <FaUserCheck className="text-green-500" /> {success}
+          </span>
+          <button onClick={() => setSuccess('')} className="p-1 hover:bg-green-100 rounded">
+            <FaTimes />
+          </button>
         </div>
       )}
 
-      {/* Filter */}
-      <div className="bg-white rounded-lg shadow p-4 mb-4">
+      {/* Filter Section */}
+      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <FaFilter className="text-gray-400" />
+          <span className="font-medium text-gray-700">Filter</span>
+        </div>
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 sm:max-w-xs">
-            <label className="block text-sm font-medium mb-1">Filter Role</label>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Role</label>
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 transition-colors"
             >
               <option value="">Semua Role</option>
-              <option value="admin">Admin</option>
-              <option value="staff">Staff</option>
-              <option value="customer">Customer</option>
+              <option value="admin">🛡️ Admin</option>
+              <option value="staff">👔 Staff</option>
+              <option value="customer">👤 Customer</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* DataTable */}
-      <DataTable
-        columns={columns}
-        data={users}
-        loading={loading}
-        renderMobileCard={renderMobileCard}
-        searchable={true}
-        searchPlaceholder="Cari nama, email..."
-        defaultPageSize={10}
-        emptyMessage="Tidak ada user ditemukan"
-      />
+      {/* DataTable with improved styling */}
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <DataTable
+          columns={columns}
+          data={users}
+          loading={loading}
+          renderMobileCard={renderMobileCard}
+          searchable={true}
+          searchPlaceholder="🔍 Cari nama, email..."
+          defaultPageSize={10}
+          emptyMessage="Tidak ada user ditemukan"
+        />
+      </div>
 
       {/* Edit Modal */}
       {showModal && editingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 transform transition-all">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Edit User</h2>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <FaUserEdit className="text-blue-600" /> Edit User
+              </h2>
               <button 
                 onClick={() => setShowModal(false)} 
-                className="p-2 hover:bg-gray-100 rounded"
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <FaTimes />
+                <FaTimes className="text-gray-500" />
               </button>
             </div>
 
-            <div className="mb-4 p-3 bg-gray-50 rounded">
-              <p className="font-semibold">{editingUser.full_name || 'No Name'}</p>
-              <p className="text-sm text-gray-500">{editingUser.email}</p>
+            <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white rounded-full shadow-sm">
+                  {getRoleIcon(editingUser.role)}
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-800">{editingUser.full_name || 'No Name'}</p>
+                  <p className="text-sm text-gray-500">{editingUser.email}</p>
+                </div>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Role</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
                   >
-                    <option value="customer">Customer</option>
-                    <option value="staff">Staff</option>
-                    <option value="admin">Admin</option>
+                    <option value="customer">👤 Customer</option>
+                    <option value="staff">👔 Staff</option>
+                    <option value="admin">🛡️ Admin</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Diskon Member (%)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Diskon Member (%)</label>
                   <input
                     type="number"
                     min="0"
                     max="100"
                     value={formData.member_discount}
                     onChange={(e) => setFormData({ ...formData, member_discount: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
                   />
                 </div>
 
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-3 cursor-pointer p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                   <input
                     type="checkbox"
                     checked={formData.is_active}
                     onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="rounded text-blue-600"
+                    className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500"
                   />
-                  <span>User Aktif</span>
+                  <div>
+                    <span className="font-medium text-gray-700">Status Aktif</span>
+                    <p className="text-xs text-gray-500">User dapat login ke sistem</p>
+                  </div>
                 </label>
               </div>
 
@@ -605,15 +736,15 @@ export default function AdminUsers() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 font-medium text-gray-700 transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium shadow-lg shadow-blue-500/30 transition-all"
                 >
-                  Simpan
+                  Simpan Perubahan
                 </button>
               </div>
             </form>
@@ -877,100 +1008,116 @@ export default function AdminUsers() {
 
       {/* Create User Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Tambah User Baru</h2>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 transform transition-all">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FaPlus className="text-blue-600" />
+                </div>
+                Tambah User Baru
+              </h2>
               <button 
                 onClick={() => setShowCreateModal(false)} 
-                className="p-2 hover:bg-gray-100 rounded"
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <FaTimes />
+                <FaTimes className="text-gray-500" />
               </button>
             </div>
 
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Nama Lengkap *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nama Lengkap <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   value={createFormData.full_name}
                   onChange={(e) => setCreateFormData({ ...createFormData, full_name: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                  placeholder="Masukkan nama lengkap"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Email *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="email"
                   value={createFormData.email}
                   onChange={(e) => setCreateFormData({ ...createFormData, email: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                  placeholder="email@example.com"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Password *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password <span className="text-red-500">*</span>
+                  <span className="text-xs text-gray-400 ml-1">(minimal 6 karakter)</span>
+                </label>
                 <input
                   type="password"
                   value={createFormData.password}
                   onChange={(e) => setCreateFormData({ ...createFormData, password: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                  placeholder="Minimal 6 karakter"
                   required
                   minLength={6}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">No. Telepon</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">No. Telepon</label>
                 <input
                   type="tel"
                   value={createFormData.phone}
                   onChange={(e) => setCreateFormData({ ...createFormData, phone: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                  placeholder="08xxxxxxxxxx"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Role</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
                   <select
                     value={createFormData.role}
                     onChange={(e) => setCreateFormData({ ...createFormData, role: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
                   >
-                    <option value="customer">Customer</option>
-                    <option value="staff">Staff</option>
-                    <option value="admin">Admin</option>
+                    <option value="customer">👤 Customer</option>
+                    <option value="staff">👔 Staff</option>
+                    <option value="admin">🛡️ Admin</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Diskon Member (%)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Diskon Member (%)</label>
                   <input
                     type="number"
                     min="0"
                     max="100"
                     value={createFormData.member_discount}
                     onChange={(e) => setCreateFormData({ ...createFormData, member_discount: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-4 border-t mt-4">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 font-medium text-gray-700 transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium shadow-lg shadow-blue-500/30 transition-all"
                 >
                   Buat User
                 </button>
@@ -982,15 +1129,17 @@ export default function AdminUsers() {
 
       {/* Transaction Modal */}
       {showTransactionModal && transactionUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b flex justify-between items-center bg-gradient-to-r from-purple-50 to-indigo-50">
               <div>
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <FaShoppingBag className="text-purple-600" />
+                <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <FaShoppingBag className="text-purple-600" />
+                  </div>
                   Riwayat Transaksi
                 </h2>
-                <p className="text-sm text-gray-600">{transactionUser.full_name} ({transactionUser.email})</p>
+                <p className="text-sm text-gray-600 mt-1">{transactionUser.full_name} ({transactionUser.email})</p>
               </div>
               <button 
                 onClick={() => {
@@ -999,7 +1148,7 @@ export default function AdminUsers() {
                   setUserOrders([]);
                   setUserStats(null);
                 }} 
-                className="p-2 hover:bg-gray-200 rounded"
+                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
               >
                 <FaTimes />
               </button>

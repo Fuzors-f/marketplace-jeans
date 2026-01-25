@@ -179,7 +179,7 @@ exports.login = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const users = await query(
-      'SELECT id, email, full_name, phone, role, is_active, member_discount, created_at FROM users WHERE id = ?',
+      'SELECT id, email, full_name, phone, profile_picture, role, is_active, member_discount, created_at FROM users WHERE id = ?',
       [req.user.id]
     );
 
@@ -314,6 +314,42 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error changing password',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Upload profile picture
+// @route   POST /api/auth/profile-picture
+// @access  Private
+exports.uploadProfilePicture = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const imageUrl = `/uploads/users/${req.file.filename}`;
+
+    // Update user profile picture
+    await query('UPDATE users SET profile_picture = ? WHERE id = ?', [imageUrl, userId]);
+
+    await logActivity(userId, 'update_profile_picture', 'user', userId, 'User updated profile picture', req);
+
+    res.json({
+      success: true,
+      message: 'Profile picture updated successfully',
+      data: { profile_picture: imageUrl }
+    });
+  } catch (error) {
+    console.error('Upload profile picture error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading profile picture',
       error: error.message
     });
   }

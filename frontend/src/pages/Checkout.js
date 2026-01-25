@@ -49,6 +49,9 @@ const Checkout = () => {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [useNewAddress, setUseNewAddress] = useState(false);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [saveNewAddress, setSaveNewAddress] = useState(true); // Auto-save new address
+  const [addressLabel, setAddressLabel] = useState('Rumah');
+  const [savingAddress, setSavingAddress] = useState(false);
 
   // Shipping state (no warehouse selection - handled by admin)
   const [searchCity, setSearchCity] = useState('');
@@ -308,48 +311,69 @@ const Checkout = () => {
     }
   };
 
+  // Save new address to user's address book
+  const saveAddressToBook = async () => {
+    if (!isAuthenticated || !user?.id) return null;
+    
+    try {
+      setSavingAddress(true);
+      const addressData = {
+        address_label: addressLabel || 'Alamat Baru',
+        recipient_name: user?.name || user?.full_name || '',
+        phone: userForm.phone,
+        address: userForm.address,
+        city: userForm.city,
+        province: userForm.province,
+        postal_code: userForm.postal_code,
+        country: 'Indonesia',
+        is_default: savedAddresses.length === 0 // Set as default if no existing addresses
+      };
+
+      const response = await apiClient.post('/addresses', addressData);
+      
+      // Refresh saved addresses
+      const addressesRes = await apiClient.get('/addresses');
+      setSavedAddresses(addressesRes.data.data || []);
+      
+      return response.data.data;
+    } catch (err) {
+      console.error('Error saving address:', err);
+      return null;
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
   const validateGuestForm = () => {
     const { email, phone, full_name, address, city, province, postal_code } = guestForm;
+    const errors = [];
     
-    if (!email) {
-      setError('Email harus diisi');
-      return false;
-    }
-    if (!phone) {
-      setError('Nomor telepon harus diisi');
-      return false;
-    }
-    if (!full_name) {
-      setError('Nama lengkap harus diisi');
-      return false;
-    }
-    if (!address) {
-      setError('Alamat lengkap harus diisi');
-      return false;
-    }
-    if (!city) {
-      setError('Kota harus diisi');
-      return false;
-    }
-    if (!province) {
-      setError('Provinsi harus diisi');
-      return false;
-    }
-    if (!postal_code) {
-      setError('Kode pos harus diisi');
-      return false;
+    if (!email) errors.push('Email harus diisi');
+    if (!phone) errors.push('Nomor telepon harus diisi');
+    if (!full_name) errors.push('Nama lengkap harus diisi');
+    if (!address) errors.push('Alamat lengkap harus diisi');
+    if (!city) errors.push('Kota harus dipilih');
+    if (!province) errors.push('Provinsi harus diisi');
+    if (!postal_code) errors.push('Kode pos harus diisi');
+    
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        errors.push('Format email tidak valid');
+      }
     }
     
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('Email tidak valid');
-      return false;
+    if (phone) {
+      const phoneRegex = /^[0-9+\-\s()]{8,20}$/;
+      if (!phoneRegex.test(phone)) {
+        errors.push('Format nomor telepon tidak valid');
+      }
     }
     
-    // Phone validation
-    const phoneRegex = /^[0-9+\-\s()]{8,20}$/;
-    if (!phoneRegex.test(phone)) {
-      setError('Nomor telepon tidak valid');
+    if (errors.length > 0) {
+      const errorMessage = errors.join('\n• ');
+      setError('• ' + errorMessage);
+      showError('Data belum lengkap:\n• ' + errorMessage, 'Lengkapi Data');
       return false;
     }
     
@@ -358,25 +382,18 @@ const Checkout = () => {
 
   const validateUserForm = () => {
     const { phone, address, city, province, postal_code } = userForm;
+    const errors = [];
     
-    if (!phone) {
-      setError('Nomor telepon harus diisi');
-      return false;
-    }
-    if (!address) {
-      setError('Alamat harus diisi');
-      return false;
-    }
-    if (!city) {
-      setError('Kota harus diisi');
-      return false;
-    }
-    if (!province) {
-      setError('Provinsi harus diisi');
-      return false;
-    }
-    if (!postal_code) {
-      setError('Kode pos harus diisi');
+    if (!phone) errors.push('Nomor telepon harus diisi');
+    if (!address) errors.push('Alamat lengkap harus diisi');
+    if (!city) errors.push('Kota harus dipilih');
+    if (!province) errors.push('Provinsi harus diisi');
+    if (!postal_code) errors.push('Kode pos harus diisi');
+    
+    if (errors.length > 0) {
+      const errorMessage = errors.join('\n• ');
+      setError('• ' + errorMessage);
+      showError('Data belum lengkap:\n• ' + errorMessage, 'Lengkapi Data');
       return false;
     }
     
@@ -493,6 +510,11 @@ const Checkout = () => {
           return;
         }
 
+        // Save new address if option selected and using new address
+        if (saveNewAddress && (useNewAddress || savedAddresses.length === 0)) {
+          await saveAddressToBook();
+        }
+
         // Create user order
         const orderData = {
           shipping_address: {
@@ -522,6 +544,7 @@ const Checkout = () => {
         const response = await apiClient.post('/orders', orderData);
         
         setSuccessMessage('Order berhasil dibuat! Silakan lanjut ke pembayaran.');
+        showSuccess('Order berhasil dibuat! Silakan lanjut ke pembayaran.', 'Berhasil');
         setTimeout(() => {
           navigate(`/orders/${response.data.data.id}`, { 
             state: { orderId: response.data.data.id, isGuest: false } 
@@ -529,7 +552,9 @@ const Checkout = () => {
         }, 2000);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal membuat order');
+      const errMsg = err.response?.data?.message || 'Gagal membuat order';
+      setError(errMsg);
+      showError(errMsg, 'Gagal Checkout');
       console.error(err);
     } finally {
       setLoading(false);
@@ -620,37 +645,46 @@ const Checkout = () => {
                   {isGuest && (
                     <>
                       <div className="mb-4">
-                        <label className="block text-sm font-semibold mb-2">Email *</label>
+                        <label className="block text-sm font-semibold mb-2">
+                          Email <span className="text-red-500">*</span>
+                        </label>
                         <input
                           type="email"
                           name="email"
                           value={guestForm.email}
                           onChange={handleGuestChange}
                           required
+                          placeholder="email@example.com"
                           className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                         />
                       </div>
 
                       <div className="mb-4">
-                        <label className="block text-sm font-semibold mb-2">Nama Lengkap *</label>
+                        <label className="block text-sm font-semibold mb-2">
+                          Nama Lengkap <span className="text-red-500">*</span>
+                        </label>
                         <input
                           type="text"
                           name="full_name"
                           value={guestForm.full_name}
                           onChange={handleGuestChange}
                           required
+                          placeholder="Nama penerima"
                           className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                         />
                       </div>
 
                       <div className="mb-4">
-                        <label className="block text-sm font-semibold mb-2">No. Telepon *</label>
+                        <label className="block text-sm font-semibold mb-2">
+                          No. Telepon <span className="text-red-500">*</span>
+                        </label>
                         <input
                           type="tel"
                           name="phone"
                           value={guestForm.phone}
                           onChange={handleGuestChange}
                           required
+                          placeholder="08xxxxxxxxxx"
                           className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                         />
                       </div>
@@ -674,7 +708,47 @@ const Checkout = () => {
                           <div className="animate-spin h-6 w-6 border-2 border-gray-500 border-t-transparent rounded-full mx-auto"></div>
                           <p className="text-sm text-gray-500 mt-2">Memuat alamat tersimpan...</p>
                         </div>
-                      ) : savedAddresses.length > 0 && (
+                      ) : savedAddresses.length === 0 ? (
+                        // No saved addresses - show message and form to add new address
+                        <div className="mb-4">
+                          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+                            <p className="text-sm text-yellow-800">
+                              <strong>Belum ada alamat tersimpan.</strong><br/>
+                              Silakan isi alamat pengiriman di bawah. Alamat akan otomatis disimpan untuk order berikutnya.
+                            </p>
+                          </div>
+                          {/* Address Label */}
+                          <div className="mb-4">
+                            <label className="block text-sm font-semibold mb-2">Label Alamat</label>
+                            <select
+                              value={addressLabel}
+                              onChange={(e) => setAddressLabel(e.target.value)}
+                              className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                            >
+                              <option value="Rumah">Rumah</option>
+                              <option value="Kantor">Kantor</option>
+                              <option value="Apartemen">Apartemen</option>
+                              <option value="Kos">Kos</option>
+                              <option value="Lainnya">Lainnya</option>
+                            </select>
+                          </div>
+                          {/* Phone Number */}
+                          <div className="mb-4">
+                            <label className="block text-sm font-semibold mb-2">
+                              No. Telepon Penerima <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="tel"
+                              name="phone"
+                              value={userForm.phone}
+                              onChange={handleUserChange}
+                              required
+                              placeholder="08xxxxxxxxxx"
+                              className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                            />
+                          </div>
+                        </div>
+                      ) : (
                         <div className="mb-4">
                           <label className="block text-sm font-semibold mb-2">Pilih Alamat Pengiriman</label>
                           <div className="space-y-2">
@@ -736,15 +810,64 @@ const Checkout = () => {
                     </>
                   )}
 
+                  {/* New Address Fields when using new address (for users with existing addresses) */}
+                  {isAuthenticated && useNewAddress && savedAddresses.length > 0 && (
+                    <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <h4 className="font-semibold mb-3">Detail Alamat Baru</h4>
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <label className="block text-sm font-semibold mb-2">Label Alamat</label>
+                          <select
+                            value={addressLabel}
+                            onChange={(e) => setAddressLabel(e.target.value)}
+                            className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                          >
+                            <option value="Rumah">Rumah</option>
+                            <option value="Kantor">Kantor</option>
+                            <option value="Apartemen">Apartemen</option>
+                            <option value="Kos">Kos</option>
+                            <option value="Lainnya">Lainnya</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold mb-2">
+                            No. Telepon <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="tel"
+                            name="phone"
+                            value={userForm.phone}
+                            onChange={handleUserChange}
+                            required
+                            placeholder="08xxxxxxxxxx"
+                            className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                          />
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={saveNewAddress}
+                          onChange={(e) => setSaveNewAddress(e.target.checked)}
+                          className="accent-black"
+                        />
+                        <span className="text-sm">Simpan alamat untuk order berikutnya</span>
+                      </label>
+                    </div>
+                  )}
+
                   {isGuest && (
                     <div className="mb-4">
-                      <label className="block text-sm font-semibold mb-2">Alamat *</label>
+                      <label className="block text-sm font-semibold mb-2">
+                        Alamat Lengkap <span className="text-red-500">*</span>
+                      </label>
                       <textarea
                         name="address"
                         value={guestForm.address}
                         onChange={handleGuestChange}
                         required
                         rows="3"
+                        placeholder="Nama jalan, nomor rumah, RT/RW, kelurahan, kecamatan"
                         className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                       />
                     </div>
@@ -752,14 +875,16 @@ const Checkout = () => {
 
                   {!isGuest && (useNewAddress || savedAddresses.length === 0) && (
                     <div className="mb-4">
-                      <label className="block text-sm font-semibold mb-2">Alamat Lengkap *</label>
+                      <label className="block text-sm font-semibold mb-2">
+                        Alamat Lengkap <span className="text-red-500">*</span>
+                      </label>
                       <textarea
                         name="address"
                         value={userForm.address}
                         onChange={handleUserChange}
                         required
                         rows="3"
-                        placeholder="Masukkan alamat lengkap..."
+                        placeholder="Nama jalan, nomor rumah, RT/RW, kelurahan, kecamatan"
                         className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                       />
                     </div>
@@ -768,7 +893,9 @@ const Checkout = () => {
                   {/* City Search with autocomplete - show for guest or new address */}
                   {(isGuest || useNewAddress || savedAddresses.length === 0) && (
                     <div className="mb-4">
-                      <label className="block text-sm font-semibold mb-2">Kota Tujuan *</label>
+                      <label className="block text-sm font-semibold mb-2">
+                        Kota Tujuan <span className="text-red-500">*</span>
+                      </label>
                       {!selectedCity ? (
                         <div className="relative">
                           <input
@@ -824,13 +951,16 @@ const Checkout = () => {
                   {(isGuest || useNewAddress || savedAddresses.length === 0) && (
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
-                        <label className="block text-sm font-semibold mb-2">Kode Pos *</label>
+                        <label className="block text-sm font-semibold mb-2">
+                          Kode Pos <span className="text-red-500">*</span>
+                        </label>
                         <input
                           type="text"
                           name="postal_code"
                           value={isGuest ? guestForm.postal_code : userForm.postal_code}
                           onChange={isGuest ? handleGuestChange : handleUserChange}
                           required
+                          placeholder="12345"
                           className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                         />
                       </div>

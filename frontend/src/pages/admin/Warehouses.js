@@ -214,20 +214,20 @@ const Warehouses = () => {
                 <p className="text-sm text-gray-500 mt-2 mb-3">{warehouse.description}</p>
               )}
 
-              <div className="flex items-center justify-end pt-3 border-t gap-2">
+              <div className="flex items-center justify-end pt-3 border-t gap-1">
                 <button
                   onClick={() => handleOpenModal(warehouse)}
-                  className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                   title="Edit"
                 >
-                  <FaEdit />
+                  <FaEdit size={16} />
                 </button>
                 <button
                   onClick={() => handleDelete(warehouse.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded"
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   title="Hapus"
                 >
-                  <FaTrash />
+                  <FaTrash size={16} />
                 </button>
               </div>
             </div>

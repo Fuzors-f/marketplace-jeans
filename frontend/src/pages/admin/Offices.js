@@ -210,7 +210,7 @@ const Offices = () => {
                 }`}>
                   {office.is_active ? 'Aktif' : 'Nonaktif'}
                 </span>
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                   <button
                     onClick={() => openModal(office)}
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
 import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../../utils/imageUtils';
+import { ActionButtonsContainer, EditButton, DeleteButton, StatsButton } from '../../components/admin/ActionButtons';
 import { useAlert } from '../../utils/AlertContext';
 
 const AdminProducts = () => {
@@ -1024,25 +1025,12 @@ const AdminProducts = () => {
                         </span>
                       </td>
                       <td className="px-4 lg:px-6 py-4 text-center whitespace-nowrap">
-                        <div className="flex justify-center gap-2">
-                          <button
-                            onClick={() => handleManageVariants(product)}
-                            className="text-purple-600 hover:underline text-sm"
-                          >
-                            Varian
-                          </button>
-                          <button
-                            onClick={() => handleEdit(product)}
-                            className="text-blue-600 hover:underline text-sm"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(product.id)}
-                            className="text-red-600 hover:underline text-sm"
-                          >
-                            Hapus
-                          </button>
+                        <div className="flex justify-center">
+                          <ActionButtonsContainer>
+                            <StatsButton onClick={() => handleManageVariants(product)} title="Kelola Varian" />
+                            <EditButton onClick={() => handleEdit(product)} />
+                            <DeleteButton onClick={() => handleDelete(product.id)} />
+                          </ActionButtonsContainer>
                         </div>
                       </td>
                     </tr>

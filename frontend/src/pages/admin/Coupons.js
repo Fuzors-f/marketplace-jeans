@@ -280,34 +280,34 @@ const AdminCoupons = () => {
       key: 'actions',
       label: 'Aksi',
       render: (_, coupon) => (
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => handleViewDetail(coupon)}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
             title="Detail"
           >
-            <FaChartBar />
+            <FaChartBar size={16} />
           </button>
           <button
             onClick={() => handleOpenModal(coupon)}
-            className="p-2 text-green-600 hover:bg-green-50 rounded"
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             title="Edit"
           >
-            <FaEdit />
+            <FaEdit size={16} />
           </button>
           <button
             onClick={() => handleToggleStatus(coupon)}
-            className={`p-2 rounded ${coupon.is_active ? 'text-yellow-600 hover:bg-yellow-50' : 'text-green-600 hover:bg-green-50'}`}
+            className={`p-2 rounded-lg transition-colors ${coupon.is_active ? 'text-yellow-600 hover:bg-yellow-50' : 'text-green-600 hover:bg-green-50'}`}
             title={coupon.is_active ? 'Nonaktifkan' : 'Aktifkan'}
           >
-            {coupon.is_active ? <FaTimesCircle /> : <FaCheckCircle />}
+            {coupon.is_active ? <FaTimesCircle size={16} /> : <FaCheckCircle size={16} />}
           </button>
           <button
             onClick={() => handleDelete(coupon.id)}
-            className="p-2 text-red-600 hover:bg-red-50 rounded"
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title="Hapus"
           >
-            <FaTrash />
+            <FaTrash size={16} />
           </button>
         </div>
       )
