@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchCart } from '../redux/slices/cartSlice';
 import { logout } from '../redux/slices/authSlice';
 import { useLanguage, LanguageSwitcher } from '../utils/i18n';
+import { useSettings } from '../utils/SettingsContext';
 
 const MainLayoutNew = () => {
   const dispatch = useDispatch();
@@ -12,10 +13,21 @@ const MainLayoutNew = () => {
   const { items } = useSelector((state) => state.cart);
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const { t } = useLanguage();
+  const { getSetting, getSettingImageUrl } = useSettings();
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openMegaMenu, setOpenMegaMenu] = useState(null);
   const [mobileSubmenu, setMobileSubmenu] = useState(null);
+
+  // Get settings
+  const siteName = getSetting('site_name', 'JEANS');
+  const siteLogo = getSettingImageUrl('site_logo');
+  const contactEmail = getSetting('contact_email', 'info@jeans.com');
+  const contactPhone = getSetting('contact_phone', '+62 812 3456 7890');
+  const contactAddress = getSetting('contact_address', 'Jakarta, Indonesia');
+  const facebookUrl = getSetting('social_facebook', 'https://facebook.com');
+  const instagramUrl = getSetting('social_instagram', 'https://instagram.com');
+  const youtubeUrl = getSetting('social_youtube', 'https://youtube.com');
 
   useEffect(() => {
     dispatch(fetchCart());
@@ -126,7 +138,11 @@ const MainLayoutNew = () => {
 
             {/* Logo */}
             <Link to="/" className="text-xl sm:text-2xl md:text-3xl font-bold text-black uppercase tracking-wider">
-              JEANS<span className="text-red-600">®</span>
+              {siteLogo ? (
+                <img src={siteLogo} alt={siteName} className="h-8 sm:h-10 md:h-12 object-contain" />
+              ) : (
+                <>{siteName}<span className="text-red-600">®</span></>
+              )}
             </Link>
 
             {/* Desktop Navigation */}
@@ -585,7 +601,7 @@ const MainLayoutNew = () => {
               <h3 className="font-bold mb-3 sm:mb-4 uppercase tracking-wider text-sm sm:text-base">{t('followUs').toUpperCase()}</h3>
               <div className="flex space-x-4">
                 <a
-                  href="https://instagram.com"
+                  href={instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-gray-400 transition p-1"
@@ -595,7 +611,7 @@ const MainLayoutNew = () => {
                   </svg>
                 </a>
                 <a
-                  href="https://facebook.com"
+                  href={facebookUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-gray-400 transition p-1"
@@ -605,7 +621,7 @@ const MainLayoutNew = () => {
                   </svg>
                 </a>
                 <a
-                  href="https://youtube.com"
+                  href={youtubeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-gray-400 transition p-1"
@@ -621,7 +637,7 @@ const MainLayoutNew = () => {
           {/* Bottom Bar */}
           <div className="border-t border-gray-700 pt-6 sm:pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center text-xs sm:text-sm text-gray-400 gap-4">
-              <p className="text-center md:text-left">© 2025 Marketplace Jeans. All rights reserved.</p>
+              <p className="text-center md:text-left">© 2025 {siteName}. All rights reserved.</p>
               <div className="flex flex-wrap justify-center gap-x-4 gap-y-1">
                 <Link to="/pages/privacy" className="hover:text-white">
                   {t('privacyPolicy')}

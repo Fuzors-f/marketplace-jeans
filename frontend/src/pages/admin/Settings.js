@@ -5,6 +5,7 @@ import {
   Facebook, Instagram, Twitter, Youtube, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { settingsAPI } from '../../services/api';
+import { useSettings } from '../../utils/SettingsContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -18,8 +19,10 @@ const settingGroups = [
 ];
 
 export default function AdminSettings() {
+  const { refreshSettings: refreshGlobalSettings } = useSettings();
   const [activeGroup, setActiveGroup] = useState('site');
   const [settings, setSettings] = useState({});
+  const [imagePreviews, setImagePreviews] = useState({}); // For local preview before save
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -80,6 +83,10 @@ export default function AdminSettings() {
       const response = await settingsAPI.bulkUpdate(settings);
       if (response.data.success) {
         setMessage({ type: 'success', text: 'Pengaturan berhasil disimpan' });
+        // Refresh global settings context
+        refreshGlobalSettings();
+        // Clear local previews since settings are saved
+        setImagePreviews({});
       }
     } catch (error) {
       setMessage({ 
@@ -93,15 +100,28 @@ export default function AdminSettings() {
 
   const handleImageUpload = async (file, settingKey) => {
     try {
+      // Create local preview first
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviews(prev => ({ ...prev, [settingKey]: reader.result }));
+      };
+      reader.readAsDataURL(file);
+
       const formData = new FormData();
       formData.append('image', file);
       
       const response = await settingsAPI.uploadImage(formData);
       if (response.data.success) {
         handleChange(settingKey, response.data.data.url);
-        setMessage({ type: 'success', text: 'Gambar berhasil diunggah' });
+        setMessage({ type: 'success', text: 'Gambar berhasil diunggah. Klik "Simpan Semua" untuk menyimpan perubahan.' });
       }
     } catch (error) {
+      // Clear preview on error
+      setImagePreviews(prev => {
+        const newPreviews = { ...prev };
+        delete newPreviews[settingKey];
+        return newPreviews;
+      });
       setMessage({ 
         type: 'error', 
         text: error.response?.data?.message || 'Gagal mengunggah gambar' 
@@ -166,20 +186,30 @@ export default function AdminSettings() {
 
     if (type === 'image') {
       const inputRef = key === 'site_logo' ? logoInputRef : faviconInputRef;
+      // Check for local preview first, then saved value
+      const previewUrl = imagePreviews[key];
+      const savedUrl = value ? `${API_BASE_URL}${value}` : null;
+      const displayUrl = previewUrl || savedUrl;
+      
       return (
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 border rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden">
-              {value ? (
+              {displayUrl ? (
                 <img 
-                  src={`${API_BASE_URL}${value}`} 
+                  src={displayUrl} 
                   alt={label} 
                   className="max-w-full max-h-full object-contain"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
                 />
-              ) : (
+              ) : null}
+              <div className={`flex items-center justify-center ${displayUrl ? 'hidden' : ''}`} style={{ display: displayUrl ? 'none' : 'flex' }}>
                 <Image size={32} className="text-gray-300" />
-              )}
+              </div>
             </div>
             <div>
               <input
@@ -206,6 +236,7 @@ export default function AdminSettings() {
                 }}
               />
               {helpText && <p className="text-xs text-gray-500 mt-1">{helpText}</p>}
+              {previewUrl && <p className="text-xs text-orange-500 mt-1">Preview - belum disimpan</p>}
             </div>
           </div>
         </div>

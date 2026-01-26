@@ -11,6 +11,8 @@ import App from './App';
 import { store, persistor } from './redux/store';
 import { LanguageProvider } from './utils/i18n';
 import { AlertProvider } from './utils/AlertContext';
+import { SettingsProvider } from './utils/SettingsContext';
+import { PermissionProvider } from './utils/PermissionContext';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -18,24 +20,28 @@ root.render(
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <HelmetProvider>
-          <LanguageProvider>
-            <AlertProvider>
-              <BrowserRouter>
-                <App />
-                <ToastContainer
-                  position="top-right"
-                  autoClose={3000}
-                  hideProgressBar={false}
-                  newestOnTop={false}
-                  closeOnClick
-                  rtl={false}
-                  pauseOnFocusLoss
-                  draggable
-                  pauseOnHover
-                />
-              </BrowserRouter>
-            </AlertProvider>
-          </LanguageProvider>
+          <SettingsProvider>
+            <PermissionProvider>
+              <LanguageProvider>
+                <AlertProvider>
+                  <BrowserRouter>
+                    <App />
+                    <ToastContainer
+                      position="top-right"
+                      autoClose={3000}
+                      hideProgressBar={false}
+                      newestOnTop={false}
+                      closeOnClick
+                      rtl={false}
+                      pauseOnFocusLoss
+                      draggable
+                      pauseOnHover
+                    />
+                  </BrowserRouter>
+                </AlertProvider>
+              </LanguageProvider>
+            </PermissionProvider>
+          </SettingsProvider>
         </HelmetProvider>
       </PersistGate>
     </Provider>

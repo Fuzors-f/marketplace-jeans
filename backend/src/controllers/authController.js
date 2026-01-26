@@ -145,6 +145,26 @@ exports.login = async (req, res) => {
     // Generate token
     const token = generateToken(user.id);
 
+    // Get user permissions if admin
+    let permissions = [];
+    if (user.role === 'admin' || user.role === 'admin_stok') {
+      // Get permissions from user_roles and role_permissions
+      const userPermissions = await query(
+        `SELECT DISTINCT p.resource, p.action FROM permissions p
+         JOIN role_permissions rp ON p.id = rp.permission_id
+         JOIN user_roles ur ON rp.role_id = ur.role_id
+         WHERE ur.user_id = ?`,
+        [user.id]
+      );
+      permissions = userPermissions;
+      
+      // If user is admin role but has no specific permissions, give all permissions
+      if (user.role === 'admin' && permissions.length === 0) {
+        const allPermissions = await query('SELECT resource, action FROM permissions');
+        permissions = allPermissions;
+      }
+    }
+
     // Log activity
     await logActivity(user.id, 'login', 'user', user.id, 'User logged in', req);
 
@@ -158,7 +178,8 @@ exports.login = async (req, res) => {
           full_name: user.full_name,
           phone: user.phone,
           role: user.role,
-          member_discount: user.member_discount
+          member_discount: user.member_discount,
+          permissions: permissions
         },
         token
       }
@@ -190,9 +211,30 @@ exports.getMe = async (req, res) => {
       });
     }
 
+    const user = users[0];
+
+    // Get user permissions if admin
+    let permissions = [];
+    if (user.role === 'admin' || user.role === 'admin_stok') {
+      const userPermissions = await query(
+        `SELECT DISTINCT p.resource, p.action FROM permissions p
+         JOIN role_permissions rp ON p.id = rp.permission_id
+         JOIN user_roles ur ON rp.role_id = ur.role_id
+         WHERE ur.user_id = ?`,
+        [user.id]
+      );
+      permissions = userPermissions;
+      
+      // If user is admin role but has no specific permissions, give all permissions
+      if (user.role === 'admin' && permissions.length === 0) {
+        const allPermissions = await query('SELECT resource, action FROM permissions');
+        permissions = allPermissions;
+      }
+    }
+
     res.json({
       success: true,
-      data: users[0]
+      data: { ...user, permissions }
     });
   } catch (error) {
     console.error('Get me error:', error);

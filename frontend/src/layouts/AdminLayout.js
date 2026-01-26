@@ -9,11 +9,13 @@ import {
   FaTicketAlt
 } from 'react-icons/fa';
 import { logout } from '../redux/slices/authSlice';
+import { usePermissions } from '../utils/PermissionContext';
 
 const AdminLayout = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const { user } = useSelector((state) => state.auth);
+  const { hasPermission, canView, isAdmin } = usePermissions();
   const [openSubmenus, setOpenSubmenus] = useState(['master', 'inventory']);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -47,34 +49,32 @@ const AdminLayout = () => {
   };
 
   const menuItems = [
-    { path: '/admin', icon: FaHome, label: 'Dashboard' },
+    { path: '/admin', icon: FaHome, label: 'Dashboard', resource: 'dashboard' },
     { 
       key: 'master',
       icon: FaTable, 
       label: 'Master Data',
       children: [
-        { path: '/admin/products', icon: FaBox, label: 'Produk' },
-        { path: '/admin/products/import', icon: FaFileImport, label: 'Import Produk' },
-        { path: '/admin/categories', icon: FaTags, label: 'Kategori' },
-        { path: '/admin/fittings', icon: FaRuler, label: 'Fitting' },
-        { path: '/admin/sizes', icon: FaRuler, label: 'Ukuran' },
-        // { path: '/admin/size-chart', icon: FaRuler, label: 'Size Chart' },
-        { path: '/admin/banners', icon: FaImages, label: 'Banner' },
-        { path: '/admin/content', icon: FaGlobe, label: 'Konten Website' },
-        { path: '/admin/city-shipping', icon: FaTruck, label: 'Kota & Ongkir' },
+        { path: '/admin/products', icon: FaBox, label: 'Produk', resource: 'products' },
+        { path: '/admin/products/import', icon: FaFileImport, label: 'Import Produk', resource: 'products', action: 'import' },
+        { path: '/admin/categories', icon: FaTags, label: 'Kategori', resource: 'categories' },
+        { path: '/admin/fittings', icon: FaRuler, label: 'Fitting', resource: 'fittings' },
+        { path: '/admin/sizes', icon: FaRuler, label: 'Ukuran', resource: 'sizes' },
+        { path: '/admin/banners', icon: FaImages, label: 'Banner', resource: 'banners' },
+        { path: '/admin/content', icon: FaGlobe, label: 'Konten Website', resource: 'content' },
+        { path: '/admin/city-shipping', icon: FaTruck, label: 'Kota & Ongkir', resource: 'city_shipping' },
       ]
     },
-    { path: '/admin/orders', icon: FaShoppingBag, label: 'Pesanan' },
-    { path: '/admin/coupons', icon: FaTicketAlt, label: 'Kupon Diskon' },
+    { path: '/admin/orders', icon: FaShoppingBag, label: 'Pesanan', resource: 'orders' },
+    { path: '/admin/coupons', icon: FaTicketAlt, label: 'Kupon Diskon', resource: 'coupons' },
     { 
       key: 'inventory',
       icon: FaWarehouse, 
       label: 'Inventori',
       children: [
-        { path: '/admin/inventory', icon: FaBoxes, label: 'Stok Produk' },
-        { path: '/admin/warehouses', icon: FaWarehouse, label: 'Gudang' },
-        { path: '/admin/reports/inventory-movement', icon: FaArrowsAltH, label: 'Pergerakan Stok' },
-        // { path: '/admin/stock/opname', icon: FaClipboardList, label: 'Stock Opname' }, // DISABLED - Using variant-based inventory
+        { path: '/admin/inventory', icon: FaBoxes, label: 'Stok Produk', resource: 'inventory' },
+        { path: '/admin/warehouses', icon: FaWarehouse, label: 'Gudang', resource: 'warehouses' },
+        { path: '/admin/reports/inventory-movement', icon: FaArrowsAltH, label: 'Pergerakan Stok', resource: 'reports' },
       ]
     },
     { 
@@ -82,9 +82,9 @@ const AdminLayout = () => {
       icon: FaChartBar, 
       label: 'Laporan',
       children: [
-        { path: '/admin/reports', icon: FaChartBar, label: 'Dashboard Laporan' },
-        { path: '/admin/reports/sales', icon: FaMoneyBillWave, label: 'Laporan Penjualan' },
-        { path: '/admin/activity-logs', icon: FaHistory, label: 'Activity Logs' },
+        { path: '/admin/reports', icon: FaChartBar, label: 'Dashboard Laporan', resource: 'reports' },
+        { path: '/admin/reports/sales', icon: FaMoneyBillWave, label: 'Laporan Penjualan', resource: 'reports' },
+        { path: '/admin/activity-logs', icon: FaHistory, label: 'Activity Logs', resource: 'activity_logs' },
       ]
     },
     { 
@@ -93,24 +93,35 @@ const AdminLayout = () => {
       label: 'Pengguna',
       adminOnly: true,
       children: [
-        { path: '/admin/users', icon: FaUsers, label: 'Daftar User' },
-        { path: '/admin/roles', icon: FaUserShield, label: 'Role & Permission' },
+        { path: '/admin/users', icon: FaUsers, label: 'Daftar User', resource: 'users' },
+        { path: '/admin/roles', icon: FaUserShield, label: 'Role & Permission', resource: 'roles' },
       ]
     },
-    { path: '/admin/exchange-rates', icon: FaExchangeAlt, label: 'Kurs Mata Uang', adminOnly: true },
-    { path: '/admin/settings', icon: FaCog, label: 'Pengaturan', adminOnly: true },
+    { path: '/admin/exchange-rates', icon: FaExchangeAlt, label: 'Kurs Mata Uang', adminOnly: true, resource: 'exchange_rates' },
+    { path: '/admin/settings', icon: FaCog, label: 'Pengaturan', adminOnly: true, resource: 'settings' },
   ];
 
   const filterMenu = (items) => {
     return items.filter(item => {
+      // Admin role check
       if (item.adminOnly && user?.role !== 'admin') return false;
+      
+      // Permission check for menu items with resource
+      if (item.resource && !isAdmin) {
+        const action = item.action || 'view';
+        if (!hasPermission(item.resource, action)) return false;
+      }
+      
       return true;
     }).map(item => {
       if (item.children) {
-        return { ...item, children: filterMenu(item.children) };
+        const filteredChildren = filterMenu(item.children);
+        // Only show parent if it has visible children
+        if (filteredChildren.length === 0) return null;
+        return { ...item, children: filteredChildren };
       }
       return item;
-    });
+    }).filter(Boolean); // Remove null entries
   };
 
   const filteredMenu = filterMenu(menuItems);
