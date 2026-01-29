@@ -4,11 +4,13 @@ import { useSelector } from 'react-redux';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../services/api';
 import { useAlert } from '../utils/AlertContext';
+import { useSettings } from '../utils/SettingsContext';
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useSelector((state) => state.auth);
   const { showError, showSuccess } = useAlert();
+  const { midtransEnabled, getSetting } = useSettings();
 
   // Cart state - fetch from API instead of Redux
   const [cartItems, setCartItems] = useState([]);
@@ -61,7 +63,18 @@ const Checkout = () => {
   const [selectedShipping, setSelectedShipping] = useState(null);
   const [loadingShipping, setLoadingShipping] = useState(false);
   
-  const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
+  const [paymentMethod, setPaymentMethod] = useState('');
+
+  // Set default payment method based on available options
+  useEffect(() => {
+    if (midtransEnabled) {
+      setPaymentMethod('midtrans');
+    } else if (getSetting('payment_bank_transfer_enabled', 'true') === 'true') {
+      setPaymentMethod('bank_transfer');
+    } else {
+      setPaymentMethod('cod');
+    }
+  }, [midtransEnabled, getSetting]);
 
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
@@ -1048,40 +1061,48 @@ const Checkout = () => {
                 <div className="bg-white p-6 rounded shadow">
                   <h2 className="text-xl font-bold mb-4 uppercase">Metode Pembayaran</h2>
                   <div className="space-y-3">
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="radio"
-                        name="payment"
-                        value="bank_transfer"
-                        checked={paymentMethod === 'bank_transfer'}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="mr-3"
-                      />
-                      <span className="font-semibold">Transfer Bank</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="radio"
-                        name="payment"
-                        value="credit_card"
-                        checked={paymentMethod === 'credit_card'}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="mr-3"
-                      />
-                      <span className="font-semibold">Kartu Kredit</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="radio"
-                        name="payment"
-                        value="e_wallet"
-                        checked={paymentMethod === 'e_wallet'}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="mr-3"
-                      />
-                      <span className="font-semibold">E-Wallet (OVO, DANA, GCash)</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
+                    {/* Midtrans Payment - Online Payment Gateway */}
+                    {midtransEnabled && (
+                      <label className="flex items-center cursor-pointer p-3 border rounded-lg hover:bg-blue-50 transition">
+                        <input
+                          type="radio"
+                          name="payment"
+                          value="midtrans"
+                          checked={paymentMethod === 'midtrans'}
+                          onChange={(e) => setPaymentMethod(e.target.value)}
+                          className="mr-3"
+                        />
+                        <div>
+                          <span className="font-semibold">Pembayaran Online (Midtrans)</span>
+                          <p className="text-xs text-gray-500">Credit Card, GoPay, OVO, DANA, VA Bank, QRIS</p>
+                        </div>
+                      </label>
+                    )}
+                    
+                    {/* Bank Transfer */}
+                    {getSetting('payment_bank_transfer_enabled', 'true') === 'true' && (
+                      <label className="flex items-center cursor-pointer p-3 border rounded-lg hover:bg-gray-50 transition">
+                        <input
+                          type="radio"
+                          name="payment"
+                          value="bank_transfer"
+                          checked={paymentMethod === 'bank_transfer'}
+                          onChange={(e) => setPaymentMethod(e.target.value)}
+                          className="mr-3"
+                        />
+                        <div>
+                          <span className="font-semibold">Transfer Bank Manual</span>
+                          {getSetting('payment_bank_name') && (
+                            <p className="text-xs text-gray-500">
+                              {getSetting('payment_bank_name')} - {getSetting('payment_bank_account')} a/n {getSetting('payment_bank_holder')}
+                            </p>
+                          )}
+                        </div>
+                      </label>
+                    )}
+                    
+                    {/* COD */}
+                    <label className="flex items-center cursor-pointer p-3 border rounded-lg hover:bg-gray-50 transition">
                       <input
                         type="radio"
                         name="payment"
@@ -1090,7 +1111,10 @@ const Checkout = () => {
                         onChange={(e) => setPaymentMethod(e.target.value)}
                         className="mr-3"
                       />
-                      <span className="font-semibold">Bayar di Tempat (COD)</span>
+                      <div>
+                        <span className="font-semibold">Bayar di Tempat (COD)</span>
+                        <p className="text-xs text-gray-500">Bayar saat barang tiba</p>
+                      </div>
                     </label>
                   </div>
                 </div>

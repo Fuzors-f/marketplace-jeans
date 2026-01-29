@@ -27,6 +27,8 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [initializing, setInitializing] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testEmailAddress, setTestEmailAddress] = useState('');
   
   const logoInputRef = useRef(null);
   const faviconInputRef = useRef(null);
@@ -110,10 +112,19 @@ export default function AdminSettings() {
       const formData = new FormData();
       formData.append('image', file);
       
-      const response = await settingsAPI.uploadImage(formData);
+      // Use the new endpoint that directly updates the setting
+      const response = await settingsAPI.uploadImageForKey(settingKey, formData);
       if (response.data.success) {
         handleChange(settingKey, response.data.data.url);
-        setMessage({ type: 'success', text: 'Gambar berhasil diunggah. Klik "Simpan Semua" untuk menyimpan perubahan.' });
+        setMessage({ type: 'success', text: 'Gambar berhasil diunggah dan disimpan.' });
+        // Refresh global settings
+        refreshGlobalSettings();
+        // Clear local preview since it's now saved
+        setImagePreviews(prev => {
+          const newPreviews = { ...prev };
+          delete newPreviews[settingKey];
+          return newPreviews;
+        });
       }
     } catch (error) {
       // Clear preview on error
@@ -284,26 +295,81 @@ export default function AdminSettings() {
     </div>
   );
 
-  const renderEmailSettings = () => (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold flex items-center gap-2">
-        <Mail size={20} />
-        Pengaturan Email (SMTP)
-      </h3>
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-        <p className="text-sm text-yellow-700">
-          Konfigurasi SMTP diperlukan untuk mengirim email notifikasi pesanan, 
-          reset password, dan lainnya.
-        </p>
+  const renderEmailSettings = () => {
+    const handleTestEmail = async () => {
+      if (!testEmailAddress) {
+        setMessage({ type: 'error', text: 'Masukkan email untuk test' });
+        return;
+      }
+      
+      try {
+        setTestingEmail(true);
+        setMessage({ type: '', text: '' });
+        
+        // First save current settings
+        await settingsAPI.bulkUpdate(settings);
+        
+        // Then test email
+        const response = await settingsAPI.testEmail(testEmailAddress);
+        if (response.data.success) {
+          setMessage({ type: 'success', text: 'Test email berhasil dikirim! Cek inbox email Anda.' });
+        }
+      } catch (error) {
+        setMessage({ 
+          type: 'error', 
+          text: error.response?.data?.message || 'Gagal mengirim test email. Periksa konfigurasi SMTP.' 
+        });
+      } finally {
+        setTestingEmail(false);
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Mail size={20} />
+          Pengaturan Email (SMTP)
+        </h3>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+          <p className="text-sm text-yellow-700">
+            Konfigurasi SMTP diperlukan untuk mengirim email notifikasi pesanan, 
+            reset password, dan lainnya.
+          </p>
+        </div>
+        {renderSettingInput('email_smtp_host', 'SMTP Host', 'text', 'smtp.gmail.com')}
+        {renderSettingInput('email_smtp_port', 'SMTP Port', 'text', '587')}
+        {renderSettingInput('email_smtp_user', 'SMTP Username', 'text', 'email@gmail.com')}
+        {renderSettingInput('email_smtp_pass', 'SMTP Password', 'password', '••••••••', 'Gunakan App Password untuk Gmail')}
+        {renderSettingInput('email_from_name', 'Nama Pengirim', 'text', 'Marketplace Jeans')}
+        {renderSettingInput('email_from_address', 'Email Pengirim', 'email', 'noreply@example.com')}
+        
+        {/* Test Email Section */}
+        <div className="mt-6 pt-6 border-t">
+          <h4 className="font-medium mb-3">Test Konfigurasi Email</h4>
+          <div className="flex gap-2">
+            <input
+              type="email"
+              value={testEmailAddress}
+              onChange={(e) => setTestEmailAddress(e.target.value)}
+              placeholder="Masukkan email untuk test"
+              className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button
+              onClick={handleTestEmail}
+              disabled={testingEmail}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
+            >
+              <Mail size={18} />
+              {testingEmail ? 'Mengirim...' : 'Test Email'}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Pastikan simpan pengaturan terlebih dahulu sebelum melakukan test email.
+          </p>
+        </div>
       </div>
-      {renderSettingInput('email_smtp_host', 'SMTP Host', 'text', 'smtp.gmail.com')}
-      {renderSettingInput('email_smtp_port', 'SMTP Port', 'text', '587')}
-      {renderSettingInput('email_smtp_user', 'SMTP Username', 'text', 'email@gmail.com')}
-      {renderSettingInput('email_smtp_pass', 'SMTP Password', 'password', '••••••••', 'Gunakan App Password untuk Gmail')}
-      {renderSettingInput('email_from_name', 'Nama Pengirim', 'text', 'Marketplace Jeans')}
-      {renderSettingInput('email_from_address', 'Email Pengirim', 'email', 'noreply@example.com')}
-    </div>
-  );
+    );
+  };
 
   const renderPaymentSettings = () => (
     <div className="space-y-6">

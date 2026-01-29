@@ -1,9 +1,26 @@
 const { query } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
+/**
+ * Database Seeder - FOR DEVELOPMENT/TESTING ONLY
+ * 
+ * WARNING: Do NOT run this in production!
+ * This file contains default passwords that should be changed immediately
+ * if used in any environment other than local development.
+ */
+
 async function seedDatabase() {
+  // Prevent running in production
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ ERROR: Cannot run seed in production environment!');
+    console.error('   This is a security measure to prevent default credentials.');
+    process.exit(1);
+  }
+
   try {
     console.log('🌱 Starting database seeding...\n');
+    console.log('⚠️  WARNING: This creates default users with test passwords.');
+    console.log('   Change passwords immediately if not in development!\n');
 
     // 1. Create admin user
     const hashedPassword = await bcrypt.hash('admin123', 10);

@@ -13,6 +13,7 @@ export const useSettings = () => {
 
 export const SettingsProvider = ({ children }) => {
   const [settings, setSettings] = useState({});
+  const [paymentConfig, setPaymentConfig] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const fetchSettings = async () => {
@@ -28,8 +29,20 @@ export const SettingsProvider = ({ children }) => {
     }
   };
 
+  const fetchPaymentConfig = async () => {
+    try {
+      const response = await settingsAPI.getPaymentConfig();
+      if (response.data.success) {
+        setPaymentConfig(response.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to load payment config:', error);
+    }
+  };
+
   useEffect(() => {
     fetchSettings();
+    fetchPaymentConfig();
   }, []);
 
   // Helper to get a setting value with default
@@ -53,6 +66,7 @@ export const SettingsProvider = ({ children }) => {
   // Refresh settings (useful after admin updates)
   const refreshSettings = () => {
     fetchSettings();
+    fetchPaymentConfig();
   };
 
   const value = {
@@ -74,6 +88,12 @@ export const SettingsProvider = ({ children }) => {
     socialTwitter: settings.social_twitter,
     socialTiktok: settings.social_tiktok,
     socialYoutube: settings.social_youtube,
+    // Payment configuration
+    paymentConfig,
+    midtransEnabled: paymentConfig?.midtrans?.enabled || false,
+    midtransClientKey: paymentConfig?.midtrans?.clientKey || '',
+    midtransSnapUrl: paymentConfig?.midtrans?.snapUrl || '',
+    isMidtransProduction: paymentConfig?.midtrans?.isProduction || false,
   };
 
   return (

@@ -7,6 +7,7 @@ const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
 const { logActivity } = require('../middleware/activityLogger');
+const { sendOrderConfirmationEmail, sendOrderStatusEmail } = require('../services/emailService');
 
 // Generate unique order number
 const generateOrderNumber = () => {
@@ -32,7 +33,7 @@ const getOrderTrackingUrl = (uniqueToken) => {
 exports.createOrder = async (req, res) => {
   try {
     const {
-      items, shipping_address, discount_code, notes
+      items, shipping_address, discount_code, notes, payment_method
     } = req.body;
 
     const userId = req.user ? req.user.id : null;
@@ -188,10 +189,10 @@ exports.createOrder = async (req, res) => {
       const [orderResult] = await conn.execute(
         `INSERT INTO orders 
         (order_number, unique_token, user_id, guest_email, status, subtotal, discount_amount, discount_code, 
-         member_discount_amount, shipping_cost, total_amount, notes)
-        VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)`,
+         member_discount_amount, shipping_cost, total_amount, notes, payment_method)
+        VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
         [orderNumber, uniqueToken, userId || null, guestEmail || null, subtotal, discountAmount, discount_code || null,
-         memberDiscountAmount, shippingCost, totalAmount, notes || null]
+         memberDiscountAmount, shippingCost, totalAmount, notes || null, payment_method || 'bank_transfer']
       );
 
       const orderId = orderResult.insertId;
@@ -261,7 +262,7 @@ exports.createOrder = async (req, res) => {
         );
       }
 
-      return { orderId, orderNumber, uniqueToken };
+      return { orderId, orderNumber, uniqueToken, orderItems };
     });
 
     // Generate tracking URL
@@ -271,6 +272,23 @@ exports.createOrder = async (req, res) => {
     await logActivity(userId, 'create_order', 'order', orderData.orderId, 
       `Created order ${orderData.orderNumber}`, req, 
       { order_number: orderData.orderNumber, tracking_url: trackingUrl });
+
+    // Send order confirmation email (async, don't wait)
+    const orderForEmail = await query(
+      `SELECT o.*, u.email, u.full_name
+       FROM orders o
+       LEFT JOIN users u ON o.user_id = u.id
+       WHERE o.id = ?`,
+      [orderData.orderId]
+    );
+
+    if (orderForEmail.length > 0) {
+      sendOrderConfirmationEmail(
+        orderForEmail[0], 
+        orderData.orderItems, 
+        shipping_address
+      ).catch(err => console.error('Failed to send order email:', err));
+    }
 
     res.status(201).json({
       success: true,
@@ -1039,6 +1057,21 @@ exports.updateOrderStatus = async (req, res) => {
         await conn.execute('UPDATE order_shipping SET delivered_at = NOW() WHERE order_id = ?', [id]);
       }
     });
+
+    // Send status update email (async)
+    const orderDetails = await query(
+      `SELECT o.*, u.email, o.guest_email
+       FROM orders o
+       LEFT JOIN users u ON o.user_id = u.id
+       WHERE o.id = ?`,
+      [id]
+    );
+    
+    if (orderDetails.length > 0) {
+      sendOrderStatusEmail(orderDetails[0], status, notes).catch(err => {
+        console.error('Failed to send order status email:', err);
+      });
+    }
 
     // Log activity
     await logActivity(adminId, 'update_order', 'order', id, 

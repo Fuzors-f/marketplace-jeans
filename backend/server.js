@@ -57,15 +57,37 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS configuration - Allow all origins
-app.use(cors({
-  origin: '*',
+// CORS configuration - Configure based on environment
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // In development, allow all origins
+    if (process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    
+    // In production/staging, check against allowed origins
+    const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+      .split(',')
+      .map(url => url.trim());
+    
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-session-id']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-session-id'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 
 // Handle preflight requests
-app.options('*', cors());
+app.options('*', cors(corsOptions));
 
 // Compression middleware
 app.use(compression());
@@ -81,9 +103,11 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('combined'));
 }
 
-// Rate limiting - Only apply to specific routes to prevent login issues
-// Disabled globally to prevent blocking all APIs
-// app.use('/api/', rateLimiter);
+// Rate limiting - Apply in production/staging environments
+if (process.env.NODE_ENV !== 'development') {
+  // Apply general rate limiter to all API routes
+  app.use('/api/', rateLimiter);
+}
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

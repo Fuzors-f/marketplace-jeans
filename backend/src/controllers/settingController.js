@@ -1,6 +1,8 @@
 const { query } = require('../config/database');
 const path = require('path');
 const fs = require('fs');
+const { testEmailConfig, clearEmailSettingsCache } = require('../services/emailService');
+const { clearMidtransSettingsCache } = require('../services/midtransService');
 
 // Default settings to initialize
 const defaultSettings = [
@@ -239,9 +241,207 @@ exports.uploadSettingImage = async (req, res) => {
 
     const imageUrl = `/uploads/settings/${req.file.filename}`;
     
+    // If key is provided, update the setting directly
+    const { key } = req.body;
+    if (key) {
+      const existing = await query(
+        'SELECT id FROM settings WHERE setting_key = ?',
+        [key]
+      );
+
+      if (existing.length === 0) {
+        await query(
+          `INSERT INTO settings (setting_key, setting_value, setting_type, is_public, setting_group) 
+           VALUES (?, ?, 'image', true, 'site')`,
+          [key, imageUrl]
+        );
+      } else {
+        // Get old image path to delete
+        const oldSetting = await query(
+          'SELECT setting_value FROM settings WHERE setting_key = ?',
+          [key]
+        );
+        
+        // Delete old image if exists
+        if (oldSetting.length > 0 && oldSetting[0].setting_value) {
+          const oldImagePath = path.join(__dirname, '../../', oldSetting[0].setting_value);
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+          }
+        }
+
+        await query(
+          'UPDATE settings SET setting_value = ? WHERE setting_key = ?',
+          [imageUrl, key]
+        );
+      }
+    }
+    
     res.json({ 
       success: true, 
-      data: { url: imageUrl }
+      data: { url: imageUrl },
+      message: key ? 'Image uploaded and setting updated' : 'Image uploaded'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Upload and update setting image directly
+// @route   POST /api/settings/upload/:key
+// @access  Private (Admin)
+exports.uploadAndUpdateSettingImage = async (req, res) => {
+  try {
+    const { key } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const imageUrl = `/uploads/settings/${req.file.filename}`;
+
+    // Get old image path to delete
+    const oldSetting = await query(
+      'SELECT setting_value FROM settings WHERE setting_key = ?',
+      [key]
+    );
+    
+    // Delete old image if exists
+    if (oldSetting.length > 0 && oldSetting[0].setting_value) {
+      const oldImagePath = path.join(__dirname, '../../', oldSetting[0].setting_value);
+      if (fs.existsSync(oldImagePath)) {
+        try {
+          fs.unlinkSync(oldImagePath);
+        } catch (e) {
+          console.log('Could not delete old image:', e.message);
+        }
+      }
+    }
+
+    // Update or create setting
+    if (oldSetting.length === 0) {
+      await query(
+        `INSERT INTO settings (setting_key, setting_value, setting_type, is_public, setting_group) 
+         VALUES (?, ?, 'image', true, 'site')`,
+        [key, imageUrl]
+      );
+    } else {
+      await query(
+        'UPDATE settings SET setting_value = ? WHERE setting_key = ?',
+        [imageUrl, key]
+      );
+    }
+
+    res.json({ 
+      success: true, 
+      data: { url: imageUrl, key: key },
+      message: 'Image updated successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Test email configuration
+// @route   POST /api/settings/test-email
+// @access  Private (Admin)
+exports.testEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email address required'
+      });
+    }
+
+    // Clear cache to get latest settings
+    clearEmailSettingsCache();
+
+    const result = await testEmailConfig(email);
+
+    if (result.success) {
+      res.json({ 
+        success: true, 
+        message: 'Test email sent successfully',
+        messageId: result.messageId
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: 'Failed to send test email: ' + result.error
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Clear settings cache (after update)
+// @route   POST /api/settings/clear-cache
+// @access  Private (Admin)
+exports.clearSettingsCache = async (req, res) => {
+  try {
+    clearEmailSettingsCache();
+    clearMidtransSettingsCache();
+    
+    res.json({ 
+      success: true, 
+      message: 'Settings cache cleared'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get Midtrans client configuration (for frontend)
+// @route   GET /api/settings/payment-config
+// @access  Public
+exports.getPaymentConfig = async (req, res) => {
+  try {
+    const { getClientKey, isMidtransEnabled } = require('../services/midtransService');
+    
+    const enabled = await isMidtransEnabled();
+    
+    if (!enabled) {
+      return res.json({
+        success: true,
+        data: {
+          midtrans: {
+            enabled: false
+          }
+        }
+      });
+    }
+
+    const config = await getClientKey();
+
+    res.json({
+      success: true,
+      data: {
+        midtrans: {
+          enabled: true,
+          clientKey: config.clientKey,
+          isProduction: config.isProduction,
+          snapUrl: config.snapUrl
+        }
+      }
     });
   } catch (error) {
     res.status(500).json({

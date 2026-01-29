@@ -132,15 +132,6 @@ export const orderAPI = {
 };
 
 // =====================================
-// PAYMENT API
-// =====================================
-
-export const paymentAPI = {
-  createPayment: (orderId, data) => apiClient.post(`/payments/orders/${orderId}`, data),
-  getStatus: (transactionId) => apiClient.get(`/payments/${transactionId}`)
-};
-
-// =====================================
 // AUTH API
 // =====================================
 
@@ -179,7 +170,23 @@ export const settingsAPI = {
   init: () => apiClient.post('/settings/init'),
   update: (key, value) => apiClient.put(`/settings/${key}`, { value }),
   bulkUpdate: (settings) => apiClient.put('/settings', { settings }),
-  uploadImage: (formData) => apiClient.post('/settings/upload', formData)
+  uploadImage: (formData) => apiClient.post('/settings/upload', formData),
+  uploadImageForKey: (key, formData) => apiClient.post(`/settings/upload/${key}`, formData),
+  testEmail: (email) => apiClient.post('/settings/test-email', { email }),
+  clearCache: () => apiClient.post('/settings/clear-cache'),
+  getPaymentConfig: () => apiClient.get('/settings/payment-config')
+};
+
+// =====================================
+// PAYMENT API
+// =====================================
+
+export const paymentAPI = {
+  createPayment: (data) => apiClient.post('/payments/create', data),
+  createCharge: (data) => apiClient.post('/payments/charge', data),
+  getStatus: (paymentId) => apiClient.get(`/payments/${paymentId}/status`),
+  getByOrder: (orderId) => apiClient.get(`/payments/order/${orderId}`),
+  cancel: (paymentId) => apiClient.post(`/payments/${paymentId}/cancel`)
 };
 
 // =====================================

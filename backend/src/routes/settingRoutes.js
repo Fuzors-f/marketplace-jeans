@@ -9,7 +9,11 @@ const {
   initializeSettings,
   updateSetting,
   bulkUpdateSettings,
-  uploadSettingImage
+  uploadSettingImage,
+  uploadAndUpdateSettingImage,
+  testEmail,
+  clearSettingsCache,
+  getPaymentConfig
 } = require('../controllers/settingController');
 const { protect, authorize, optionalAuth } = require('../middleware/auth');
 
@@ -44,6 +48,7 @@ const upload = multer({
 
 // Public routes
 router.get('/', optionalAuth, getSettings);
+router.get('/payment-config', getPaymentConfig);
 
 // Admin routes
 router.get('/all', protect, authorize('admin'), getAllSettingsDetailed);
@@ -51,5 +56,8 @@ router.post('/init', protect, authorize('admin'), initializeSettings);
 router.put('/', protect, authorize('admin'), bulkUpdateSettings);
 router.put('/:key', protect, authorize('admin'), updateSetting);
 router.post('/upload', protect, authorize('admin'), upload.single('image'), uploadSettingImage);
+router.post('/upload/:key', protect, authorize('admin'), upload.single('image'), uploadAndUpdateSettingImage);
+router.post('/test-email', protect, authorize('admin'), testEmail);
+router.post('/clear-cache', protect, authorize('admin'), clearSettingsCache);
 
 module.exports = router;

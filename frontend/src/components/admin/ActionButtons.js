@@ -81,7 +81,7 @@ export const ActionButtonsContainer = ({ children }) => (
 // Export all styles for custom usage
 export const actionButtonStyles = buttonStyles;
 
-export default {
+const actionButtons = {
   ViewButton,
   EditButton,
   DeleteButton,
@@ -92,3 +92,5 @@ export default {
   ActionButtonsContainer,
   actionButtonStyles
 };
+
+export default actionButtons;

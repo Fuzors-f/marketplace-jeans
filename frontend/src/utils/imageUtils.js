@@ -106,7 +106,7 @@ export const ImageWithFallback = ({
   );
 };
 
-export default {
+const imageUtils = {
   getImageUrl,
   getProductImageUrl,
   getCategoryImageUrl,
@@ -115,3 +115,5 @@ export default {
   PLACEHOLDER_IMAGES,
   UPLOADS_BASE_URL
 };
+
+export default imageUtils;

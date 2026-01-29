@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
 const { logActivity } = require('../middleware/activityLogger');
+const { sendWelcomeEmail } = require('../services/emailService');
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -68,6 +69,11 @@ exports.register = async (req, res) => {
 
     // Log activity
     await logActivity(user.id, 'register', 'user', user.id, 'User registered', req);
+
+    // Send welcome email (async, don't wait for it)
+    sendWelcomeEmail(user).catch(err => {
+      console.error('Failed to send welcome email:', err);
+    });
 
     res.status(201).json({
       success: true,

@@ -31,7 +31,7 @@ const translations = {
     women: 'Wanita',
     men: 'Pria',
     newCollection: 'Koleksi Baru',
-    discount: 'Diskon',
+    sale: 'Diskon',
     bottoms: 'Celana',
     tops: 'Atasan',
     jackets: 'Jaket',
@@ -180,7 +180,6 @@ const translations = {
     submit: 'Kirim',
     reset: 'Reset',
     filter: 'Filter',
-    search: 'Cari',
     export: 'Ekspor',
     import: 'Impor',
     refresh: 'Refresh',
@@ -253,8 +252,6 @@ const translations = {
     search: 'Search',
     loginRegister: 'Login / Register',
     viewAll: 'View All',
-    wishlist: 'Wishlist',
-    search: 'Search',
     
     // Header/Promo
     promoText: 'Shop 24/7, Free returns within 14 days.',
@@ -264,7 +261,7 @@ const translations = {
     women: 'Women',
     men: 'Men',
     newCollection: 'New Collection',
-    discount: 'Sale',
+    sale: 'Sale',
     bottoms: 'Bottoms',
     tops: 'Tops',
     jackets: 'Jackets',
@@ -413,7 +410,6 @@ const translations = {
     submit: 'Submit',
     reset: 'Reset',
     filter: 'Filter',
-    search: 'Search',
     export: 'Export',
     import: 'Import',
     refresh: 'Refresh',
@@ -693,7 +689,7 @@ export const LanguageSwitcher = ({ className = '' }) => {
 
 // Dropdown Language Switcher for more options
 export const LanguageDropdown = ({ className = '' }) => {
-  const { language, setLanguage, t } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const [isOpen, setIsOpen] = React.useState(false);
 
   return (

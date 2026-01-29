@@ -464,4 +464,5 @@ const StockOpname = () => {
 
 // TODO: Disabled - Stock Opname functionality has been merged into variant-based inventory management
 // export default StockOpname;
-export default null;
+const StockOpnameDisabled = null;
+export default StockOpnameDisabled;

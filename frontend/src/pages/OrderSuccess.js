@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
-import { FaCheckCircle, FaQrcode, FaFilePdf, FaCopy, FaTruck, FaSpinner, FaDownload } from 'react-icons/fa';
+import { FaCheckCircle, FaQrcode, FaFilePdf, FaCopy, FaTruck, FaSpinner, FaDownload, FaCreditCard } from 'react-icons/fa';
 import api from '../services/api';
+import MidtransPayment from '../components/MidtransPayment';
+import { useSettings } from '../utils/SettingsContext';
 
 export default function OrderSuccess() {
   const { orderId } = useParams();
   const location = useLocation();
+  const { midtransEnabled } = useSettings();
   const [order, setOrder] = useState(null);
   const [qrCode, setQrCode] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -190,6 +194,70 @@ export default function OrderSuccess() {
           </div>
         </div>
 
+        {/* Midtrans Payment Section - Show if payment is pending and Midtrans enabled */}
+        {order && order.payment_status === 'pending' && midtransEnabled && order.payment_method === 'midtrans' && (
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <FaCreditCard className="text-2xl text-blue-600" />
+              <h2 className="text-xl font-bold text-gray-800">Pembayaran Online</h2>
+            </div>
+            
+            {showPayment ? (
+              <MidtransPayment
+                orderId={order.id}
+                orderNumber={order.order_number}
+                amount={order.total || order.total_amount}
+                onSuccess={(result) => {
+                  fetchOrderDetails();
+                  setShowPayment(false);
+                }}
+                onPending={(result) => {
+                  fetchOrderDetails();
+                }}
+                onError={(error) => {
+                  console.error('Payment error:', error);
+                }}
+                onClose={() => {
+                  setShowPayment(false);
+                }}
+              />
+            ) : (
+              <div className="text-center">
+                <p className="text-gray-600 mb-4">
+                  Klik tombol di bawah untuk melakukan pembayaran online dengan berbagai metode pembayaran.
+                </p>
+                <button
+                  onClick={() => setShowPayment(true)}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                >
+                  <FaCreditCard className="inline mr-2" />
+                  Bayar Sekarang
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Bank Transfer Info - Show if payment method is bank_transfer */}
+        {order && order.payment_status === 'pending' && order.payment_method === 'bank_transfer' && (
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Instruksi Pembayaran</h2>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-blue-800 mb-3">
+                Silakan transfer ke rekening berikut:
+              </p>
+              <div className="bg-white rounded p-3 space-y-1">
+                <p><strong>Bank:</strong> {order.bank_name || 'Lihat di detail pesanan'}</p>
+                <p><strong>No. Rekening:</strong> {order.bank_account || 'Lihat di detail pesanan'}</p>
+                <p><strong>Atas Nama:</strong> {order.bank_holder || 'Lihat di detail pesanan'}</p>
+                <p className="text-lg font-bold text-blue-600 mt-2">
+                  Total: {formatCurrency(order.total || order.total_amount)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Actions Section */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
           <h2 className="text-xl font-bold text-gray-800 mb-4">Tindakan</h2>
@@ -221,8 +289,8 @@ export default function OrderSuccess() {
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
           <h3 className="font-semibold text-yellow-800 mb-2">Apa selanjutnya?</h3>
           <ul className="text-yellow-700 text-sm space-y-2">
-            <li>• Pesanan Anda saat ini berstatus <strong>Pending</strong> dan menunggu persetujuan admin</li>
-            <li>• Setelah disetujui, status akan berubah dan Anda bisa melacak pengiriman</li>
+            <li>• Pesanan Anda saat ini berstatus <strong>Pending</strong> dan menunggu pembayaran</li>
+            <li>• Setelah pembayaran dikonfirmasi, pesanan akan diproses</li>
             <li>• Simpan QR code atau link tracking untuk memantau pesanan kapan saja</li>
             <li>• Anda akan menerima update status pesanan melalui email</li>
           </ul>
