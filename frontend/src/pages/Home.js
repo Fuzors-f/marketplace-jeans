@@ -14,10 +14,12 @@ const Home = () => {
   const [homeData, setHomeData] = useState(null);
   const [homeLoading, setHomeLoading] = useState(true);
   const [homeError, setHomeError] = useState('');
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     dispatch(fetchProducts({ limit: 12, is_featured: true }));
     fetchHomeData();
+    fetchCategories();
   }, [dispatch]);
 
   const fetchHomeData = async () => {
@@ -31,6 +33,15 @@ const Home = () => {
       setHomeError('Failed to load homepage data');
     } finally {
       setHomeLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await apiClient.get('/categories');
+      setCategories(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
     }
   };
 
@@ -71,33 +82,31 @@ const Home = () => {
         }
       ];
 
-  // Category cards
-  const categories = [
-    {
-      name: 'BOTTOMS PRIA',
-      subtitle: 'Celana jeans untuk gaya maskulin',
-      image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop',
-      link: '/products?category=bottoms&gender=pria'
-    },
-    {
-      name: 'BOTTOMS WANITA',
-      subtitle: 'Koleksi jeans wanita terlengkap',
-      image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400&h=600&fit=crop',
-      link: '/products?category=bottoms&gender=wanita'
-    },
-    {
-      name: 'JAKET DENIM',
-      subtitle: 'Statement piece klasik',
-      image: 'https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=400&h=600&fit=crop',
-      link: '/products?category=jackets'
-    },
-    {
-      name: 'AKSESORIS',
-      subtitle: 'Lengkapi penampilanmu',
-      image: 'https://images.unsplash.com/photo-1523779105320-d1cd346ff52b?w=400&h=600&fit=crop',
-      link: '/products?category=accessories'
-    }
+  // Default category images for fallback
+  const categoryImages = [
+    'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=400&h=600&fit=crop',
+    'https://images.unsplash.com/photo-1523779105320-d1cd346ff52b?w=400&h=600&fit=crop'
   ];
+
+  // Map categories from API to display format
+  const categoryCards = categories.length > 0 
+    ? categories.map((cat, index) => ({
+        id: cat.id,
+        name: cat.name.toUpperCase(),
+        subtitle: cat.description || 'Lihat koleksi lengkap',
+        image: cat.image_url || categoryImages[index % categoryImages.length],
+        link: `/products?category=${cat.id}`
+      }))
+    : [
+        {
+          name: 'SEMUA PRODUK',
+          subtitle: 'Lihat seluruh koleksi',
+          image: categoryImages[0],
+          link: '/products'
+        }
+      ];
 
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
@@ -191,10 +200,10 @@ const Home = () => {
           <h2 className="text-4xl font-bold text-center mb-12 uppercase tracking-wide">
             BELANJA BERDASARKAN KATEGORI
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {categories.map((category) => (
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${categoryCards.length >= 4 ? 'lg:grid-cols-4' : categoryCards.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
+            {categoryCards.map((category) => (
               <Link
-                key={category.name}
+                key={category.id || category.name}
                 to={category.link}
                 className="group relative overflow-hidden bg-white shadow-lg hover:shadow-xl transition"
               >

@@ -4,12 +4,18 @@ import { Helmet } from 'react-helmet-async';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProducts } from '../redux/slices/productSlice';
 import { getProductImageUrl, handleImageError } from '../utils/imageUtils';
+import apiClient from '../services/api';
 
 const Products = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { products, isLoading, pagination } = useSelector((state) => state.products);
+
+  // Categories & Fittings & Sizes from API
+  const [categories, setCategories] = useState([]);
+  const [fittings, setFittings] = useState([]);
+  const [sizes, setSizes] = useState([]);
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -28,6 +34,41 @@ const Products = () => {
   const [viewMode, setViewMode] = useState('grid'); // grid or list
   const [showFilters, setShowFilters] = useState(false); // mobile filter toggle
 
+  // Fetch categories, fittings, and sizes from API
+  useEffect(() => {
+    const fetchFilterData = async () => {
+      try {
+        const [categoriesRes, fittingsRes, sizesRes] = await Promise.all([
+          apiClient.get('/categories'),
+          apiClient.get('/fittings'),
+          apiClient.get('/sizes')
+        ]);
+        setCategories(categoriesRes.data.data || []);
+        setFittings(fittingsRes.data.data || []);
+        setSizes(sizesRes.data.data || []);
+      } catch (error) {
+        console.error('Error fetching filter data:', error);
+      }
+    };
+    fetchFilterData();
+  }, []);
+
+  // Update filters when URL changes
+  useEffect(() => {
+    setFilters({
+      search: searchParams.get('search') || '',
+      category: searchParams.get('category') || '',
+      fitting: searchParams.get('fitting') || '',
+      size: searchParams.get('size') || '',
+      minPrice: searchParams.get('minPrice') || '',
+      maxPrice: searchParams.get('maxPrice') || '',
+      gender: searchParams.get('gender') || '',
+      discount: searchParams.get('discount') || '',
+      new: searchParams.get('new') || ''
+    });
+    setSortBy(searchParams.get('sort') || 'newest');
+  }, [searchParams]);
+
   // Close mobile filter on route change
   useEffect(() => {
     setShowFilters(false);
@@ -45,27 +86,48 @@ const Products = () => {
     };
   }, [showFilters]);
 
-  // Categories & Fittings data (should ideally come from API)
-  const categories = ['Celana Jeans', 'Jaket Denim', 'Kemeja', 'T-Shirt', 'Aksesoris'];
-  const fittings = ['Slim Fit', 'Regular Fit', 'Baggy Fit', 'Tapered Fit', 'Skinny Fit', 'Mom Fit', 'Boyfriend Fit'];
-  const sizes = ['28', '29', '30', '31', '32', '33', '34', '36', '38', '40'];
-
+  // Fetch products when filters change - use searchParams directly instead of filters state
   useEffect(() => {
-    // Build query params
+    // Build query params for API directly from URL params
     const params = {
       page: searchParams.get('page') || 1,
       limit: 24,
-      ...filters,
-      sort: sortBy
+      search: searchParams.get('search') || undefined,
+      category: searchParams.get('category') || undefined,
+      fitting: searchParams.get('fitting') || undefined,
+      size: searchParams.get('size') || undefined,
+      min_price: searchParams.get('minPrice') || undefined,
+      max_price: searchParams.get('maxPrice') || undefined,
     };
 
-    // Remove empty params
+    // Get sort from URL or use default
+    const currentSort = searchParams.get('sort') || 'newest';
+
+    // Map sort values to backend format
+    if (currentSort === 'newest') {
+      params.sort = 'created_at';
+      params.order = 'DESC';
+    } else if (currentSort === 'price_asc') {
+      params.sort = 'base_price';
+      params.order = 'ASC';
+    } else if (currentSort === 'price_desc') {
+      params.sort = 'base_price';
+      params.order = 'DESC';
+    } else if (currentSort === 'name_asc') {
+      params.sort = 'name';
+      params.order = 'ASC';
+    } else if (currentSort === 'popular') {
+      params.sort = 'view_count';
+      params.order = 'DESC';
+    }
+
+    // Remove undefined params
     Object.keys(params).forEach(key => {
-      if (!params[key]) delete params[key];
+      if (params[key] === undefined || params[key] === '') delete params[key];
     });
 
     dispatch(fetchProducts(params));
-  }, [dispatch, filters, sortBy, searchParams]);
+  }, [dispatch, searchParams]);
 
   const handleFilterChange = (filterName, value) => {
     const newFilters = { ...filters, [filterName]: value };
@@ -183,14 +245,14 @@ const Products = () => {
                   <h3 className="font-semibold mb-3 uppercase text-sm">KATEGORI</h3>
                   <div className="space-y-2">
                     {categories.map((cat) => (
-                      <label key={cat} className="flex items-center cursor-pointer">
+                      <label key={cat.id} className="flex items-center cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={filters.category === cat}
-                          onChange={(e) => handleFilterChange('category', e.target.checked ? cat : '')}
+                          checked={filters.category === String(cat.id)}
+                          onChange={(e) => handleFilterChange('category', e.target.checked ? String(cat.id) : '')}
                           className="mr-2"
                         />
-                        <span className="text-sm">{cat}</span>
+                        <span className="text-sm">{cat.name}</span>
                       </label>
                     ))}
                   </div>
@@ -201,14 +263,14 @@ const Products = () => {
                   <h3 className="font-semibold mb-3 uppercase text-sm">FITTING</h3>
                   <div className="space-y-2">
                     {fittings.map((fit) => (
-                      <label key={fit} className="flex items-center cursor-pointer">
+                      <label key={fit.id} className="flex items-center cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={filters.fitting === fit}
-                          onChange={(e) => handleFilterChange('fitting', e.target.checked ? fit : '')}
+                          checked={filters.fitting === String(fit.id)}
+                          onChange={(e) => handleFilterChange('fitting', e.target.checked ? String(fit.id) : '')}
                           className="mr-2"
                         />
-                        <span className="text-sm">{fit}</span>
+                        <span className="text-sm">{fit.name}</span>
                       </label>
                     ))}
                   </div>
@@ -220,15 +282,15 @@ const Products = () => {
                   <div className="grid grid-cols-3 gap-2">
                     {sizes.map((size) => (
                       <button
-                        key={size}
-                        onClick={() => handleFilterChange('size', filters.size === size ? '' : size)}
+                        key={size.id}
+                        onClick={() => handleFilterChange('size', filters.size === String(size.id) ? '' : String(size.id))}
                         className={`py-2 text-sm border transition ${
-                          filters.size === size
+                          filters.size === String(size.id)
                             ? 'bg-black text-white border-black'
                             : 'bg-white text-black border-gray-300 hover:border-black'
                         }`}
                       >
-                        {size}
+                        {size.name}
                       </button>
                     ))}
                   </div>
@@ -342,15 +404,15 @@ const Products = () => {
                       <div className="flex flex-wrap gap-2">
                         {categories.map((cat) => (
                           <button
-                            key={cat}
-                            onClick={() => handleFilterChange('category', filters.category === cat ? '' : cat)}
+                            key={cat.id}
+                            onClick={() => handleFilterChange('category', filters.category === String(cat.id) ? '' : String(cat.id))}
                             className={`px-3 py-2 text-sm border transition ${
-                              filters.category === cat
+                              filters.category === String(cat.id)
                                 ? 'bg-black text-white border-black'
                                 : 'bg-white text-black border-gray-300'
                             }`}
                           >
-                            {cat}
+                            {cat.name}
                           </button>
                         ))}
                       </div>
@@ -362,15 +424,15 @@ const Products = () => {
                       <div className="flex flex-wrap gap-2">
                         {fittings.map((fit) => (
                           <button
-                            key={fit}
-                            onClick={() => handleFilterChange('fitting', filters.fitting === fit ? '' : fit)}
+                            key={fit.id}
+                            onClick={() => handleFilterChange('fitting', filters.fitting === String(fit.id) ? '' : String(fit.id))}
                             className={`px-3 py-2 text-sm border transition ${
-                              filters.fitting === fit
+                              filters.fitting === String(fit.id)
                                 ? 'bg-black text-white border-black'
                                 : 'bg-white text-black border-gray-300'
                             }`}
                           >
-                            {fit}
+                            {fit.name}
                           </button>
                         ))}
                       </div>
@@ -382,15 +444,15 @@ const Products = () => {
                       <div className="grid grid-cols-5 gap-2">
                         {sizes.map((size) => (
                           <button
-                            key={size}
-                            onClick={() => handleFilterChange('size', filters.size === size ? '' : size)}
+                            key={size.id}
+                            onClick={() => handleFilterChange('size', filters.size === String(size.id) ? '' : String(size.id))}
                             className={`py-2 text-sm border transition ${
-                              filters.size === size
+                              filters.size === String(size.id)
                                 ? 'bg-black text-white border-black'
                                 : 'bg-white text-black border-gray-300'
                             }`}
                           >
-                            {size}
+                            {size.name}
                           </button>
                         ))}
                       </div>
@@ -518,27 +580,40 @@ const Products = () => {
 const ProductCard = ({ product, viewMode }) => {
   const [isHovered, setIsHovered] = useState(false);
 
+  // Calculate discount percentage for badge display
+  const discountPercentage = product.discount_percentage || 
+    (product.discount_price && product.base_price ? 
+      Math.round((1 - product.discount_price / product.base_price) * 100) : null);
+
   if (viewMode === 'list') {
     return (
-      <Link to={`/products/${product.slug}`} className="bg-white flex gap-3 sm:gap-6 p-3 sm:p-6 hover:shadow-lg transition">
-        <div className="w-24 sm:w-48 h-32 sm:h-64 flex-shrink-0 overflow-hidden bg-gray-100">
+      <Link to={`/products/${product.slug}`} className="bg-white flex gap-3 sm:gap-6 p-4 sm:p-6 hover:shadow-lg transition rounded-lg shadow-sm">
+        <div className="w-24 sm:w-48 h-32 sm:h-64 flex-shrink-0 overflow-hidden bg-gray-100 rounded-lg relative">
           <img
             src={getProductImageUrl(product)}
             onError={(e) => handleImageError(e, 'product')}
             alt={product.name}
             className="w-full h-full object-cover"
           />
+          {product.discount_price && discountPercentage && (
+            <div className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-red-600 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold rounded">
+              -{discountPercentage}%
+            </div>
+          )}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 py-1">
           <h3 className="font-semibold text-sm sm:text-lg mb-1 sm:mb-2 line-clamp-2">{product.name}</h3>
-          <p className="text-gray-600 text-xs sm:text-sm mb-2 sm:mb-4 line-clamp-2 hidden sm:block">{product.description}</p>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
+          {product.category_name && (
+            <span className="text-xs text-gray-500 uppercase block mb-2">{product.category_name}</span>
+          )}
+          <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4 line-clamp-2 hidden sm:block">{product.description}</p>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {product.discount_price ? (
               <>
                 <span className="font-bold text-sm sm:text-xl text-red-600">
                   Rp {parseInt(product.discount_price).toLocaleString('id-ID')}
                 </span>
-                <span className="text-xs sm:text-sm text-gray-500 line-through">
+                <span className="text-xs sm:text-sm text-gray-400 line-through">
                   Rp {parseInt(product.price || product.base_price).toLocaleString('id-ID')}
                 </span>
               </>
@@ -548,9 +623,6 @@ const ProductCard = ({ product, viewMode }) => {
               </span>
             )}
           </div>
-          {product.category_name && (
-            <span className="text-xs text-gray-500 uppercase">{product.category_name}</span>
-          )}
         </div>
       </Link>
     );
@@ -559,46 +631,51 @@ const ProductCard = ({ product, viewMode }) => {
   return (
     <Link
       to={`/products/${product.slug}`}
-      className="group bg-white block"
+      className="group bg-white block rounded-lg shadow-sm hover:shadow-md transition-shadow"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="aspect-[3/4] overflow-hidden bg-gray-100 mb-2 sm:mb-3 relative">
+      <div className="aspect-[3/4] overflow-hidden bg-gray-100 rounded-t-lg relative">
         <img
           src={getProductImageUrl(product)}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
           onError={(e) => handleImageError(e, 'product')}
         />
-        {product.discount_price && (
-          <div className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-red-600 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold">
-            SALE
+        {product.discount_price && discountPercentage && (
+          <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-red-600 text-white px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-bold rounded">
+            -{discountPercentage}%
           </div>
         )}
         {isHovered && (
           <div className="hidden sm:flex absolute inset-0 bg-black/10 items-center justify-center">
-            <span className="bg-white px-4 sm:px-6 py-1.5 sm:py-2 font-bold uppercase text-xs sm:text-sm">
+            <span className="bg-white px-4 sm:px-6 py-1.5 sm:py-2 font-bold uppercase text-xs sm:text-sm rounded">
               LIHAT DETAIL
             </span>
           </div>
         )}
       </div>
-      <h3 className="font-semibold mb-1 group-hover:underline text-xs sm:text-sm line-clamp-2">{product.name}</h3>
-      <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-        {product.discount_price ? (
-          <>
-            <span className="font-bold text-red-600 text-xs sm:text-base">
-              Rp {parseInt(product.discount_price).toLocaleString('id-ID')}
-            </span>
-            <span className="text-[10px] sm:text-xs text-gray-500 line-through">
-              Rp {parseInt(product.price || product.base_price).toLocaleString('id-ID')}
-            </span>
-          </>
-        ) : (
-          <span className="font-bold text-xs sm:text-base">
-            Rp {parseInt(product.price || product.base_price || 0).toLocaleString('id-ID')}
-          </span>
+      <div className="p-3 sm:p-4">
+        <h3 className="font-semibold mb-2 group-hover:underline text-xs sm:text-sm line-clamp-2">{product.name}</h3>
+        {product.category_name && (
+          <p className="text-[10px] sm:text-xs text-gray-500 mb-2 uppercase">{product.category_name}</p>
         )}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          {product.discount_price ? (
+            <>
+              <span className="font-bold text-red-600 text-sm sm:text-base">
+                Rp {parseInt(product.discount_price).toLocaleString('id-ID')}
+              </span>
+              <span className="text-[10px] sm:text-xs text-gray-400 line-through">
+                Rp {parseInt(product.price || product.base_price).toLocaleString('id-ID')}
+              </span>
+            </>
+          ) : (
+            <span className="font-bold text-sm sm:text-base">
+              Rp {parseInt(product.price || product.base_price || 0).toLocaleString('id-ID')}
+            </span>
+          )}
+        </div>
       </div>
     </Link>
   );

@@ -3,6 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../services/api';
 
+// Helper function to safely format currency
+const formatCurrency = (value) => {
+  const num = parseFloat(value) || 0;
+  return num.toLocaleString('id-ID');
+};
+
 export default function OrderDetail() {
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
@@ -10,18 +16,30 @@ export default function OrderDetail() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchOrder();
+    if (orderId) {
+      fetchOrder();
+    }
   }, [orderId]);
 
   const fetchOrder = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get(`/orders/${orderId}`);
-      setOrder(response.data.data);
       setError('');
+      const response = await apiClient.get(`/orders/${orderId}`);
+      if (response.data.success && response.data.data) {
+        setOrder(response.data.data);
+      } else {
+        setError('Data pesanan tidak valid');
+      }
     } catch (err) {
-      setError('Pesanan tidak ditemukan');
-      console.error(err);
+      console.error('Error fetching order:', err);
+      if (err.response?.status === 404) {
+        setError('Pesanan tidak ditemukan');
+      } else if (err.response?.status === 401) {
+        setError('Silakan login untuk melihat pesanan');
+      } else {
+        setError(err.response?.data?.message || 'Gagal memuat data pesanan');
+      }
     } finally {
       setLoading(false);
     }
@@ -183,12 +201,12 @@ export default function OrderDetail() {
                           <p className="text-sm text-gray-600">Size: {item.size_name}</p>
                         )}
                         <p className="text-sm text-gray-600">
-                          {item.quantity}x @ Rp {parseFloat(item.price).toLocaleString('id-ID')}
+                          {item.quantity}x @ Rp {formatCurrency(item.price)}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-bold">
-                          Rp {parseFloat(item.total).toLocaleString('id-ID')}
+                          Rp {formatCurrency(item.total)}
                         </p>
                       </div>
                     </div>
@@ -205,26 +223,28 @@ export default function OrderDetail() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>Rp {parseFloat(order.subtotal).toLocaleString('id-ID')}</span>
+                    <span>Rp {formatCurrency(order.subtotal)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Ongkos Kirim</span>
-                    <span>Rp {parseFloat(order.shipping_cost || 0).toLocaleString('id-ID')}</span>
+                    <span>Rp {formatCurrency(order.shipping_cost)}</span>
                   </div>
-                  {order.discount_amount > 0 && (
+                  {parseFloat(order.discount_amount || 0) > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Diskon</span>
-                      <span>-Rp {parseFloat(order.discount_amount).toLocaleString('id-ID')}</span>
+                      <span>-Rp {formatCurrency(order.discount_amount)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span>PPN (11%)</span>
-                    <span>Rp {parseFloat(order.tax || 0).toLocaleString('id-ID')}</span>
-                  </div>
+                  {parseFloat(order.tax || 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span>PPN (11%)</span>
+                      <span>Rp {formatCurrency(order.tax)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
                     <span>Total</span>
                     <span className="text-red-600">
-                      Rp {parseFloat(order.total).toLocaleString('id-ID')}
+                      Rp {formatCurrency(order.total)}
                     </span>
                   </div>
                 </div>
@@ -238,11 +258,11 @@ export default function OrderDetail() {
               <div className="bg-white rounded shadow p-6">
                 <h2 className="font-bold mb-4">Alamat Pengiriman</h2>
                 <div className="text-sm">
-                  <p className="font-semibold">{order.customer_name}</p>
-                  <p>{order.customer_phone}</p>
-                  <p className="mt-2">{order.shipping_address}</p>
+                  <p className="font-semibold">{order.customer_name || '-'}</p>
+                  <p>{order.customer_phone || '-'}</p>
+                  <p className="mt-2">{order.shipping_address || '-'}</p>
                   <p>
-                    {order.shipping_city}
+                    {order.shipping_city || ''}
                     {order.shipping_province && `, ${order.shipping_province}`}
                     {order.shipping_postal_code && ` ${order.shipping_postal_code}`}
                   </p>

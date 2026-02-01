@@ -10,7 +10,8 @@ const MainLayoutNew = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { items } = useSelector((state) => state.cart);
+  const cartState = useSelector((state) => state.cart);
+  const items = cartState?.items || [];
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const { t } = useLanguage();
   const { getSetting, getSettingImageUrl } = useSettings();
@@ -18,6 +19,7 @@ const MainLayoutNew = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openMegaMenu, setOpenMegaMenu] = useState(null);
   const [mobileSubmenu, setMobileSubmenu] = useState(null);
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   // Get settings
   const siteName = getSetting('site_name', 'JEANS');
@@ -65,7 +67,9 @@ const MainLayoutNew = () => {
     }
   };
 
-  const cartItemCount = items?.reduce((total, item) => total + (item.quantity || 0), 0) || 0;
+  const cartItemCount = Array.isArray(items) 
+    ? items.reduce((total, item) => total + (item.quantity || 1), 0) 
+    : 0;
 
   const megaMenus = {
     pria: [
@@ -106,8 +110,79 @@ const MainLayoutNew = () => {
     ]
   };
 
+  // Handle search modal submit
+  const handleSearchModalSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+      setShowSearchModal(false);
+    }
+  };
+
+  // Close search modal on escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && showSearchModal) {
+        setShowSearchModal(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showSearchModal]);
+
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Search Modal */}
+      {showSearchModal && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 px-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowSearchModal(false)}
+          />
+          
+          {/* Search Box */}
+          <div className="relative bg-white w-full max-w-2xl rounded-lg shadow-2xl p-6 animate-fade-in">
+            <button
+              onClick={() => setShowSearchModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            <h2 className="text-xl font-bold mb-4">Cari Produk</h2>
+            
+            <form onSubmit={handleSearchModalSubmit}>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Ketik nama produk, kategori, atau fitting..."
+                  className="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black text-lg"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-black"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+              </div>
+            </form>
+            
+            <div className="mt-4 text-sm text-gray-500">
+              <p>Tekan <kbd className="px-2 py-1 bg-gray-100 rounded">Enter</kbd> untuk mencari atau <kbd className="px-2 py-1 bg-gray-100 rounded">Esc</kbd> untuk menutup</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Bar - Promo */}
       <div className="bg-black text-white text-center py-1.5 sm:py-2 text-xs sm:text-sm px-4">
         <p className="line-clamp-1">
@@ -256,7 +331,11 @@ const MainLayoutNew = () => {
               </div>
               
               {/* Search Icon - Desktop */}
-              <button className="hover:text-gray-600 hidden md:block p-2">
+              <button 
+                onClick={() => setShowSearchModal(true)}
+                className="hover:text-gray-600 hidden md:block p-2"
+                aria-label="Search"
+              >
                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>

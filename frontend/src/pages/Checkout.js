@@ -511,7 +511,7 @@ const Checkout = () => {
 
         const response = await apiClient.post('/orders', orderData);
         
-        setSuccessMessage('Order berhasil dibuat! Silakan lanjut ke pembayaran.');
+        setSuccessMessage('Order berhasil dibuat!');
         setTimeout(() => {
           navigate(`/orders/${response.data.data.id}`, { 
             state: { orderId: response.data.data.id, isGuest: true } 
@@ -556,12 +556,10 @@ const Checkout = () => {
 
         const response = await apiClient.post('/orders', orderData);
         
-        setSuccessMessage('Order berhasil dibuat! Silakan lanjut ke pembayaran.');
-        showSuccess('Order berhasil dibuat! Silakan lanjut ke pembayaran.', 'Berhasil');
+        setSuccessMessage('Order berhasil dibuat!');
+        showSuccess('Order berhasil dibuat! Anda akan diarahkan ke halaman pesanan.', 'Berhasil');
         setTimeout(() => {
-          navigate(`/orders/${response.data.data.id}`, { 
-            state: { orderId: response.data.data.id, isGuest: false } 
-          });
+          navigate('/orders');
         }, 2000);
       }
     } catch (err) {

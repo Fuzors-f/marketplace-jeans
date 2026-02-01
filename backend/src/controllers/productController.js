@@ -80,6 +80,17 @@ exports.getProducts = async (req, res) => {
         p.id, p.name, p.slug, p.description, p.short_description,
         p.base_price, p.master_cost_price, p.sku, p.weight, p.is_active, p.is_featured,
         p.category_id, p.fitting_id,
+        p.discount_percentage,
+        p.discount_start_date,
+        p.discount_end_date,
+        CASE 
+          WHEN p.discount_percentage IS NOT NULL 
+            AND p.discount_percentage > 0 
+            AND (p.discount_start_date IS NULL OR p.discount_start_date <= NOW())
+            AND (p.discount_end_date IS NULL OR p.discount_end_date >= NOW())
+          THEN ROUND(p.base_price * (1 - p.discount_percentage / 100), 0)
+          ELSE NULL 
+        END as discount_price,
         c.name as category_name, c.slug as category_slug,
         f.name as fitting_name, f.slug as fitting_slug,
         (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as primary_image,

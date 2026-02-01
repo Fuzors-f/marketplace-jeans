@@ -7,7 +7,8 @@ import { logout } from '../redux/slices/authSlice';
 
 const MainLayout = () => {
   const dispatch = useDispatch();
-  const { items } = useSelector((state) => state.cart);
+  const cartState = useSelector((state) => state.cart);
+  const items = cartState?.items || [];
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
   useEffect(() => {
@@ -18,7 +19,9 @@ const MainLayout = () => {
     dispatch(logout());
   };
 
-  const cartItemCount = items?.length || 0;
+  const cartItemCount = Array.isArray(items) 
+    ? items.reduce((total, item) => total + (item.quantity || 1), 0) 
+    : 0;
 
   return (
     <div className="min-h-screen flex flex-col">
