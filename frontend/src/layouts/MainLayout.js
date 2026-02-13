@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { FaShoppingCart, FaUser, FaSearch } from 'react-icons/fa';
 import { fetchCart } from '../redux/slices/cartSlice';
@@ -7,6 +7,7 @@ import { logout } from '../redux/slices/authSlice';
 
 const MainLayout = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const cartState = useSelector((state) => state.cart);
   const items = cartState?.items || [];
   const { isAuthenticated, user } = useSelector((state) => state.auth);
@@ -17,6 +18,7 @@ const MainLayout = () => {
 
   const handleLogout = () => {
     dispatch(logout());
+    navigate('/login');
   };
 
   const cartItemCount = Array.isArray(items) 

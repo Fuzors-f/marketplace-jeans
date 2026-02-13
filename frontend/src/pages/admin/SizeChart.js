@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  FaPlus, FaEdit, FaTrash, FaRuler, FaSearch, FaTimes,
+  FaPlus, FaEdit, FaTrash, FaRuler, FaSearch,
   FaFilter, FaExpand
 } from 'react-icons/fa';
 import apiClient from '../../services/api';
+import Modal, { ModalFooter } from '../../components/admin/Modal';
 
 const SizeChart = () => {
   const [sizeCharts, setSizeCharts] = useState([]);
@@ -307,19 +308,13 @@ const SizeChart = () => {
       </div>
 
       {/* Modal Form */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-lg font-semibold">
-                {editingChart ? 'Edit Size Chart' : 'Tambah Size Chart Baru'}
-              </h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
-                <FaTimes size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+      <Modal
+        isOpen={showModal}
+        onClose={closeModal}
+        title={editingChart ? 'Edit Size Chart' : 'Tambah Size Chart Baru'}
+        size="2xl"
+      >
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
               {/* Basic Info */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
@@ -423,7 +418,7 @@ const SizeChart = () => {
                 <span className="text-sm text-gray-700">Size Chart Aktif</span>
               </label>
 
-              <div className="flex gap-3 pt-4">
+              <ModalFooter>
                 <button
                   type="button"
                   onClick={closeModal}
@@ -437,11 +432,9 @@ const SizeChart = () => {
                 >
                   {editingChart ? 'Simpan Perubahan' : 'Tambah Size Chart'}
                 </button>
-              </div>
+              </ModalFooter>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 };

@@ -167,11 +167,12 @@ app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 5000;
+const API_URL = process.env.API_URL || `http://localhost:${PORT}/api`;
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 API URL: http://localhost:${PORT}/api`);
+  console.log(`🌐 API URL: ${API_URL}`);
 });
 
 module.exports = app;

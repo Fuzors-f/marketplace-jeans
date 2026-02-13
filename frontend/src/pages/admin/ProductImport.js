@@ -132,10 +132,15 @@ const ProductImport = () => {
           <ol className="list-decimal list-inside text-blue-700 space-y-2">
             <li>Download template Excel terlebih dahulu</li>
             <li>Isi data produk sesuai format pada template</li>
-            <li>Pastikan data kategori dan ukuran sudah terdaftar di sistem</li>
             <li>Upload file Excel yang sudah diisi</li>
-            <li>Review hasil import dan perbaiki jika ada error</li>
+            <li>Review hasil import</li>
           </ol>
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-green-800 text-sm">
+              <strong>Fitur Auto-Create:</strong> Jika kategori, fitting, ukuran, atau gudang yang Anda gunakan belum ada di sistem, 
+              maka akan otomatis dibuat saat import.
+            </p>
+          </div>
         </div>
 
         {/* Download Template */}
@@ -267,6 +272,56 @@ const ProductImport = () => {
               </div>
             )}
 
+            {/* Auto-created Master Data */}
+            {(importResult.created_categories?.length > 0 || importResult.created_fittings?.length > 0 || 
+              importResult.created_sizes?.length > 0 || importResult.created_warehouses?.length > 0) && (
+              <div className="mb-6">
+                <h3 className="font-semibold text-indigo-700 mb-2">Master Data Baru (Otomatis Dibuat):</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {importResult.created_categories?.length > 0 && (
+                    <div className="bg-indigo-50 rounded-lg p-3">
+                      <p className="font-medium text-indigo-800 mb-1">Kategori:</p>
+                      <ul className="text-sm text-indigo-700">
+                        {importResult.created_categories.map((name, i) => (
+                          <li key={i}>• {name}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {importResult.created_fittings?.length > 0 && (
+                    <div className="bg-indigo-50 rounded-lg p-3">
+                      <p className="font-medium text-indigo-800 mb-1">Fitting:</p>
+                      <ul className="text-sm text-indigo-700">
+                        {importResult.created_fittings.map((name, i) => (
+                          <li key={i}>• {name}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {importResult.created_sizes?.length > 0 && (
+                    <div className="bg-indigo-50 rounded-lg p-3">
+                      <p className="font-medium text-indigo-800 mb-1">Ukuran:</p>
+                      <ul className="text-sm text-indigo-700">
+                        {importResult.created_sizes.map((name, i) => (
+                          <li key={i}>• {name}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {importResult.created_warehouses?.length > 0 && (
+                    <div className="bg-indigo-50 rounded-lg p-3">
+                      <p className="font-medium text-indigo-800 mb-1">Gudang:</p>
+                      <ul className="text-sm text-indigo-700">
+                        {importResult.created_warehouses.map((name, i) => (
+                          <li key={i}>• {name}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Success List */}
             {importResult.created && importResult.created.length > 0 && (
               <div className="mb-6">
@@ -304,6 +359,7 @@ const ProductImport = () => {
                     <thead>
                       <tr className="border-b border-red-200">
                         <th className="text-left py-2 px-2">Baris</th>
+                        <th className="text-left py-2 px-2">Sheet</th>
                         <th className="text-left py-2 px-2">SKU</th>
                         <th className="text-left py-2 px-2">Error</th>
                       </tr>
@@ -312,7 +368,8 @@ const ProductImport = () => {
                       {importResult.errors.map((err, index) => (
                         <tr key={index} className="border-b border-red-100">
                           <td className="py-2 px-2 text-red-800">{err.row || '-'}</td>
-                          <td className="py-2 px-2 text-red-800">{err.sku || '-'}</td>
+                          <td className="py-2 px-2 text-red-800">{err.sheet || '-'}</td>
+                          <td className="py-2 px-2 text-red-800">{err.sku || err.product_sku || '-'}</td>
                           <td className="py-2 px-2 text-red-600">{err.message}</td>
                         </tr>
                       ))}

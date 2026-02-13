@@ -58,7 +58,7 @@ const authSlice = createSlice({
   initialState: {
     user: null,
     token: localStorage.getItem('token'),
-    isLoading: false,
+    isLoading: !!localStorage.getItem('token'), // Start loading if token exists (issue #3)
     error: null,
     isAuthenticated: false,
   },

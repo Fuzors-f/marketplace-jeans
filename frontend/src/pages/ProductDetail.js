@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import api from '../services/api';
 import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../utils/imageUtils';
 import { useAlert } from '../utils/AlertContext';
+import { fetchCart } from '../redux/slices/cartSlice';
 
 export default function ProductDetail() {
   const { slug } = useParams();
@@ -86,7 +87,8 @@ export default function ProductDetail() {
       
       if (response.data.success) {
         showSuccess('Produk berhasil ditambahkan ke keranjang!', 'Berhasil');
-        // Optionally dispatch to redux to update cart count
+        // Update cart count in navbar
+        dispatch(fetchCart());
       }
     } catch (err) {
       if (err.response?.status === 401) {
@@ -262,12 +264,32 @@ export default function ProductDetail() {
 
               {/* Price */}
               <div className="border-t border-b py-4">
-                <p className="text-3xl font-bold text-gray-900">
-                  {formatCurrency(calculatePrice())}
-                </p>
+                {product.discount_price ? (
+                  <>
+                    {/* Discount Badge */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="bg-red-600 text-white px-2 py-1 text-sm font-bold rounded">
+                        -{product.discount_percentage || Math.round((1 - product.discount_price / product.base_price) * 100)}%
+                      </span>
+                      <span className="text-sm text-gray-500">Hemat {formatCurrency(calculatePrice() - (parseFloat(product.discount_price) + (selectedVariant ? parseFloat(selectedVariant.additional_price) || 0 : 0)))}</span>
+                    </div>
+                    {/* Discounted Price */}
+                    <p className="text-3xl font-bold text-red-600">
+                      {formatCurrency(parseFloat(product.discount_price) + (selectedVariant ? parseFloat(selectedVariant.additional_price) || 0 : 0))}
+                    </p>
+                    {/* Original Price */}
+                    <p className="text-lg text-gray-400 line-through mt-1">
+                      {formatCurrency(calculatePrice())}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-3xl font-bold text-gray-900">
+                    {formatCurrency(calculatePrice())}
+                  </p>
+                )}
                 {selectedVariant && selectedVariant.additional_price > 0 && (
                   <p className="text-sm text-gray-500 mt-1">
-                    Harga dasar: {formatCurrency(product.base_price)} + Ukuran: {formatCurrency(selectedVariant.additional_price)}
+                    Harga dasar: {formatCurrency(product.discount_price || product.base_price)} + Ukuran: {formatCurrency(selectedVariant.additional_price)}
                   </p>
                 )}
               </div>

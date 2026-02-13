@@ -31,8 +31,16 @@ exports.getProducts = async (req, res) => {
 
     // Build WHERE conditions
     if (category) {
-      whereConditions.push('p.category_id = ?');
-      params.push(category);
+      // Check if category is an ID (number) or a name/slug (string)
+      if (!isNaN(category)) {
+        whereConditions.push('p.category_id = ?');
+        params.push(category);
+      } else {
+        // Search by category name or slug (case-insensitive, partial match)
+        whereConditions.push('(c.name LIKE ? OR c.slug LIKE ?)');
+        const categorySearch = `%${category.replace(/-/g, ' ')}%`;
+        params.push(categorySearch, categorySearch);
+      }
     }
 
     if (fitting) {
@@ -67,9 +75,12 @@ exports.getProducts = async (req, res) => {
     const sortColumn = validSortColumns.includes(sort) ? sort : 'created_at';
     const sortOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
-    // Get total count
+    // Get total count (with JOIN for category name/slug filtering)
     const countResult = await query(
-      `SELECT COUNT(DISTINCT p.id) as total FROM products p ${whereClause}`,
+      `SELECT COUNT(DISTINCT p.id) as total 
+       FROM products p 
+       LEFT JOIN categories c ON p.category_id = c.id 
+       ${whereClause}`,
       params
     );
     const total = countResult[0].total;
@@ -221,6 +232,17 @@ exports.createProduct = async (req, res) => {
         message: 'Product slug already exists'
       });
     }
+    
+    // Check if SKU exists (if provided)
+    if (sku) {
+      const existingSku = await query('SELECT id FROM products WHERE sku = ?', [sku]);
+      if (existingSku.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'SKU sudah digunakan oleh produk lain'
+        });
+      }
+    }
 
     const result = await transaction(async (conn) => {
       // Insert product
@@ -294,6 +316,34 @@ exports.updateProduct = async (req, res) => {
     const { id } = req.params;
     const updates = [];
     const values = [];
+
+    // Check SKU uniqueness if SKU is being updated
+    if (req.body.sku) {
+      const existingSku = await query(
+        'SELECT id FROM products WHERE sku = ? AND id != ?',
+        [req.body.sku, id]
+      );
+      if (existingSku.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'SKU sudah digunakan oleh produk lain'
+        });
+      }
+    }
+    
+    // Check slug uniqueness if slug is being updated
+    if (req.body.slug) {
+      const existingSlug = await query(
+        'SELECT id FROM products WHERE slug = ? AND id != ?',
+        [req.body.slug, id]
+      );
+      if (existingSlug.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Slug sudah digunakan oleh produk lain'
+        });
+      }
+    }
 
     const allowedFields = [
       'name', 'slug', 'category_id', 'fitting_id', 'description', 'short_description',

@@ -30,8 +30,15 @@ export default function AdminSettings() {
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailAddress, setTestEmailAddress] = useState('');
   
-  const logoInputRef = useRef(null);
-  const faviconInputRef = useRef(null);
+  // Dynamic refs for image inputs
+  const imageInputRefs = useRef({});
+  
+  const getImageInputRef = (key) => {
+    if (!imageInputRefs.current[key]) {
+      imageInputRefs.current[key] = React.createRef();
+    }
+    return imageInputRefs.current[key];
+  };
 
   useEffect(() => {
     fetchSettings();
@@ -102,6 +109,21 @@ export default function AdminSettings() {
 
   const handleImageUpload = async (file, settingKey) => {
     try {
+      setMessage({ type: '', text: '' });
+      
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/x-icon', 'image/svg+xml'];
+      if (!allowedTypes.includes(file.type)) {
+        setMessage({ type: 'error', text: 'Format file tidak didukung. Gunakan JPEG, PNG, GIF, ICO, atau SVG.' });
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setMessage({ type: 'error', text: 'Ukuran file terlalu besar. Maksimal 5MB.' });
+        return;
+      }
+
       // Create local preview first
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -196,7 +218,7 @@ export default function AdminSettings() {
     }
 
     if (type === 'image') {
-      const inputRef = key === 'site_logo' ? logoInputRef : faviconInputRef;
+      const inputRef = getImageInputRef(key);
       // Check for local preview first, then saved value
       const previewUrl = imagePreviews[key];
       const savedUrl = value ? `${API_BASE_URL}${value}` : null;
@@ -214,7 +236,7 @@ export default function AdminSettings() {
                   className="max-w-full max-h-full object-contain"
                   onError={(e) => {
                     e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
+                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
                   }}
                 />
               ) : null}
@@ -230,20 +252,29 @@ export default function AdminSettings() {
               />
               <button
                 type="button"
-                onClick={() => inputRef.current?.click()}
+                onClick={() => {
+                  const ref = inputRef.current || inputRef;
+                  if (ref && ref.click) ref.click();
+                }}
                 className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm"
               >
                 <Upload size={16} />
                 Pilih Gambar
               </button>
               <input
-                ref={inputRef}
+                ref={(el) => {
+                  if (typeof inputRef === 'object' && inputRef !== null) {
+                    inputRef.current = el;
+                  }
+                }}
                 type="file"
                 accept="image/*"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) handleImageUpload(file, key);
+                  // Reset input value to allow re-uploading same file
+                  e.target.value = '';
                 }}
               />
               {helpText && <p className="text-xs text-gray-500 mt-1">{helpText}</p>}
@@ -336,12 +367,31 @@ export default function AdminSettings() {
             reset password, dan lainnya.
           </p>
         </div>
-        {renderSettingInput('email_smtp_host', 'SMTP Host', 'text', 'smtp.gmail.com')}
-        {renderSettingInput('email_smtp_port', 'SMTP Port', 'text', '587')}
-        {renderSettingInput('email_smtp_user', 'SMTP Username', 'text', 'email@gmail.com')}
-        {renderSettingInput('email_smtp_pass', 'SMTP Password', 'password', '••••••••', 'Gunakan App Password untuk Gmail')}
-        {renderSettingInput('email_from_name', 'Nama Pengirim', 'text', 'Marketplace Jeans')}
-        {renderSettingInput('email_from_address', 'Email Pengirim', 'email', 'noreply@example.com')}
+        
+        {/* SMTP Configuration */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h4 className="font-medium mb-3">Konfigurasi SMTP Server</h4>
+          {renderSettingInput('email_smtp_host', 'SMTP Host', 'text', 'smtp.gmail.com')}
+          {renderSettingInput('email_smtp_port', 'SMTP Port', 'text', '587')}
+          {renderSettingInput('email_smtp_secure', 'Gunakan SSL/TLS', 'boolean', '', 'Aktifkan untuk port 465')}
+          {renderSettingInput('email_smtp_user', 'SMTP Username', 'text', 'email@gmail.com')}
+          {renderSettingInput('email_smtp_pass', 'SMTP Password', 'password', '••••••••', 'Gunakan App Password untuk Gmail')}
+        </div>
+
+        {/* Sender Configuration */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h4 className="font-medium mb-3">Pengaturan Pengirim</h4>
+          {renderSettingInput('email_from_name', 'Nama Pengirim', 'text', 'Marketplace Jeans')}
+          {renderSettingInput('email_from_address', 'Email Pengirim', 'email', 'noreply@example.com')}
+        </div>
+
+        {/* Notification Settings */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h4 className="font-medium mb-3">Pengaturan Notifikasi</h4>
+          {renderSettingInput('email_admin_address', 'Email Admin', 'email', 'admin@example.com', 'Email untuk menerima notifikasi pesanan baru')}
+          {renderSettingInput('email_notify_admin_order', 'Notifikasi Admin (Pesanan Baru)', 'boolean', '', 'Kirim email ke admin saat ada pesanan baru')}
+          {renderSettingInput('email_notify_user_order', 'Notifikasi Customer (Checkout)', 'boolean', '', 'Kirim email konfirmasi ke customer saat checkout')}
+        </div>
         
         {/* Test Email Section */}
         <div className="mt-6 pt-6 border-t">

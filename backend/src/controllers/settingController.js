@@ -23,8 +23,12 @@ const defaultSettings = [
   { key: 'email_smtp_port', value: '587', type: 'text', description: 'SMTP Port', is_public: false, group: 'email' },
   { key: 'email_smtp_user', value: '', type: 'text', description: 'SMTP Username', is_public: false, group: 'email' },
   { key: 'email_smtp_pass', value: '', type: 'password', description: 'SMTP Password', is_public: false, group: 'email' },
+  { key: 'email_smtp_secure', value: 'false', type: 'boolean', description: 'Gunakan SSL/TLS', is_public: false, group: 'email' },
   { key: 'email_from_name', value: '', type: 'text', description: 'Nama pengirim email', is_public: false, group: 'email' },
   { key: 'email_from_address', value: '', type: 'text', description: 'Alamat email pengirim', is_public: false, group: 'email' },
+  { key: 'email_admin_address', value: '', type: 'text', description: 'Email admin untuk notifikasi pesanan', is_public: false, group: 'email' },
+  { key: 'email_notify_admin_order', value: 'true', type: 'boolean', description: 'Kirim email ke admin saat ada pesanan baru', is_public: false, group: 'email' },
+  { key: 'email_notify_user_order', value: 'true', type: 'boolean', description: 'Kirim email ke customer saat checkout', is_public: false, group: 'email' },
   
   // Payment gateway settings
   { key: 'payment_midtrans_enabled', value: 'false', type: 'boolean', description: 'Aktifkan Midtrans', is_public: false, group: 'payment' },
@@ -214,6 +218,10 @@ exports.bulkUpdateSettings = async (req, res) => {
         updated++;
       }
     }
+
+    // Clear caches after bulk update
+    clearEmailSettingsCache();
+    clearMidtransSettingsCache();
 
     res.json({ 
       success: true, 

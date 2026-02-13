@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
 import { FaEye, FaTimes, FaFilter, FaPlus, FaSearch, FaTrash, FaUser, FaUserPlus, FaWarehouse, FaTruck, FaMapMarkerAlt, FaHistory, FaClock, FaCheckCircle, FaBox, FaSpinner, FaFilePdf, FaQrcode, FaCheck, FaLink } from 'react-icons/fa';
 import DataTable from '../../components/admin/DataTable';
+import Modal, { ModalFooter } from '../../components/admin/Modal';
 import { useLanguage } from '../../utils/i18n';
 
 // Tracking status configuration
@@ -970,42 +971,37 @@ const AdminOrders = () => {
       </div>
 
       {/* Order Detail Modal */}
-      {selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-auto">
-            <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold">{t('orderDetails')} #{selectedOrder.id}</h2>
-              <div className="flex items-center gap-2">
-                {/* Approve button for pending orders */}
-                {selectedOrder.status === 'pending' && (
-                  <button
-                    onClick={() => handleApproveOrder(selectedOrder.id)}
-                    disabled={approvingOrderId === selectedOrder.id}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-50"
-                  >
-                    {approvingOrderId === selectedOrder.id ? (
-                      <><FaSpinner className="animate-spin" /> Menyetujui...</>
-                    ) : (
-                      <><FaCheck /> Setujui Pesanan</>
-                    )}
-                  </button>
-                )}
+      <Modal
+        isOpen={!!selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        title={selectedOrder ? `${t('orderDetails')} #${selectedOrder.id}` : ''}
+        size="3xl"
+      >
+        {selectedOrder && (
+          <>
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2 mb-4 pb-4 border-b">
+              {/* Approve button for pending orders */}
+              {selectedOrder.status === 'pending' && (
                 <button
-                  onClick={() => handleOpenTrackingModal(selectedOrder.id)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                  onClick={() => handleApproveOrder(selectedOrder.id)}
+                  disabled={approvingOrderId === selectedOrder.id}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-50"
                 >
-                  <FaHistory /> Update Tracking
+                  {approvingOrderId === selectedOrder.id ? (
+                    <><FaSpinner className="animate-spin" /> Menyetujui...</>
+                  ) : (
+                    <><FaCheck /> Setujui Pesanan</>
+                  )}
                 </button>
-                <button
-                  onClick={() => setSelectedOrder(null)}
-                  className="p-2 hover:bg-gray-100 rounded"
-                >
-                  <FaTimes />
-                </button>
-              </div>
+              )}
+              <button
+                onClick={() => handleOpenTrackingModal(selectedOrder.id)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              >
+                <FaHistory /> Update Tracking
+              </button>
             </div>
-            
-            <div className="p-4 lg:p-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 {/* Order Info */}
                 <div className="bg-gray-50 p-4 rounded">
@@ -1196,33 +1192,21 @@ const AdminOrders = () => {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
       {/* Tracking Modal */}
-      {showTrackingModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto">
-            <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <FaHistory className="text-blue-600" />
-                Update Tracking Pesanan
-              </h2>
-              <button
-                onClick={() => {
-                  setShowTrackingModal(false);
-                  setTrackingOrderId(null);
-                  setTrackingHistory([]);
-                }}
-                className="p-2 hover:bg-gray-100 rounded"
-              >
-                <FaTimes />
-              </button>
-            </div>
-
-            <div className="p-4 lg:p-6">
+      <Modal
+        isOpen={showTrackingModal}
+        onClose={() => {
+          setShowTrackingModal(false);
+          setTrackingOrderId(null);
+          setTrackingHistory([]);
+        }}
+        title={<span className="flex items-center gap-2"><FaHistory className="text-blue-600" /> Update Tracking Pesanan</span>}
+        size="2xl"
+      >
               {/* Add New Tracking Form */}
               <form onSubmit={handleAddTracking} className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <h3 className="font-bold mb-4">Tambah Update Tracking</h3>
@@ -1373,29 +1357,19 @@ const AdminOrders = () => {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Create Order Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-auto">
-            <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold">{t('createOrder')}</h2>
-              <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  resetCreateForm();
-                }}
-                className="p-2 hover:bg-gray-100 rounded"
-              >
-                <FaTimes />
-              </button>
-            </div>
-            
-            <form onSubmit={handleCreateOrder} className="p-4 lg:p-6">
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          resetCreateForm();
+        }}
+        title={t('createOrder')}
+        size="4xl"
+      >
+            <form onSubmit={handleCreateOrder}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left Column - Customer Info */}
                 <div className="space-y-4">
@@ -2069,9 +2043,7 @@ const AdminOrders = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </>
   );
 };

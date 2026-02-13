@@ -58,7 +58,7 @@ apiClient.interceptors.response.use(
 // =====================================
 
 export const categoryAPI = {
-  getAll: () => apiClient.get('/categories'),
+  getAll: (params) => apiClient.get('/categories', { params }),
   getBySlug: (slug) => apiClient.get(`/categories/${slug}`),
   create: (data) => apiClient.post('/categories', data),
   update: (id, data) => apiClient.put(`/categories/${id}`, data),
@@ -70,7 +70,7 @@ export const categoryAPI = {
 // =====================================
 
 export const fittingAPI = {
-  getAll: () => apiClient.get('/fittings'),
+  getAll: (params) => apiClient.get('/fittings', { params }),
   create: (data) => apiClient.post('/fittings', data),
   update: (id, data) => apiClient.put(`/fittings/${id}`, data),
   delete: (id) => apiClient.delete(`/fittings/${id}`)
@@ -81,7 +81,7 @@ export const fittingAPI = {
 // =====================================
 
 export const sizeAPI = {
-  getAll: () => apiClient.get('/sizes'),
+  getAll: (params) => apiClient.get('/sizes', { params }),
   create: (data) => apiClient.post('/sizes', data),
   update: (id, data) => apiClient.put(`/sizes/${id}`, data),
   delete: (id) => apiClient.delete(`/sizes/${id}`)

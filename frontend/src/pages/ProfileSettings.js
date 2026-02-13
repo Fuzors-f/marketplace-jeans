@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { Eye, EyeOff, Camera, User, Lock, ArrowLeft, Check, X } from 'lucide-react';
@@ -37,6 +37,16 @@ export default function ProfileSettings() {
   // Profile picture
   const [previewImage, setPreviewImage] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Sync profileForm with user data when user changes
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        full_name: user.full_name || '',
+        phone: user.phone || ''
+      });
+    }
+  }, [user]);
 
   const handleProfileChange = (e) => {
     setProfileForm({ ...profileForm, [e.target.name]: e.target.value });

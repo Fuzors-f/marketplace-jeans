@@ -5,6 +5,7 @@ import {
   FaExclamationTriangle, FaChartLine
 } from 'react-icons/fa';
 import api from '../../services/api';
+import Modal, { ModalFooter } from '../../components/admin/Modal';
 
 export default function AdminInventory() {
   const [activeTab, setActiveTab] = useState('stock');
@@ -805,11 +806,13 @@ export default function AdminInventory() {
       </div>
 
       {/* Opening Stock Modal */}
-      {showOpeningStockModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-bold mb-4">Tambah Stok Pembuka</h3>
-            <form onSubmit={handleOpeningStockSubmit} className="space-y-4">
+      <Modal
+        isOpen={showOpeningStockModal}
+        onClose={() => setShowOpeningStockModal(false)}
+        title="Tambah Stok Pembuka"
+        size="md"
+      >
+        <form onSubmit={handleOpeningStockSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Produk *</label>
                 <select
@@ -879,31 +882,33 @@ export default function AdminInventory() {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
-                >
-                  Simpan
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowOpeningStockModal(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400"
-                >
-                  Batal
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={() => setShowOpeningStockModal(false)}
+              className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Simpan
+            </button>
+          </ModalFooter>
+        </form>
+      </Modal>
 
       {/* Adjustment Modal */}
-      {showAdjustModal && selectedStock && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-bold mb-4">Penyesuaian Stok</h3>
+      <Modal
+        isOpen={showAdjustModal && selectedStock}
+        onClose={() => setShowAdjustModal(false)}
+        title="Penyesuaian Stok"
+        size="md"
+      >
+        {selectedStock && (
+          <>
             <div className="bg-gray-50 p-3 rounded-lg mb-4">
               <p className="font-medium">{selectedStock.product_name}</p>
               <p className="text-sm text-gray-600">
@@ -964,7 +969,7 @@ export default function AdminInventory() {
                   required
                 />
               </div>
-              <div className="flex gap-3 justify-end">
+              <ModalFooter>
                 <button
                   type="button"
                   onClick={() => setShowAdjustModal(false)}
@@ -978,11 +983,11 @@ export default function AdminInventory() {
                 >
                   Simpan
                 </button>
-              </div>
+              </ModalFooter>
             </form>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

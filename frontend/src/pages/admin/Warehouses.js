@@ -5,6 +5,7 @@ import {
   FaEnvelope, FaStar
 } from 'react-icons/fa';
 import api from '../../services/api';
+import Modal from '../../components/admin/Modal';
 
 const Warehouses = () => {
   const [warehouses, setWarehouses] = useState([]);
@@ -243,111 +244,111 @@ const Warehouses = () => {
       )}
 
       {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-auto">
-            <h3 className="text-lg font-bold mb-4">
-              {editingWarehouse ? 'Edit Gudang' : 'Tambah Gudang Baru'}
-            </h3>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Nama Gudang *</label>
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title={editingWarehouse ? 'Edit Gudang' : 'Tambah Gudang Baru'}
+        size="lg"
+      >
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Nama Gudang *</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Gudang Utama"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Alamat *</label>
+              <textarea
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                rows="2"
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Alamat lengkap gudang"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Telepon</label>
                 <input
                   type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Gudang Utama"
-                  required
+                  placeholder="021-xxx"
                 />
               </div>
-              
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Alamat *</label>
-                <textarea
-                  value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  rows="2"
+              <div>
+                <label className="block text-sm font-medium mb-2">Email</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Alamat lengkap gudang"
-                  required
+                  placeholder="gudang@email.com"
                 />
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Telepon</label>
-                  <input
-                    type="text"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="021-xxx"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="gudang@email.com"
-                  />
-                </div>
-              </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Deskripsi</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                rows="2"
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Deskripsi gudang (opsional)"
+              />
+            </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Deskripsi</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  rows="2"
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Deskripsi gudang (opsional)"
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.is_main}
+                  onChange={(e) => setForm({ ...form, is_main: e.target.checked })}
+                  className="rounded text-blue-600"
                 />
-              </div>
-
-              <div className="flex gap-6 mb-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={form.is_main}
-                    onChange={(e) => setForm({ ...form, is_main: e.target.checked })}
-                    className="rounded text-blue-600"
-                  />
-                  <span className="text-sm">Gudang Utama</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={form.is_active}
-                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                    className="rounded text-blue-600"
-                  />
-                  <span className="text-sm">Aktif</span>
-                </label>
-              </div>
-
-              <div className="flex gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  {editingWarehouse ? 'Update' : 'Simpan'}
-                </button>
-              </div>
-            </form>
+                <span className="text-sm">Gudang Utama</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.is_active}
+                  onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                  className="rounded text-blue-600"
+                />
+                <span className="text-sm">Aktif</span>
+              </label>
+            </div>
           </div>
-        </div>
-      )}
+
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 mt-6 pt-4 border-t">
+            <button
+              type="button"
+              onClick={() => setShowModal(false)}
+              className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm font-medium transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+            >
+              {editingWarehouse ? 'Update' : 'Simpan'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

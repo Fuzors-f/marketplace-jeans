@@ -2,14 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
 import { 
-  FaGlobe, FaSave, FaSpinner, FaEdit, FaTrash, FaPlus, FaTimes,
+  FaGlobe, FaSave, FaSpinner, FaEdit, FaTrash, FaPlus,
   FaLanguage, FaImage, FaLink, FaCheck
 } from 'react-icons/fa';
+import { useAlert } from '../../utils/AlertContext';
+import Modal, { ModalFooter } from '../../components/admin/Modal';
 
 const ContentSettings = () => {
+  const { showSuccess, showError: showAlertError, showConfirm } = useAlert();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
   const [contents, setContents] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -69,6 +73,7 @@ const ContentSettings = () => {
       sort_order: content.sort_order || 0
     });
     setEditingId(content.id);
+    setFormError('');
     setShowModal(true);
   };
 
@@ -90,49 +95,70 @@ const ContentSettings = () => {
       sort_order: contents.length + 1
     });
     setEditingId(null);
+    setFormError('');
     setShowModal(true);
   };
 
   const handleSave = async () => {
     try {
       setSaving(true);
-      setError('');
+      setFormError('');
       
+      // Validation (issues #17, #18)
       if (!formData.section_key || !formData.section_name) {
-        setError('Section Key dan Section Name wajib diisi');
+        setFormError('Section Key dan Section Name wajib diisi');
+        setSaving(false);
+        return;
+      }
+      
+      // Validate title (at least one language required)
+      if (!formData.title_id && !formData.title_en) {
+        setFormError('Minimal satu judul (ID atau EN) wajib diisi');
+        setSaving(false);
+        return;
+      }
+
+      // Validate content (at least one language required)
+      if (!formData.content_id && !formData.content_en) {
+        setFormError('Minimal satu konten (ID atau EN) wajib diisi');
+        setSaving(false);
+        return;
+      }
+
+      // Validate image URL
+      if (!formData.image_url) {
+        setFormError('URL Gambar wajib diisi');
         setSaving(false);
         return;
       }
 
       if (editingId) {
         await apiClient.put(`/content/${editingId}`, formData);
-        setSuccess('Konten berhasil diupdate');
+        showSuccess('Konten berhasil diupdate');
       } else {
         await apiClient.post('/content', formData);
-        setSuccess('Konten berhasil dibuat');
+        showSuccess('Konten berhasil dibuat');
       }
       
       setShowModal(false);
       fetchContents();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal menyimpan konten');
+      setFormError(err.response?.data?.message || 'Gagal menyimpan konten');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id, sectionKey) => {
-    if (!window.confirm(`Yakin ingin menghapus konten "${sectionKey}"?`)) return;
-    
-    try {
-      await apiClient.delete(`/content/${id}`);
-      setSuccess('Konten berhasil dihapus');
-      fetchContents();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError('Gagal menghapus konten');
-    }
+    showConfirm(`Yakin ingin menghapus konten "${sectionKey}"?`, async () => {
+      try {
+        await apiClient.delete(`/content/${id}`);
+        showSuccess('Konten berhasil dihapus');
+        fetchContents();
+      } catch (err) {
+        showAlertError('Gagal menghapus konten');
+      }
+    }, { title: 'Konfirmasi Hapus' });
   };
 
   const handleToggleActive = async (id, currentStatus) => {
@@ -265,23 +291,18 @@ const ContentSettings = () => {
         )}
 
         {/* Edit/Create Modal */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b flex items-center justify-between">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <FaLanguage className="text-blue-600" />
-                  {editingId ? 'Edit Konten' : 'Tambah Konten Baru'}
-                </h2>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
-                >
-                  <FaTimes />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-6">
+        <Modal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          title={editingId ? 'Edit Konten' : 'Tambah Konten Baru'}
+          size="4xl"
+        >
+          <div className="space-y-6">
+                {/* Form Error Display */}
+                {formError && (
+                  <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm">{formError}</div>
+                )}
+                
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -311,7 +332,7 @@ const ContentSettings = () => {
                 <div className="border rounded-lg p-4">
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
                     <FaGlobe className="text-gray-500" />
-                    Judul / Title
+                    Judul / Title <span className="text-red-500">*</span>
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -339,6 +360,7 @@ const ContentSettings = () => {
                       />
                     </div>
                   </div>
+                  <p className="text-xs text-gray-500 mt-2">* Minimal satu bahasa wajib diisi</p>
                 </div>
 
                 {/* Bilingual Subtitle */}
@@ -370,7 +392,7 @@ const ContentSettings = () => {
 
                 {/* Bilingual Content */}
                 <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold mb-3">Konten / Content</h3>
+                  <h3 className="font-semibold mb-3">Konten / Content <span className="text-red-500">*</span></h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-1">🇮🇩 Bahasa Indonesia</label>
@@ -380,6 +402,7 @@ const ContentSettings = () => {
                         rows={3}
                         className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Konten dalam Bahasa Indonesia"
+                        required
                       />
                     </div>
                     <div>
@@ -393,6 +416,7 @@ const ContentSettings = () => {
                       />
                     </div>
                   </div>
+                  <p className="text-xs text-gray-500 mt-2">* Minimal satu bahasa wajib diisi</p>
                 </div>
 
                 {/* Button Text */}
@@ -440,7 +464,7 @@ const ContentSettings = () => {
                   <div>
                     <label className="block text-sm font-medium mb-1">
                       <FaImage className="inline mr-1" />
-                      URL Gambar
+                      URL Gambar <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -448,6 +472,7 @@ const ContentSettings = () => {
                       onChange={(e) => setFormData(prev => ({ ...prev, image_url: e.target.value }))}
                       className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="/uploads/content/hero.jpg"
+                      required
                     />
                   </div>
                   <div>
@@ -473,34 +498,32 @@ const ContentSettings = () => {
                 </div>
               </div>
 
-              <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-100"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {saving ? (
-                    <>
-                      <FaSpinner className="animate-spin" />
-                      Menyimpan...
-                    </>
-                  ) : (
-                    <>
-                      <FaSave />
-                      Simpan
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+            <ModalFooter>
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-100"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {saving ? (
+                  <>
+                    <FaSpinner className="animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <FaSave />
+                    Simpan
+                  </>
+                )}
+              </button>
+            </ModalFooter>
+        </Modal>
       </div>
     </>
   );

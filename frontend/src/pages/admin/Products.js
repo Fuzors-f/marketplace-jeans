@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
 import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../../utils/imageUtils';
 import { ActionButtonsContainer, EditButton, DeleteButton, StatsButton } from '../../components/admin/ActionButtons';
+import Modal from '../../components/admin/Modal';
 import { useAlert } from '../../utils/AlertContext';
 
 const AdminProducts = () => {
@@ -27,6 +28,7 @@ const AdminProducts = () => {
   const [selectedImages, setSelectedImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
+  const [deletedImageIds, setDeletedImageIds] = useState([]);
   
   // Size selection state for product creation
   const [selectedSizes, setSelectedSizes] = useState([]);
@@ -245,6 +247,10 @@ const AdminProducts = () => {
 
   const removeImage = (index, isExisting = false) => {
     if (isExisting) {
+      const imageToDelete = existingImages[index];
+      if (imageToDelete && imageToDelete.id) {
+        setDeletedImageIds(prev => [...prev, imageToDelete.id]);
+      }
       setExistingImages(prev => prev.filter((_, i) => i !== index));
     } else {
       setSelectedImages(prev => prev.filter((_, i) => i !== index));
@@ -268,6 +274,20 @@ const AdminProducts = () => {
     setError('');
     setSuccess('');
 
+    // Validation (issue #1, #15)
+    if (!formData.name || !formData.name.trim()) {
+      showError('Nama produk wajib diisi');
+      return;
+    }
+    if (!formData.base_price || parseFloat(formData.base_price) <= 0) {
+      showError('Harga jual wajib diisi dan harus lebih dari 0');
+      return;
+    }
+    if (!formData.category_id) {
+      showError('Kategori wajib dipilih');
+      return;
+    }
+
     try {
       const payload = {
         ...formData,
@@ -281,6 +301,18 @@ const AdminProducts = () => {
       let productResponse;
       if (editingProduct) {
         productResponse = await apiClient.put(`/products/${editingProduct.id}`, payload);
+        
+        // Delete removed images (issue #6)
+        if (deletedImageIds.length > 0) {
+          for (const imageId of deletedImageIds) {
+            try {
+              await apiClient.delete(`/products/${editingProduct.id}/images/${imageId}`);
+            } catch (imgErr) {
+              console.error('Error deleting image:', imgErr);
+            }
+          }
+        }
+        
         showSuccess('Produk berhasil diupdate!');
         setProducts(products.map(p =>
           p.id === editingProduct.id ? { ...p, ...payload } : p
@@ -308,6 +340,8 @@ const AdminProducts = () => {
         }
       }
 
+      // Refresh products list to show updated data
+      fetchProducts();
       resetForm();
     } catch (err) {
       showError(err.response?.data?.message || 'Gagal menyimpan produk');
@@ -399,6 +433,7 @@ const AdminProducts = () => {
     setSelectedImages([]);
     setImagePreviews([]);
     setExistingImages([]);
+    setDeletedImageIds([]);
     
     // Fetch existing variants to show selected sizes
     fetchProductVariants(product.id);
@@ -446,6 +481,7 @@ const AdminProducts = () => {
     setSelectedImages([]);
     setImagePreviews([]);
     setExistingImages([]);
+    setDeletedImageIds([]);
     setSelectedSizes([]);
     setSelectedWarehouses([]);
     
@@ -513,11 +549,12 @@ const AdminProducts = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold mb-2">Kategori</label>
+                    <label className="block text-sm font-semibold mb-2">Kategori <span className="text-red-500">*</span></label>
                     <select
                       name="category_id"
                       value={formData.category_id}
                       onChange={handleChange}
+                      required
                       className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                     >
                       <option value="">Pilih Kategori</option>
@@ -616,7 +653,7 @@ const AdminProducts = () => {
 
                 {/* Image Upload Section */}
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Gambar Produk</label>
+                  <label className="block text-sm font-semibold mb-2">Gambar Produk *</label>
                   
                   {/* Existing Images */}
                   {existingImages.length > 0 && (
@@ -725,182 +762,176 @@ const AdminProducts = () => {
           )}
 
           {/* Modal Kelola Varian */}
-          {selectedProduct && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[95vh] overflow-y-auto">
-                <div className="p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold">Kelola Varian - {selectedProduct.name}</h2>
-                    <button
-                      onClick={() => setSelectedProduct(null)}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {/* Form Tambah Varian */}
-                  <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                    <h3 className="font-bold text-lg mb-4 text-gray-800">Tambah Varian Baru</h3>
+          <Modal
+            isOpen={!!selectedProduct}
+            onClose={() => setSelectedProduct(null)}
+            title={`Kelola Varian - ${selectedProduct?.name || ''}`}
+            size="6xl"
+          >
+            {selectedProduct && (
+              <>
+                {/* Form Tambah Varian */}
+                <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                  <h3 className="font-bold text-lg mb-4 text-gray-800">Tambah Varian Baru</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      
-                      {/* Size Input */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Size <span className="text-red-500">*</span>
-                        </label>
+                    {/* Size Input */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Size <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="size_id"
+                        value={variantForm.size_id}
+                        onChange={handleVariantChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="">-- Pilih Size --</option>
+                        {Array.isArray(sizes) && sizes.map(size => (
+                          <option key={size.id} value={size.id}>{size.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Warehouse Input */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Warehouse <span className="text-red-500">*</span>
+                      </label>
+                      {warehousesLoading ? (
+                        <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                          Loading warehouses...
+                        </div>
+                      ) : (
                         <select
-                          name="size_id"
-                          value={variantForm.size_id}
+                          name="warehouse_id"
+                          value={variantForm.warehouse_id}
                           onChange={handleVariantChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           required
                         >
-                          <option value="">-- Pilih Size --</option>
-                          {Array.isArray(sizes) && sizes.map(size => (
-                            <option key={size.id} value={size.id}>{size.name}</option>
-                          ))}
+                          <option value="">-- Pilih Warehouse --</option>
+                          {Array.isArray(warehouses) && warehouses.length > 0 ? (
+                            warehouses.map(warehouse => (
+                              <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+                            ))
+                          ) : (
+                            <option value="" disabled>Tidak ada warehouse tersedia</option>
+                          )}
                         </select>
-                      </div>
-
-                      {/* Warehouse Input */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Warehouse <span className="text-red-500">*</span>
-                        </label>
-                        {warehousesLoading ? (
-                          <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
-                            Loading warehouses...
-                          </div>
-                        ) : (
-                          <select
-                            name="warehouse_id"
-                            value={variantForm.warehouse_id}
-                            onChange={handleVariantChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            required
-                          >
-                            <option value="">-- Pilih Warehouse --</option>
-                            {Array.isArray(warehouses) && warehouses.length > 0 ? (
-                              warehouses.map(warehouse => (
-                                <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
-                              ))
-                            ) : (
-                              <option value="" disabled>Tidak ada warehouse tersedia</option>
-                            )}
-                          </select>
-                        )}
-                        {!warehousesLoading && (!warehouses || warehouses.length === 0) && (
-                          <button
-                            type="button"
-                            onClick={() => fetchWarehouses(true)}
-                            className="mt-2 text-sm text-blue-600 hover:underline"
-                          >
-                            Muat ulang warehouse
-                          </button>
-                        )}
-                      </div>
-
-                      {/* SKU Input */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          SKU Varian
-                        </label>
-                        <input
-                          type="text"
-                          name="sku_variant"
-                          value={variantForm.sku_variant}
-                          onChange={handleVariantChange}
-                          placeholder="Contoh: JEAN-001-28-JKT"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-
-                      {/* Additional Price Input */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Tambahan Harga (Rp)
-                        </label>
-                        <input
-                          type="number"
-                          name="additional_price"
-                          value={variantForm.additional_price}
-                          onChange={handleVariantChange}
-                          placeholder="0"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          min="0"
-                        />
-                      </div>
-
-                      {/* Stock Quantity Input */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Stok Awal
-                        </label>
-                        <input
-                          type="number"
-                          name="stock_quantity"
-                          value={variantForm.stock_quantity}
-                          onChange={handleVariantChange}
-                          placeholder="0"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          min="0"
-                        />
-                      </div>
-
-                      {/* Min Stock Input */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Minimum Stok
-                        </label>
-                        <input
-                          type="number"
-                          name="minimum_stock"
-                          value={variantForm.minimum_stock}
-                          onChange={handleVariantChange}
-                          placeholder="5"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          min="0"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Default: 5</p>
-                      </div>
-
-                      {/* Cost Price Input */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Harga Modal (Rp)
-                        </label>
-                        <input
-                          type="number"
-                          name="cost_price"
-                          value={variantForm.cost_price}
-                          onChange={handleVariantChange}
-                          placeholder="0"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          min="0"
-                          step="0.01"
-                        />
-                      </div>
-
+                      )}
+                      {!warehousesLoading && (!warehouses || warehouses.length === 0) && (
+                        <button
+                          type="button"
+                          onClick={() => fetchWarehouses(true)}
+                          className="mt-2 text-sm text-blue-600 hover:underline"
+                        >
+                          Muat ulang warehouse
+                        </button>
+                      )}
                     </div>
-                    
-                    <div className="mt-4 flex items-center gap-3">
-                      <button
-                        onClick={handleAddVariant}
-                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-semibold shadow-md transition"
-                      >
-                        ✓ Tambah Varian
-                      </button>
-                      <p className="text-sm text-gray-600">
-                        <span className="text-red-500">*</span> Wajib diisi
-                      </p>
+
+                    {/* SKU Input */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        SKU Varian
+                      </label>
+                      <input
+                        type="text"
+                        name="sku_variant"
+                        value={variantForm.sku_variant}
+                        onChange={handleVariantChange}
+                        placeholder="Contoh: JEAN-001-28-JKT"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
                     </div>
+
+                    {/* Additional Price Input */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Tambahan Harga (Rp)
+                      </label>
+                      <input
+                        type="number"
+                        name="additional_price"
+                        value={variantForm.additional_price}
+                        onChange={handleVariantChange}
+                        placeholder="0"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        min="0"
+                      />
+                    </div>
+
+                    {/* Stock Quantity Input */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Stok Awal
+                      </label>
+                      <input
+                        type="number"
+                        name="stock_quantity"
+                        value={variantForm.stock_quantity}
+                        onChange={handleVariantChange}
+                        placeholder="0"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        min="0"
+                      />
+                    </div>
+
+                    {/* Min Stock Input */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Minimum Stok
+                      </label>
+                      <input
+                        type="number"
+                        name="minimum_stock"
+                        value={variantForm.minimum_stock}
+                        onChange={handleVariantChange}
+                        placeholder="5"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        min="0"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Default: 5</p>
+                    </div>
+
+                    {/* Cost Price Input */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Harga Modal (Rp)
+                      </label>
+                      <input
+                        type="number"
+                        name="cost_price"
+                        value={variantForm.cost_price}
+                        onChange={handleVariantChange}
+                        placeholder="0"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+
                   </div>
+                  
+                  <div className="mt-4 flex items-center gap-3">
+                    <button
+                      onClick={handleAddVariant}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-semibold shadow-md transition"
+                    >
+                      ✓ Tambah Varian
+                    </button>
+                    <p className="text-sm text-gray-600">
+                      <span className="text-red-500">*</span> Wajib diisi
+                    </p>
+                  </div>
+                </div>
 
-                  {/* Daftar Varian */}
-                  <table className="w-full">
-                    <thead className="bg-gray-200">
+                {/* Daftar Varian */}
+                <table className="w-full">
+                  <thead className="bg-gray-200">
                       <tr>
                         <th className="px-4 py-2 text-left">Size</th>
                         <th className="px-4 py-2 text-left">Warehouse</th>
@@ -945,10 +976,9 @@ const AdminProducts = () => {
                       )}
                     </tbody>
                   </table>
-                </div>
-              </div>
-            </div>
-          )}
+              </>
+            )}
+          </Modal>
 
           {/* Tabel Produk */}
           {loading ? (

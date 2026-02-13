@@ -55,7 +55,7 @@ const MainLayoutNew = () => {
 
   const handleLogout = () => {
     dispatch(logout());
-    navigate('/');
+    navigate('/login');
   };
 
   const handleSearch = (e) => {

@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { fittingAPI } from '../../services/api';
-import { FaPlus, FaEdit, FaTrash, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
 import DataTable from '../../components/admin/DataTable';
+import Modal from '../../components/admin/Modal';
+import { useAlert } from '../../utils/AlertContext';
 
 export default function AdminFittings() {
+  const { showSuccess, showError, showConfirm } = useAlert();
   const [fittings, setFittings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -23,7 +27,7 @@ export default function AdminFittings() {
   const fetchFittings = async () => {
     try {
       setLoading(true);
-      const response = await fittingAPI.getAll();
+      const response = await fittingAPI.getAll({ include_inactive: true });
       setFittings(response.data.data);
       setError('');
     } catch (err) {
@@ -43,37 +47,46 @@ export default function AdminFittings() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError('');
+    
+    // Validation
+    if (!formData.name || !formData.slug) {
+      setFormError('Nama dan slug fitting wajib diisi');
+      return;
+    }
+    
     try {
       if (editingId) {
         await fittingAPI.update(editingId, formData);
-        alert('Fitting berhasil diperbarui');
+        showSuccess('Fitting berhasil diperbarui');
       } else {
         await fittingAPI.create(formData);
-        alert('Fitting berhasil dibuat');
+        showSuccess('Fitting berhasil dibuat');
       }
       resetForm();
       fetchFittings();
     } catch (err) {
-      setError('Error: ' + err.response?.data?.message || err.message);
+      setFormError(err.response?.data?.message || err.message);
     }
   };
 
   const handleEdit = (fitting) => {
     setFormData(fitting);
     setEditingId(fitting.id);
+    setFormError('');
     setShowForm(true);
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus fitting ini?')) {
+    showConfirm('Apakah Anda yakin ingin menghapus fitting ini?', async () => {
       try {
         await fittingAPI.delete(id);
-        alert('Fitting berhasil dihapus');
+        showSuccess('Fitting berhasil dihapus');
         fetchFittings();
       } catch (err) {
-        setError('Error: ' + err.response?.data?.message || err.message);
+        showError(err.response?.data?.message || err.message);
       }
-    }
+    }, { title: 'Konfirmasi Hapus' });
   };
 
   const resetForm = () => {
@@ -84,6 +97,7 @@ export default function AdminFittings() {
       is_active: true
     });
     setEditingId(null);
+    setFormError('');
     setShowForm(false);
   };
 
@@ -183,84 +197,80 @@ export default function AdminFittings() {
       {error && <div className="bg-red-100 text-red-700 p-4 mb-4 rounded">{error}</div>}
 
       {/* Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">
-                {editingId ? 'Edit Fitting' : 'Create Fitting'}
-              </h2>
-              <button onClick={resetForm} className="p-2 hover:bg-gray-100 rounded">
-                <FaTimes />
-              </button>
+      <Modal
+        isOpen={showForm}
+        onClose={resetForm}
+        title={editingId ? 'Edit Fitting' : 'Tambah Fitting'}
+        size="md"
+      >
+        <form onSubmit={handleSubmit}>
+          {formError && (
+            <div className="bg-red-100 text-red-700 p-3 mb-4 rounded text-sm">{formError}</div>
+          )}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Nama Fitting *</label>
+              <input
+                type="text"
+                name="name"
+                placeholder="Nama Fitting"
+                value={formData.name}
+                onChange={handleInputChange}
+                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500"
+                required
+              />
             </div>
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Fitting Name *</label>
-                  <input
-                    type="text"
-                    name="name"
-                    placeholder="Fitting Name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Slug *</label>
-                  <input
-                    type="text"
-                    name="slug"
-                    placeholder="Slug"
-                    value={formData.slug}
-                    onChange={handleInputChange}
-                    className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Description</label>
-                  <textarea
-                    name="description"
-                    placeholder="Description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500"
-                    rows="3"
-                  />
-                </div>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="is_active"
-                    checked={formData.is_active}
-                    onChange={handleInputChange}
-                    className="rounded text-blue-600"
-                  />
-                  <span className="text-sm">Active</span>
-                </label>
-              </div>
-              <div className="mt-6 flex gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="px-4 py-2 border rounded hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  {editingId ? 'Update' : 'Create'}
-                </button>
-              </div>
-            </form>
+            <div>
+              <label className="block text-sm font-medium mb-2">Slug *</label>
+              <input
+                type="text"
+                name="slug"
+                placeholder="Slug"
+                value={formData.slug}
+                onChange={handleInputChange}
+                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Deskripsi</label>
+              <textarea
+                name="description"
+                placeholder="Deskripsi"
+                value={formData.description}
+                onChange={handleInputChange}
+                className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500"
+                rows="3"
+              />
+            </div>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="is_active"
+                checked={formData.is_active}
+                onChange={handleInputChange}
+                className="rounded text-blue-600"
+              />
+              <span className="text-sm">Aktif</span>
+            </label>
           </div>
-        </div>
-      )}
+          <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t">
+            <button
+              type="button"
+              onClick={resetForm}
+              className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm font-medium transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+            >
+              {editingId ? 'Update' : 'Simpan'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* DataTable */}
       <DataTable

@@ -7,7 +7,7 @@ const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
 const { logActivity } = require('../middleware/activityLogger');
-const { sendOrderConfirmationEmail, sendOrderStatusEmail } = require('../services/emailService');
+const { sendOrderConfirmationEmail, sendOrderStatusEmail, sendAdminOrderNotificationEmail, isUserNotificationEnabled } = require('../services/emailService');
 
 // Generate unique order number
 const generateOrderNumber = () => {
@@ -273,7 +273,7 @@ exports.createOrder = async (req, res) => {
       `Created order ${orderData.orderNumber}`, req, 
       { order_number: orderData.orderNumber, tracking_url: trackingUrl });
 
-    // Send order confirmation email (async, don't wait)
+    // Send order confirmation emails (async, don't wait)
     const orderForEmail = await query(
       `SELECT o.*, u.email, u.full_name
        FROM orders o
@@ -283,11 +283,31 @@ exports.createOrder = async (req, res) => {
     );
 
     if (orderForEmail.length > 0) {
-      sendOrderConfirmationEmail(
-        orderForEmail[0], 
-        orderData.orderItems, 
-        shipping_address
-      ).catch(err => console.error('Failed to send order email:', err));
+      const orderData_email = orderForEmail[0];
+      const customerInfo = {
+        email: orderData_email.email || guestEmail,
+        name: orderData_email.full_name || shipping_address.recipient_name,
+        phone: shipping_address.phone
+      };
+
+      // Send email to customer (if enabled)
+      isUserNotificationEnabled().then(enabled => {
+        if (enabled) {
+          sendOrderConfirmationEmail(
+            orderData_email, 
+            orderData.orderItems, 
+            shipping_address
+          ).catch(err => console.error('Failed to send customer order email:', err));
+        }
+      });
+
+      // Send notification email to admin
+      sendAdminOrderNotificationEmail(
+        orderData_email,
+        orderData.orderItems,
+        shipping_address,
+        customerInfo
+      ).catch(err => console.error('Failed to send admin notification email:', err));
     }
 
     res.status(201).json({
@@ -938,8 +958,8 @@ exports.getOrder = async (req, res) => {
     const orders = await query(
       `SELECT 
         o.id, o.order_number, o.unique_token, o.user_id, o.guest_email, o.status, o.payment_status,
-        o.subtotal, o.discount_amount, o.shipping_cost, o.total_amount as total,
-        o.notes, o.approved_at, o.approved_by, o.created_at, o.updated_at,
+        o.subtotal, o.discount_amount, o.tax, o.shipping_cost, o.total_amount as total,
+        o.payment_method, o.notes, o.approved_at, o.approved_by, o.created_at, o.updated_at,
         os.recipient_name as customer_name, os.phone as customer_phone, os.address as shipping_address,
         os.city as shipping_city, os.province as shipping_province, os.postal_code as shipping_postal_code,
         os.shipping_method, os.tracking_number, os.country

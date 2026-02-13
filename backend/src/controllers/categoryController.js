@@ -5,9 +5,15 @@ const { query } = require('../config/database');
 // Categories
 exports.getCategories = async (req, res) => {
   try {
-    const categories = await query(
-      'SELECT * FROM categories WHERE is_active = true ORDER BY sort_order, name'
-    );
+    const { include_inactive } = req.query;
+    
+    let sql = 'SELECT * FROM categories';
+    if (!include_inactive) {
+      sql += ' WHERE is_active = true';
+    }
+    sql += ' ORDER BY sort_order, name';
+    
+    const categories = await query(sql);
     res.json({ success: true, data: categories });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -16,10 +22,19 @@ exports.getCategories = async (req, res) => {
 
 exports.createCategory = async (req, res) => {
   try {
-    const { name, slug, description, parent_id, image_url } = req.body;
+    const { name, slug, description, parent_id, image_url, is_active } = req.body;
+    
+    // Validation
+    if (!name || !slug) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nama dan slug kategori wajib diisi'
+      });
+    }
+    
     const result = await query(
-      'INSERT INTO categories (name, slug, description, parent_id, image_url) VALUES (?, ?, ?, ?, ?)',
-      [name, slug, description || null, parent_id || null, image_url || null]
+      'INSERT INTO categories (name, slug, description, parent_id, image_url, is_active) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, slug, description || null, parent_id || null, image_url || null, is_active !== undefined ? is_active : true]
     );
     res.status(201).json({ success: true, data: { id: result.insertId } });
   } catch (error) {

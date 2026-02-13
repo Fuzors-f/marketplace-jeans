@@ -57,10 +57,11 @@ export default function Register() {
 
       if (response.data.success) {
         // Save token and user data
-        localStorage.setItem('token', response.data.token);
+        const { user, token } = response.data.data;
+        localStorage.setItem('token', token);
         dispatch(setCredentials({
-          user: response.data.data,
-          token: response.data.token
+          user: user,
+          token: token
         }));
         navigate('/');
       }

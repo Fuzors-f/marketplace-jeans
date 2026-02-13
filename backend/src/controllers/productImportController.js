@@ -262,21 +262,128 @@ exports.importProducts = async (req, res) => {
     }
 
     // Get reference data
-    const categories = await query('SELECT id, name FROM categories WHERE is_active = true');
-    const fittings = await query('SELECT id, name FROM fittings WHERE is_active = true');
-    const sizes = await query('SELECT id, name FROM sizes WHERE is_active = true');
-    const warehouses = await query('SELECT id, name FROM warehouses WHERE is_active = true');
+    let categories = await query('SELECT id, name FROM categories WHERE is_active = true');
+    let fittings = await query('SELECT id, name FROM fittings WHERE is_active = true');
+    let sizes = await query('SELECT id, name FROM sizes WHERE is_active = true');
+    let warehouses = await query('SELECT id, name FROM warehouses WHERE is_active = true');
 
-    const categoryMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));
-    const fittingMap = new Map(fittings.map(f => [f.name.toLowerCase(), f.id]));
-    const sizeMap = new Map(sizes.map(s => [s.name.toLowerCase(), s.id]));
-    const warehouseMap = new Map(warehouses.map(w => [w.name.toLowerCase(), w.id]));
+    let categoryMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));
+    let fittingMap = new Map(fittings.map(f => [f.name.toLowerCase(), f.id]));
+    let sizeMap = new Map(sizes.map(s => [s.name.toLowerCase(), s.id]));
+    let warehouseMap = new Map(warehouses.map(w => [w.name.toLowerCase(), w.id]));
 
     const results = {
       success: [],
       errors: [],
-      skipped: []
+      skipped: [],
+      created_categories: [],
+      created_fittings: [],
+      created_sizes: [],
+      created_warehouses: []
     };
+
+    // Helper function to generate slug
+    const generateSlug = (name) => {
+      return name.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+    };
+
+    // Auto-create missing categories, fittings, sizes, warehouses from Excel data
+    const newCategoryNames = new Set();
+    const newFittingNames = new Set();
+    const newSizeNames = new Set();
+    const newWarehouseNames = new Set();
+
+    // Scan Products sheet for categories and fittings
+    productSheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const categoryName = row.getCell(8).value?.toString()?.trim();
+      const fittingName = row.getCell(9).value?.toString()?.trim();
+      
+      if (categoryName && !categoryMap.has(categoryName.toLowerCase())) {
+        newCategoryNames.add(categoryName);
+      }
+      if (fittingName && !fittingMap.has(fittingName.toLowerCase())) {
+        newFittingNames.add(fittingName);
+      }
+    });
+
+    // Scan Variants sheet for sizes and warehouses
+    if (variantSheet) {
+      variantSheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const sizeName = row.getCell(2).value?.toString()?.trim();
+        const warehouseName = row.getCell(3).value?.toString()?.trim();
+        
+        if (sizeName && !sizeMap.has(sizeName.toLowerCase())) {
+          newSizeNames.add(sizeName);
+        }
+        if (warehouseName && !warehouseMap.has(warehouseName.toLowerCase())) {
+          newWarehouseNames.add(warehouseName);
+        }
+      });
+    }
+
+    // Create missing categories
+    for (const catName of newCategoryNames) {
+      try {
+        const slug = generateSlug(catName);
+        const result = await query(
+          'INSERT INTO categories (name, slug, is_active) VALUES (?, ?, true)',
+          [catName, slug]
+        );
+        categoryMap.set(catName.toLowerCase(), result.insertId);
+        results.created_categories.push(catName);
+      } catch (err) {
+        console.error('Error creating category:', catName, err);
+      }
+    }
+
+    // Create missing fittings
+    for (const fitName of newFittingNames) {
+      try {
+        const slug = generateSlug(fitName);
+        const result = await query(
+          'INSERT INTO fittings (name, slug, is_active) VALUES (?, ?, true)',
+          [fitName, slug]
+        );
+        fittingMap.set(fitName.toLowerCase(), result.insertId);
+        results.created_fittings.push(fitName);
+      } catch (err) {
+        console.error('Error creating fitting:', fitName, err);
+      }
+    }
+
+    // Create missing sizes
+    for (const sizeName of newSizeNames) {
+      try {
+        const result = await query(
+          'INSERT INTO sizes (name, is_active) VALUES (?, true)',
+          [sizeName]
+        );
+        sizeMap.set(sizeName.toLowerCase(), result.insertId);
+        results.created_sizes.push(sizeName);
+      } catch (err) {
+        console.error('Error creating size:', sizeName, err);
+      }
+    }
+
+    // Create missing warehouses
+    for (const whName of newWarehouseNames) {
+      try {
+        const code = whName.substring(0, 10).toUpperCase().replace(/\s+/g, '');
+        const result = await query(
+          'INSERT INTO warehouses (name, code, is_active) VALUES (?, ?, true)',
+          [whName, code]
+        );
+        warehouseMap.set(whName.toLowerCase(), result.insertId);
+        results.created_warehouses.push(whName);
+      } catch (err) {
+        console.error('Error creating warehouse:', whName, err);
+      }
+    }
 
     // Process products
     const productMap = new Map(); // SKU -> product data
@@ -302,12 +409,12 @@ exports.importProducts = async (req, res) => {
       const categoryName = row.getCell(8).value?.toString()?.trim()?.toLowerCase();
       const fittingName = row.getCell(9).value?.toString()?.trim()?.toLowerCase();
       
-      if (!categoryMap.has(categoryName)) {
+      if (!categoryName) {
         results.errors.push({
           row: rowNumber,
           sheet: 'Products',
           sku,
-          message: `Kategori "${row.getCell(8).value}" tidak ditemukan`
+          message: `Kategori wajib diisi`
         });
         return;
       }
@@ -347,24 +454,6 @@ exports.importProducts = async (req, res) => {
               message: 'SKU Produk, Ukuran, dan Gudang wajib diisi'
             });
           }
-          return;
-        }
-
-        if (!sizeMap.has(sizeName)) {
-          results.errors.push({
-            row: rowNumber,
-            sheet: 'Variants',
-            message: `Ukuran "${row.getCell(2).value}" tidak ditemukan`
-          });
-          return;
-        }
-
-        if (!warehouseMap.has(warehouseName)) {
-          results.errors.push({
-            row: rowNumber,
-            sheet: 'Variants',
-            message: `Gudang "${row.getCell(3).value}" tidak ditemukan`
-          });
           return;
         }
 
@@ -539,9 +628,28 @@ exports.importProducts = async (req, res) => {
       if (err) console.error('Error deleting upload file:', err);
     });
 
+    // Build message with auto-created items info
+    let message = `Import selesai. ${results.success.length} produk berhasil, ${results.errors.length} error.`;
+    const autoCreated = [];
+    if (results.created_categories.length > 0) {
+      autoCreated.push(`${results.created_categories.length} kategori`);
+    }
+    if (results.created_fittings.length > 0) {
+      autoCreated.push(`${results.created_fittings.length} fitting`);
+    }
+    if (results.created_sizes.length > 0) {
+      autoCreated.push(`${results.created_sizes.length} ukuran`);
+    }
+    if (results.created_warehouses.length > 0) {
+      autoCreated.push(`${results.created_warehouses.length} gudang`);
+    }
+    if (autoCreated.length > 0) {
+      message += ` Master data baru dibuat: ${autoCreated.join(', ')}.`;
+    }
+
     res.json({
       success: true,
-      message: `Import selesai. ${results.success.length} produk berhasil, ${results.errors.length} error.`,
+      message,
       data: results
     });
   } catch (error) {

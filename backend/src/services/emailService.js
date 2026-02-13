@@ -20,7 +20,8 @@ const getEmailSettings = async () => {
     WHERE setting_key IN (
       'email_smtp_host', 'email_smtp_port', 'email_smtp_user', 
       'email_smtp_pass', 'email_from_name', 'email_from_address',
-      'email_smtp_secure', 'site_name', 'site_logo', 'contact_email'
+      'email_smtp_secure', 'site_name', 'site_logo', 'contact_email',
+      'email_admin_address', 'email_notify_admin_order', 'email_notify_user_order'
     )
   `);
 
@@ -318,6 +319,158 @@ const sendOrderConfirmationEmail = async (order, items, shippingAddress) => {
 };
 
 /**
+ * Send new order notification email to admin
+ */
+const sendAdminOrderNotificationEmail = async (order, items, shippingAddress, customerInfo) => {
+  try {
+    const settings = await getEmailSettings();
+    const siteName = settings.site_name || 'Marketplace Jeans';
+    const adminEmail = settings.email_admin_address || settings.contact_email;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+    // Check if admin notification is enabled
+    if (settings.email_notify_admin_order === 'false') {
+      console.log('Admin order notification is disabled');
+      return { success: true, message: 'Admin notification disabled' };
+    }
+
+    if (!adminEmail) {
+      console.log('No admin email configured');
+      return { success: false, error: 'No admin email configured' };
+    }
+
+    // Format currency
+    const formatCurrency = (amount) => {
+      return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
+    };
+
+    // Build items HTML
+    let itemsHtml = '';
+    let totalItems = 0;
+    items.forEach(item => {
+      totalItems += item.quantity;
+      itemsHtml += `
+        <tr>
+          <td style="padding: 10px; border-bottom: 1px solid #eee;">
+            <strong>${item.product_name || item.name}</strong><br>
+            <small>SKU: ${item.sku || item.product_sku || '-'} | Ukuran: ${item.size_name || item.size}</small>
+          </td>
+          <td style="text-align: center; padding: 10px; border-bottom: 1px solid #eee;">${item.quantity}</td>
+          <td style="text-align: right; padding: 10px; border-bottom: 1px solid #eee;">${formatCurrency(item.unit_price || item.price)}</td>
+          <td style="text-align: right; padding: 10px; border-bottom: 1px solid #eee;">${formatCurrency(item.subtotal || item.total)}</td>
+        </tr>
+      `;
+    });
+
+    const adminUrl = `${frontendUrl}/admin/orders/${order.id || order.order_id}`;
+    const customerEmail = customerInfo?.email || order.email || order.guest_email || '-';
+    const customerName = customerInfo?.name || shippingAddress?.recipient_name || order.customer_name || '-';
+    const customerPhone = customerInfo?.phone || shippingAddress?.phone || '-';
+
+    const content = `
+      <h2>🔔 Pesanan Baru Masuk!</h2>
+      <p>Ada pesanan baru yang membutuhkan perhatian Anda.</p>
+
+      <div class="info-box" style="background-color: #fef3c7; border-left: 4px solid #f59e0b;">
+        <h3 style="margin-top: 0; color: #92400e;">Nomor Pesanan: ${order.order_number}</h3>
+        <p><strong>Tanggal:</strong> ${new Date(order.created_at || Date.now()).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+        <p><strong>Status:</strong> <span style="background-color: #fcd34d; padding: 3px 10px; border-radius: 10px;">Menunggu Pembayaran</span></p>
+        <p><strong>Metode Pembayaran:</strong> ${order.payment_method || 'Bank Transfer'}</p>
+      </div>
+
+      <h3>👤 Data Pelanggan:</h3>
+      <div class="info-box">
+        <p><strong>Nama:</strong> ${customerName}</p>
+        <p><strong>Email:</strong> ${customerEmail}</p>
+        <p><strong>Telepon:</strong> ${customerPhone}</p>
+        <p><strong>Tipe:</strong> ${order.user_id ? 'Member' : 'Guest'}</p>
+      </div>
+
+      <h3>📦 Detail Pesanan (${totalItems} item):</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+        <thead>
+          <tr style="background-color: #f8f9fa;">
+            <th style="padding: 10px; text-align: left;">Produk</th>
+            <th style="padding: 10px; text-align: center;">Qty</th>
+            <th style="padding: 10px; text-align: right;">Harga</th>
+            <th style="padding: 10px; text-align: right;">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+      </table>
+
+      <table style="width: 100%; margin-top: 10px;">
+        <tr>
+          <td style="text-align: right;"><strong>Subtotal:</strong></td>
+          <td style="text-align: right; width: 150px;">${formatCurrency(order.subtotal)}</td>
+        </tr>
+        ${order.discount_amount > 0 ? `
+        <tr>
+          <td style="text-align: right;"><strong>Diskon${order.discount_code ? ` (${order.discount_code})` : ''}:</strong></td>
+          <td style="text-align: right; color: #16a34a;">-${formatCurrency(order.discount_amount)}</td>
+        </tr>
+        ` : ''}
+        ${order.member_discount_amount > 0 ? `
+        <tr>
+          <td style="text-align: right;"><strong>Diskon Member:</strong></td>
+          <td style="text-align: right; color: #16a34a;">-${formatCurrency(order.member_discount_amount)}</td>
+        </tr>
+        ` : ''}
+        <tr>
+          <td style="text-align: right;"><strong>Ongkos Kirim:</strong></td>
+          <td style="text-align: right;">${formatCurrency(order.shipping_cost)}</td>
+        </tr>
+        <tr style="border-top: 2px solid #1e40af;">
+          <td style="text-align: right; padding-top: 10px;"><strong>TOTAL:</strong></td>
+          <td style="text-align: right; padding-top: 10px; font-size: 18px; color: #1e40af;"><strong>${formatCurrency(order.total_amount)}</strong></td>
+        </tr>
+      </table>
+
+      <h3>📍 Alamat Pengiriman:</h3>
+      <div class="info-box">
+        <p style="margin: 5px 0;"><strong>${shippingAddress.recipient_name || customerName}</strong></p>
+        <p style="margin: 5px 0;">📞 ${shippingAddress.phone || customerPhone}</p>
+        <p style="margin: 5px 0;">📍 ${shippingAddress.address}</p>
+        <p style="margin: 5px 0;">${shippingAddress.city}, ${shippingAddress.province} ${shippingAddress.postal_code || ''}</p>
+        ${shippingAddress.address_notes ? `<p style="margin: 5px 0;"><em>Catatan: ${shippingAddress.address_notes}</em></p>` : ''}
+      </div>
+
+      ${order.notes ? `
+      <h3>📝 Catatan Pesanan:</h3>
+      <div class="info-box">
+        <p>${order.notes}</p>
+      </div>
+      ` : ''}
+
+      <center style="margin-top: 20px;">
+        <a href="${adminUrl}" class="button" style="background-color: #f59e0b;">Lihat & Proses Pesanan</a>
+      </center>
+
+      <p style="margin-top: 20px; font-size: 12px; color: #666;">
+        Email ini dikirim otomatis dari sistem ${siteName}. 
+        Silakan login ke panel admin untuk memproses pesanan ini.
+      </p>
+    `;
+
+    const html = await getEmailTemplate(content, `Pesanan Baru #${order.order_number}`);
+    return await sendEmail(adminEmail, `🔔 Pesanan Baru #${order.order_number} - ${formatCurrency(order.total_amount)}`, html);
+  } catch (error) {
+    console.error('Send admin order notification email error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Check if user order notification is enabled
+ */
+const isUserNotificationEnabled = async () => {
+  const settings = await getEmailSettings();
+  return settings.email_notify_user_order !== 'false';
+};
+
+/**
  * Send order status update email
  */
 const sendOrderStatusEmail = async (order, newStatus, statusMessage = '') => {
@@ -486,6 +639,8 @@ module.exports = {
   sendOrderConfirmationEmail,
   sendOrderStatusEmail,
   sendPaymentConfirmationEmail,
+  sendAdminOrderNotificationEmail,
+  isUserNotificationEnabled,
   testEmailConfig,
   clearEmailSettingsCache,
   getEmailSettings

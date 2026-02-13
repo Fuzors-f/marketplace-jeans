@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
 import { FaPlus, FaEdit, FaTrash, FaTimes, FaImage, FaEye, FaEyeSlash, FaGlobe } from 'react-icons/fa';
 import DataTable from '../../components/admin/DataTable';
+import Modal, { ModalFooter } from '../../components/admin/Modal';
 
 const AdminBanners = () => {
   const [banners, setBanners] = useState([]);
@@ -321,19 +322,13 @@ const AdminBanners = () => {
           )}
 
           {/* Form Modal */}
-          {showForm && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto">
-                <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-                  <h2 className="text-xl font-bold">
-                    {editingBanner ? 'Edit Banner' : 'Buat Banner Baru'}
-                  </h2>
-                  <button onClick={resetForm} className="p-2 hover:bg-gray-100 rounded">
-                    <FaTimes />
-                  </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <Modal
+            isOpen={showForm}
+            onClose={resetForm}
+            title={editingBanner ? 'Edit Banner' : 'Buat Banner Baru'}
+            size="lg"
+          >
+            <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Bilingual Title */}
                   <div className="border rounded-lg p-3 bg-gray-50">
                     <h3 className="text-sm font-semibold mb-2 flex items-center gap-1">
@@ -513,7 +508,7 @@ const AdminBanners = () => {
                     <span className="font-semibold">Aktif</span>
                   </label>
 
-                  <div className="flex gap-3 pt-4 border-t">
+                  <ModalFooter>
                     <button
                       type="button"
                       onClick={resetForm}
@@ -527,11 +522,9 @@ const AdminBanners = () => {
                     >
                       {editingBanner ? 'Update Banner' : 'Buat Banner'}
                     </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
+                  </ModalFooter>
+            </form>
+          </Modal>
 
           {/* Content */}
           {viewMode === 'table' ? (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaUserEdit, FaTrash, FaUserShield, FaUser, FaUserTie, FaTimes, FaMapMarkerAlt, FaPlus, FaStar, FaShoppingBag, FaEye, FaUsers, FaUserCheck, FaUserSlash, FaSearch, FaFilter, FaExclamationTriangle } from 'react-icons/fa';
+import Modal, { ModalFooter } from '../../components/admin/Modal';
 import apiClient from '../../services/api';
 import DataTable from '../../components/admin/DataTable';
 import { useAlert } from '../../utils/AlertContext';
@@ -753,33 +754,26 @@ export default function AdminUsers() {
       )}
 
       {/* Address Modal */}
-      {showAddressModal && addressUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+      <Modal
+        isOpen={showAddressModal && !!addressUser}
+        onClose={() => {
+          setShowAddressModal(false);
+          setShowAddressForm(false);
+          setAddressUser(null);
+          setAddresses([]);
+        }}
+        title="Alamat User"
+        size="3xl"
+      >
+        {addressUser && (
+          <>
+            <div className="flex items-center gap-2 mb-4 pb-4 border-b">
+              <FaMapMarkerAlt className="text-green-600" />
               <div>
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <FaMapMarkerAlt className="text-green-600" />
-                  Alamat User
-                </h2>
-                <p className="text-sm text-gray-600">{addressUser.full_name} ({addressUser.email})</p>
+                <span className="font-medium">{addressUser.full_name}</span>
+                <span className="text-sm text-gray-600 ml-2">({addressUser.email})</span>
               </div>
-              <button 
-                onClick={() => {
-                  setShowAddressModal(false);
-                  setShowAddressForm(false);
-                  setAddressUser(null);
-                  setAddresses([]);
-                }} 
-                className="p-2 hover:bg-gray-200 rounded"
-              >
-                <FaTimes />
-              </button>
             </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-4">
               {!showAddressForm ? (
                 <>
                   {/* Address List */}
@@ -980,31 +974,20 @@ export default function AdminUsers() {
                     <span>Jadikan sebagai alamat utama</span>
                   </label>
 
-                  <div className="flex gap-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowAddressForm(false);
-                        resetAddressForm();
-                      }}
-                      className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={savingAddress}
-                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                    >
-                      {savingAddress ? 'Menyimpan...' : (editingAddress ? 'Perbarui' : 'Simpan')}
-                    </button>
-                  </div>
+                  <ModalFooter
+                    onCancel={() => {
+                      setShowAddressForm(false);
+                      resetAddressForm();
+                    }}
+                    cancelText="Batal"
+                    submitText={savingAddress ? 'Menyimpan...' : (editingAddress ? 'Perbarui' : 'Simpan')}
+                    isLoading={savingAddress}
+                  />
                 </form>
               )}
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
       {/* Create User Modal */}
       {showCreateModal && (

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FaPlus, FaEdit, FaTrash, FaBuilding, FaPhone, FaEnvelope, 
-  FaMapMarkerAlt, FaStar, FaSearch, FaTimes 
+  FaMapMarkerAlt, FaStar, FaSearch 
 } from 'react-icons/fa';
 import apiClient from '../../services/api';
+import Modal, { ModalFooter } from '../../components/admin/Modal';
 
 const Offices = () => {
   const [offices, setOffices] = useState([]);
@@ -238,19 +239,13 @@ const Offices = () => {
       )}
 
       {/* Modal Form */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-lg font-semibold">
-                {editingOffice ? 'Edit Kantor' : 'Tambah Kantor Baru'}
-              </h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
-                <FaTimes size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+      <Modal
+        isOpen={showModal}
+        onClose={closeModal}
+        title={editingOffice ? 'Edit Kantor' : 'Tambah Kantor Baru'}
+        size="lg"
+      >
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 sm:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -353,25 +348,23 @@ const Offices = () => {
                 </label>
               </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  {editingOffice ? 'Simpan Perubahan' : 'Tambah Kantor'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              {editingOffice ? 'Simpan Perubahan' : 'Tambah Kantor'}
+            </button>
+          </ModalFooter>
+        </form>
+      </Modal>
     </div>
   );
 };

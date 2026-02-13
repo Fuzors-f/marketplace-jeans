@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
 import { 
-  FaExchangeAlt, FaPlus, FaEdit, FaSave, FaTimes, FaHistory, 
+  FaExchangeAlt, FaPlus, FaEdit, FaSave, FaHistory, FaTimes,
   FaSpinner, FaDollarSign, FaSearch, FaTrash
 } from 'react-icons/fa';
 import { useLanguage } from '../../utils/i18n';
+import Modal, { ModalFooter } from '../../components/admin/Modal';
 
 const ExchangeRates = () => {
   const { t, formatDate } = useLanguage();
@@ -383,160 +384,146 @@ const ExchangeRates = () => {
       </div>
 
       {/* Create Modal */}
-      {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-4 border-b flex justify-between items-center">
-              <h2 className="text-xl font-bold">Tambah Kurs Baru</h2>
-              <button
-                onClick={() => setShowCreateForm(false)}
-                className="p-2 hover:bg-gray-100 rounded"
+      <Modal
+        isOpen={showCreateForm}
+        onClose={() => setShowCreateForm(false)}
+        title="Tambah Kurs Baru"
+        size="md"
+      >
+        <form onSubmit={handleCreate} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Dari Mata Uang</label>
+              <select
+                value={newRate.currency_from}
+                onChange={(e) => setNewRate({ ...newRate, currency_from: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <FaTimes />
-              </button>
+                <option value="IDR">IDR (Rupiah)</option>
+                <option value="USD">USD (Dollar)</option>
+                <option value="EUR">EUR (Euro)</option>
+                <option value="SGD">SGD (Singapore)</option>
+              </select>
             </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Dari Mata Uang</label>
-                  <select
-                    value={newRate.currency_from}
-                    onChange={(e) => setNewRate({ ...newRate, currency_from: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="IDR">IDR (Rupiah)</option>
-                    <option value="USD">USD (Dollar)</option>
-                    <option value="EUR">EUR (Euro)</option>
-                    <option value="SGD">SGD (Singapore)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Ke Mata Uang</label>
-                  <select
-                    value={newRate.currency_to}
-                    onChange={(e) => setNewRate({ ...newRate, currency_to: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="USD">USD (Dollar)</option>
-                    <option value="IDR">IDR (Rupiah)</option>
-                    <option value="EUR">EUR (Euro)</option>
-                    <option value="SGD">SGD (Singapore)</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Nilai Kurs *</label>
-                <input
-                  type="number"
-                  value={newRate.rate}
-                  onChange={(e) => setNewRate({ ...newRate, rate: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Contoh: 16000 (1 USD = 16000 IDR)"
-                  min="0"
-                  step="0.01"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Masukkan nilai konversi dari mata uang asal ke mata uang tujuan
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Keterangan (Opsional)</label>
-                <input
-                  type="text"
-                  value={newRate.reason}
-                  onChange={(e) => setNewRate({ ...newRate, reason: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Contoh: Kurs awal sistem"
-                />
-              </div>
-              <div className="flex gap-2 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
-                >
-                  {saving ? <FaSpinner className="animate-spin" /> : <FaPlus />}
-                  Tambah Kurs
-                </button>
-              </div>
-            </form>
+            <div>
+              <label className="block text-sm font-medium mb-1">Ke Mata Uang</label>
+              <select
+                value={newRate.currency_to}
+                onChange={(e) => setNewRate({ ...newRate, currency_to: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="USD">USD (Dollar)</option>
+                <option value="IDR">IDR (Rupiah)</option>
+                <option value="EUR">EUR (Euro)</option>
+                <option value="SGD">SGD (Singapore)</option>
+              </select>
+            </div>
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-medium mb-1">Nilai Kurs *</label>
+            <input
+              type="number"
+              value={newRate.rate}
+              onChange={(e) => setNewRate({ ...newRate, rate: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Contoh: 16000 (1 USD = 16000 IDR)"
+              min="0"
+              step="0.01"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Masukkan nilai konversi dari mata uang asal ke mata uang tujuan
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Keterangan (Opsional)</label>
+            <input
+              type="text"
+              value={newRate.reason}
+              onChange={(e) => setNewRate({ ...newRate, reason: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Contoh: Kurs awal sistem"
+            />
+          </div>
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(false)}
+              className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+            >
+              {saving ? <FaSpinner className="animate-spin" /> : <FaPlus />}
+              Tambah Kurs
+            </button>
+          </ModalFooter>
+        </form>
+      </Modal>
 
       {/* Logs Modal */}
-      {showLogs && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[80vh] overflow-hidden">
-            <div className="p-4 border-b flex justify-between items-center">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <FaHistory className="text-blue-600" />
-                Riwayat Perubahan Kurs
-              </h2>
-              <button
-                onClick={() => setShowLogs(false)}
-                className="p-2 hover:bg-gray-100 rounded"
-              >
-                <FaTimes />
-              </button>
+      <Modal
+        isOpen={showLogs}
+        onClose={() => setShowLogs(false)}
+        title={
+          <span className="flex items-center gap-2">
+            <FaHistory className="text-blue-600" />
+            Riwayat Perubahan Kurs
+          </span>
+        }
+        size="3xl"
+      >
+        <div className="overflow-auto max-h-[60vh]">
+          {loadingLogs ? (
+            <div className="text-center py-8">
+              <FaSpinner className="animate-spin text-3xl mx-auto text-gray-400" />
+              <p className="text-gray-500 mt-2">Memuat riwayat...</p>
             </div>
-            <div className="p-6 overflow-auto max-h-[calc(80vh-80px)]">
-              {loadingLogs ? (
-                <div className="text-center py-8">
-                  <FaSpinner className="animate-spin text-3xl mx-auto text-gray-400" />
-                  <p className="text-gray-500 mt-2">Memuat riwayat...</p>
-                </div>
-              ) : logs.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <FaHistory className="text-4xl mx-auto mb-3 text-gray-300" />
-                  <p>Belum ada riwayat perubahan</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {logs.map((log) => (
-                    <div key={log.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <FaExchangeAlt className="text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold">{log.currency_from}/{log.currency_to}</span>
-                          <span className="text-gray-400">•</span>
-                          {log.old_rate ? (
-                            <span className="text-sm">
-                              <span className="text-red-500 line-through">{new Intl.NumberFormat('id-ID').format(log.old_rate)}</span>
-                              <span className="mx-2">→</span>
-                              <span className="text-green-600 font-medium">{new Intl.NumberFormat('id-ID').format(log.new_rate)}</span>
-                            </span>
-                          ) : (
-                            <span className="text-sm text-green-600 font-medium">
-                              Kurs awal: {new Intl.NumberFormat('id-ID').format(log.new_rate)}
-                            </span>
-                          )}
-                        </div>
-                        {log.change_reason && (
-                          <p className="text-sm text-gray-600 mt-1">"{log.change_reason}"</p>
-                        )}
-                        <div className="text-xs text-gray-400 mt-2">
-                          {formatDate(log.created_at)} oleh {log.changed_by_name || 'System'}
-                        </div>
-                      </div>
+          ) : logs.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <FaHistory className="text-4xl mx-auto mb-3 text-gray-300" />
+              <p>Belum ada riwayat perubahan</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {logs.map((log) => (
+                <div key={log.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <FaExchangeAlt className="text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold">{log.currency_from}/{log.currency_to}</span>
+                      <span className="text-gray-400">•</span>
+                      {log.old_rate ? (
+                        <span className="text-sm">
+                          <span className="text-red-500 line-through">{new Intl.NumberFormat('id-ID').format(log.old_rate)}</span>
+                          <span className="mx-2">→</span>
+                          <span className="text-green-600 font-medium">{new Intl.NumberFormat('id-ID').format(log.new_rate)}</span>
+                        </span>
+                      ) : (
+                        <span className="text-sm text-green-600 font-medium">
+                          Kurs awal: {new Intl.NumberFormat('id-ID').format(log.new_rate)}
+                        </span>
+                      )}
                     </div>
-                  ))}
+                    {log.change_reason && (
+                      <p className="text-sm text-gray-600 mt-1">"{log.change_reason}"</p>
+                    )}
+                    <div className="text-xs text-gray-400 mt-2">
+                      {formatDate(log.created_at)} oleh {log.changed_by_name || 'System'}
+                    </div>
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </Modal>
     </>
   );
 };

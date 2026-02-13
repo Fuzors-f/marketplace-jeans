@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { 
   FaCity, FaPlus, FaEdit, FaTrash, FaSearch, FaSpinner,
   FaTruck, FaMapMarkerAlt, FaChevronDown, FaChevronRight,
-  FaTimes, FaSave, FaFilter, FaDownload, FaUpload
+  FaSave, FaFilter, FaDownload, FaUpload
 } from 'react-icons/fa';
 import api from '../../services/api';
+import Modal, { ModalFooter } from '../../components/admin/Modal';
+import { useAlert } from '../../utils/AlertContext';
 
 const CityShipping = () => {
+  const { showSuccess, showError, showConfirm } = useAlert();
   // State for Cities
   const [cities, setCities] = useState([]);
   const [provinces, setProvinces] = useState([]);
@@ -181,33 +184,34 @@ const CityShipping = () => {
       if (editingCity) {
         const response = await api.put(`/cities/${editingCity.id}`, cityForm);
         if (response.data.success) {
-          alert('Kota berhasil diupdate!');
+          showSuccess('Kota berhasil diupdate!');
         }
       } else {
         const response = await api.post('/cities', cityForm);
         if (response.data.success) {
-          alert('Kota berhasil ditambahkan!');
+          showSuccess('Kota berhasil ditambahkan!');
         }
       }
       setShowCityModal(false);
       fetchCities();
       fetchProvinces();
     } catch (error) {
-      alert(error.response?.data?.message || 'Gagal menyimpan data kota');
+      showError(error.response?.data?.message || 'Gagal menyimpan data kota');
     }
   };
 
   const handleDeleteCity = async (id) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus kota ini?')) return;
-    try {
-      const response = await api.delete(`/cities/${id}`);
-      if (response.data.success) {
-        alert('Kota berhasil dihapus!');
-        fetchCities();
+    showConfirm('Apakah Anda yakin ingin menghapus kota ini?', async () => {
+      try {
+        const response = await api.delete(`/cities/${id}`);
+        if (response.data.success) {
+          showSuccess('Kota berhasil dihapus!');
+          fetchCities();
+        }
+      } catch (error) {
+        showError(error.response?.data?.message || 'Gagal menghapus kota');
       }
-    } catch (error) {
-      alert(error.response?.data?.message || 'Gagal menghapus kota');
-    }
+    }, { title: 'Konfirmasi Hapus' });
   };
 
   // Shipping handlers
@@ -257,32 +261,33 @@ const CityShipping = () => {
       if (editingShipping) {
         const response = await api.put(`/shipping-costs/${editingShipping.id}`, data);
         if (response.data.success) {
-          alert('Ongkir berhasil diupdate!');
+          showSuccess('Ongkir berhasil diupdate!');
         }
       } else {
         const response = await api.post('/shipping-costs', data);
         if (response.data.success) {
-          alert('Ongkir berhasil ditambahkan!');
+          showSuccess('Ongkir berhasil ditambahkan!');
         }
       }
       setShowShippingModal(false);
       fetchShippingCosts();
     } catch (error) {
-      alert(error.response?.data?.message || 'Gagal menyimpan data ongkir');
+      showError(error.response?.data?.message || 'Gagal menyimpan data ongkir');
     }
   };
 
   const handleDeleteShipping = async (id) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus ongkir ini?')) return;
-    try {
-      const response = await api.delete(`/shipping-costs/${id}`);
-      if (response.data.success) {
-        alert('Ongkir berhasil dihapus!');
-        fetchShippingCosts();
+    showConfirm('Apakah Anda yakin ingin menghapus ongkir ini?', async () => {
+      try {
+        const response = await api.delete(`/shipping-costs/${id}`);
+        if (response.data.success) {
+          showSuccess('Ongkir berhasil dihapus!');
+          fetchShippingCosts();
+        }
+      } catch (error) {
+        showError(error.response?.data?.message || 'Gagal menghapus ongkir');
       }
-    } catch (error) {
-      alert(error.response?.data?.message || 'Gagal menghapus ongkir');
-    }
+    }, { title: 'Konfirmasi Hapus' });
   };
 
   const toggleCityExpand = async (cityId) => {
@@ -768,244 +773,208 @@ const CityShipping = () => {
       )}
 
       {/* City Modal */}
-      {showCityModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b sticky top-0 bg-white">
-              <h2 className="text-base sm:text-lg font-bold">
-                {editingCity ? 'Edit Kota' : 'Tambah Kota Baru'}
-              </h2>
-              <button onClick={() => setShowCityModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
-                <FaTimes />
-              </button>
-            </div>
-            <form onSubmit={handleSubmitCity} className="p-4 sm:p-6 space-y-3 sm:space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kota *</label>
-                <input
-                  type="text"
-                  value={cityForm.name}
-                  onChange={(e) => setCityForm({...cityForm, name: e.target.value})}
-                  className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Provinsi *</label>
-                <input
-                  type="text"
-                  value={cityForm.province}
-                  onChange={(e) => setCityForm({...cityForm, province: e.target.value})}
-                  className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="Contoh: Jawa Barat"
-                  list="province-list"
-                  required
-                />
-                <datalist id="province-list">
-                  {provinces.map(prov => (
-                    <option key={prov} value={prov} />
-                  ))}
-                </datalist>
-              </div>
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kode Pos</label>
-                  <input
-                    type="text"
-                    value={cityForm.postal_code}
-                    onChange={(e) => setCityForm({...cityForm, postal_code: e.target.value})}
-                    className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                    placeholder="12345"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipe</label>
-                  <select
-                    value={cityForm.city_type}
-                    onChange={(e) => setCityForm({...cityForm, city_type: e.target.value})}
-                    className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                  >
-                    <option value="kota">Kota</option>
-                    <option value="kabupaten">Kabupaten</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="city-active"
-                  checked={cityForm.is_active}
-                  onChange={(e) => setCityForm({...cityForm, is_active: e.target.checked})}
-                  className="rounded text-blue-600"
-                />
-                <label htmlFor="city-active" className="text-sm text-gray-700">Aktif</label>
-              </div>
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={() => setShowCityModal(false)}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 border rounded-lg hover:bg-gray-50 text-sm"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm"
-                >
-                  <FaSave /> Simpan
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showCityModal}
+        onClose={() => setShowCityModal(false)}
+        title={editingCity ? 'Edit Kota' : 'Tambah Kota Baru'}
+        size="md"
+      >
+        <form onSubmit={handleSubmitCity} className="space-y-3 sm:space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kota *</label>
+            <input
+              type="text"
+              value={cityForm.name}
+              onChange={(e) => setCityForm({...cityForm, name: e.target.value})}
+              className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              required
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Provinsi *</label>
+            <input
+              type="text"
+              value={cityForm.province}
+              onChange={(e) => setCityForm({...cityForm, province: e.target.value})}
+              className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              placeholder="Contoh: Jawa Barat"
+              list="province-list"
+              required
+            />
+            <datalist id="province-list">
+              {provinces.map(prov => (
+                <option key={prov} value={prov} />
+              ))}
+            </datalist>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Kode Pos</label>
+              <input
+                type="text"
+                value={cityForm.postal_code}
+                onChange={(e) => setCityForm({...cityForm, postal_code: e.target.value})}
+                className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="12345"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipe</label>
+              <select
+                value={cityForm.city_type}
+                onChange={(e) => setCityForm({...cityForm, city_type: e.target.value})}
+                className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option value="kota">Kota</option>
+                <option value="kabupaten">Kabupaten</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="city-active"
+              checked={cityForm.is_active}
+              onChange={(e) => setCityForm({...cityForm, is_active: e.target.checked})}
+              className="rounded text-blue-600"
+            />
+            <label htmlFor="city-active" className="text-sm text-gray-700">Aktif</label>
+          </div>
+          <ModalFooter
+            onCancel={() => setShowCityModal(false)}
+            submitText={<><FaSave /> Simpan</>}
+          />
+        </form>
+      </Modal>
 
       {/* Shipping Modal */}
-      {showShippingModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-xl sm:rounded-lg shadow-xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b sticky top-0 bg-white">
-              <h2 className="text-base sm:text-lg font-bold">
-                {editingShipping ? 'Edit Ongkos Kirim' : 'Tambah Ongkos Kirim'}
-              </h2>
-              <button onClick={() => setShowShippingModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
-                <FaTimes />
-              </button>
-            </div>
-            <form onSubmit={handleSubmitShipping} className="p-4 sm:p-6 space-y-3 sm:space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kota Tujuan *</label>
-                <select
-                  value={shippingForm.city_id}
-                  onChange={(e) => setShippingForm({...shippingForm, city_id: e.target.value})}
-                  className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                  required
-                >
-                  <option value="">Pilih Kota</option>
-                  {cities.map(city => (
-                    <option key={city.id} value={city.id}>{city.name} - {city.province}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Gudang Asal</label>
-                <select
-                  value={shippingForm.warehouse_id}
-                  onChange={(e) => setShippingForm({...shippingForm, warehouse_id: e.target.value})}
-                  className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                >
-                  <option value="">Tidak Tergantung Gudang (Umum)</option>
-                  {warehouses.map(wh => (
-                    <option key={wh.id} value={wh.id}>{wh.name} ({wh.code})</option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Pilih "Tidak Tergantung Gudang" jika tarif berlaku untuk semua gudang
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kurir *</label>
-                  <input
-                    type="text"
-                    value={shippingForm.courier}
-                    onChange={(e) => setShippingForm({...shippingForm, courier: e.target.value})}
-                    className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                    placeholder="JNE, J&T"
-                    list="courier-list"
-                    required
-                  />
-                  <datalist id="courier-list">
-                    {couriers.map(c => (
-                      <option key={c} value={c} />
-                    ))}
-                  </datalist>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Layanan</label>
-                  <input
-                    type="text"
-                    value={shippingForm.service}
-                    onChange={(e) => setShippingForm({...shippingForm, service: e.target.value})}
-                    className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                    placeholder="REG, YES"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Biaya (Rp) *</label>
-                  <input
-                    type="number"
-                    value={shippingForm.cost}
-                    onChange={(e) => setShippingForm({...shippingForm, cost: e.target.value})}
-                    className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                    min="0"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Biaya/Kg (Rp)</label>
-                  <input
-                    type="number"
-                    value={shippingForm.cost_per_kg}
-                    onChange={(e) => setShippingForm({...shippingForm, cost_per_kg: e.target.value})}
-                    className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                    min="0"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Estimasi Min</label>
-                  <input
-                    type="number"
-                    value={shippingForm.estimated_days_min}
-                    onChange={(e) => setShippingForm({...shippingForm, estimated_days_min: e.target.value})}
-                    className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                    min="1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Estimasi Max</label>
-                  <input
-                    type="number"
-                    value={shippingForm.estimated_days_max}
-                    onChange={(e) => setShippingForm({...shippingForm, estimated_days_max: e.target.value})}
-                    className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                    min="1"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="shipping-active"
-                  checked={shippingForm.is_active}
-                  onChange={(e) => setShippingForm({...shippingForm, is_active: e.target.checked})}
-                  className="rounded text-blue-600"
-                />
-                <label htmlFor="shipping-active" className="text-sm text-gray-700">Aktif</label>
-              </div>
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={() => setShowShippingModal(false)}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 border rounded-lg hover:bg-gray-50 text-sm"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm"
-                >
-                  <FaSave /> Simpan
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showShippingModal}
+        onClose={() => setShowShippingModal(false)}
+        title={editingShipping ? 'Edit Ongkos Kirim' : 'Tambah Ongkos Kirim'}
+        size="lg"
+      >
+        <form onSubmit={handleSubmitShipping} className="space-y-3 sm:space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Kota Tujuan *</label>
+            <select
+              value={shippingForm.city_id}
+              onChange={(e) => setShippingForm({...shippingForm, city_id: e.target.value})}
+              className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              required
+            >
+              <option value="">Pilih Kota</option>
+              {cities.map(city => (
+                <option key={city.id} value={city.id}>{city.name} - {city.province}</option>
+              ))}
+            </select>
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Gudang Asal</label>
+            <select
+              value={shippingForm.warehouse_id}
+              onChange={(e) => setShippingForm({...shippingForm, warehouse_id: e.target.value})}
+              className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              <option value="">Tidak Tergantung Gudang (Umum)</option>
+              {warehouses.map(wh => (
+                <option key={wh.id} value={wh.id}>{wh.name} ({wh.code})</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Pilih "Tidak Tergantung Gudang" jika tarif berlaku untuk semua gudang
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Kurir *</label>
+              <input
+                type="text"
+                value={shippingForm.courier}
+                onChange={(e) => setShippingForm({...shippingForm, courier: e.target.value})}
+                className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="JNE, J&T"
+                list="courier-list"
+                required
+              />
+              <datalist id="courier-list">
+                {couriers.map(c => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Layanan</label>
+              <input
+                type="text"
+                value={shippingForm.service}
+                onChange={(e) => setShippingForm({...shippingForm, service: e.target.value})}
+                className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="REG, YES"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Biaya (Rp) *</label>
+              <input
+                type="number"
+                value={shippingForm.cost}
+                onChange={(e) => setShippingForm({...shippingForm, cost: e.target.value})}
+                className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                min="0"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Biaya/Kg (Rp)</label>
+              <input
+                type="number"
+                value={shippingForm.cost_per_kg}
+                onChange={(e) => setShippingForm({...shippingForm, cost_per_kg: e.target.value})}
+                className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                min="0"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Estimasi Min</label>
+              <input
+                type="number"
+                value={shippingForm.estimated_days_min}
+                onChange={(e) => setShippingForm({...shippingForm, estimated_days_min: e.target.value})}
+                className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                min="1"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Estimasi Max</label>
+              <input
+                type="number"
+                value={shippingForm.estimated_days_max}
+                onChange={(e) => setShippingForm({...shippingForm, estimated_days_max: e.target.value})}
+                className="w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                min="1"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="shipping-active"
+              checked={shippingForm.is_active}
+              onChange={(e) => setShippingForm({...shippingForm, is_active: e.target.checked})}
+              className="rounded text-blue-600"
+            />
+            <label htmlFor="shipping-active" className="text-sm text-gray-700">Aktif</label>
+          </div>
+          <ModalFooter
+            onCancel={() => setShowShippingModal(false)}
+            submitText={<><FaSave /> Simpan</>}
+          />
+        </form>
+      </Modal>
     </div>
   );
 };

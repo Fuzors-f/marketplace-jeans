@@ -3,9 +3,10 @@ import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
 import { 
   FaHistory, FaSearch, FaFilter, FaDownload, FaUser, FaSpinner,
-  FaChartBar, FaCalendarAlt, FaTimes, FaEye, FaGlobe, FaDesktop
+  FaChartBar, FaCalendarAlt, FaEye, FaGlobe, FaDesktop
 } from 'react-icons/fa';
 import { useLanguage } from '../../utils/i18n';
+import Modal from '../../components/admin/Modal';
 
 const ActivityLogs = () => {
   const { formatDate } = useLanguage();
@@ -457,19 +458,14 @@ const ActivityLogs = () => {
       </div>
 
       {/* Detail Modal */}
-      {selectedLog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto">
-            <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold">Detail Activity Log #{selectedLog.id}</h2>
-              <button
-                onClick={() => setSelectedLog(null)}
-                className="p-2 hover:bg-gray-100 rounded"
-              >
-                <FaTimes />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
+      <Modal
+        isOpen={!!selectedLog}
+        onClose={() => setSelectedLog(null)}
+        title={selectedLog ? `Detail Activity Log #${selectedLog.id}` : ''}
+        size="2xl"
+      >
+        {selectedLog && (
+          <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-gray-500">Waktu</label>
@@ -532,10 +528,9 @@ const ActivityLogs = () => {
                   </pre>
                 </div>
               )}
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </>
   );
 };

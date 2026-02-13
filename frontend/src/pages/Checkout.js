@@ -1135,7 +1135,16 @@ const Checkout = () => {
                 <div className="space-y-3 mb-6 pb-6 border-b">
                   {cartItems.map((item) => (
                     <div key={item.id} className="flex justify-between text-sm">
-                      <span>{item.name} x{item.quantity}</span>
+                      <div className="flex-1">
+                        <span>{item.name || item.product_name} x{item.quantity}</span>
+                        {item.size_name && <span className="text-gray-500 text-xs ml-1">({item.size_name})</span>}
+                        {item.original_price && item.price < item.original_price && (
+                          <div className="text-xs text-green-600">
+                            <span className="line-through text-gray-400">Rp {(item.original_price * item.quantity).toLocaleString('id-ID')}</span>
+                            <span className="ml-1">-{Math.round((1 - item.price / item.original_price) * 100)}%</span>
+                          </div>
+                        )}
+                      </div>
                       <span className="font-semibold">
                         Rp {(item.price * item.quantity).toLocaleString('id-ID')}
                       </span>

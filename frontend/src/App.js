@@ -7,6 +7,9 @@ import { loadUser } from './redux/slices/authSlice';
 import MainLayoutNew from './layouts/MainLayoutNew';
 import AdminLayout from './layouts/AdminLayout';
 
+// Components
+import ScrollToTop from './components/ScrollToTop';
+
 // Public Pages
 import Home from './pages/Home';
 import ProductsNew from './pages/ProductsNew';
@@ -69,17 +72,19 @@ function App() {
   }, [dispatch]);
 
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={<MainLayoutNew />}>
-        <Route index element={<Home />} />
-        <Route path="products" element={<ProductsNew />} />
-        <Route path="products/:slug" element={<ProductDetail />} />
-        <Route path="cart" element={<Cart />} />
-        <Route path="checkout" element={<Checkout />} />
-        <Route path="login" element={<Login />} />
-        <Route path="register" element={<Register />} />
-        <Route path="orders/track/:trackingNumber" element={<OrderTracking />} />
+    <>
+      <ScrollToTop />
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<MainLayoutNew />}>
+          <Route index element={<Home />} />
+          <Route path="products" element={<ProductsNew />} />
+          <Route path="products/:slug" element={<ProductDetail />} />
+          <Route path="cart" element={<Cart />} />
+          <Route path="checkout" element={<Checkout />} />
+          <Route path="login" element={<Login />} />
+          <Route path="register" element={<Register />} />
+          <Route path="orders/track/:trackingNumber" element={<OrderTracking />} />
         <Route path="order/:token" element={<OrderPage />} />
         <Route path="orders/:orderId/success" element={<OrderSuccess />} />
         
@@ -123,6 +128,7 @@ function App() {
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </>
   );
 }
 

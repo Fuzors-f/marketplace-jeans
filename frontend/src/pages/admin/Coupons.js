@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  FaTicketAlt, FaPlus, FaEdit, FaTrash, FaTimes, 
+  FaTicketAlt, FaPlus, FaEdit, FaTrash, FaTimes,
   FaPercent, FaMoneyBill, FaCalendarAlt, FaUsers,
   FaCheckCircle, FaTimesCircle, FaClock, FaChartBar
 } from 'react-icons/fa';
 import apiClient from '../../services/api';
+import Modal, { ModalFooter } from '../../components/admin/Modal';
 import DataTable from '../../components/admin/DataTable';
+import { useAlert } from '../../utils/AlertContext';
 
 const AdminCoupons = () => {
+  const { showSuccess, showError: showAlertError, showConfirm } = useAlert();
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -129,35 +132,32 @@ const AdminCoupons = () => {
 
       if (editingCoupon) {
         await apiClient.put(`/coupons/${editingCoupon.id}`, data);
-        setSuccess('Kupon berhasil diupdate!');
+        showSuccess('Kupon berhasil diupdate!');
       } else {
         await apiClient.post('/coupons', data);
-        setSuccess('Kupon berhasil dibuat!');
+        showSuccess('Kupon berhasil dibuat!');
       }
       
       setShowModal(false);
       resetForm();
       fetchCoupons();
       fetchStats();
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal menyimpan kupon');
-      setTimeout(() => setError(''), 5000);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus kupon ini?')) return;
-    try {
-      await apiClient.delete(`/coupons/${id}`);
-      setSuccess('Kupon berhasil dihapus!');
-      fetchCoupons();
-      fetchStats();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Gagal menghapus kupon');
-      setTimeout(() => setError(''), 5000);
-    }
+    showConfirm('Apakah Anda yakin ingin menghapus kupon ini?', async () => {
+      try {
+        await apiClient.delete(`/coupons/${id}`);
+        showSuccess('Kupon berhasil dihapus!');
+        fetchCoupons();
+        fetchStats();
+      } catch (err) {
+        showAlertError(err.response?.data?.message || 'Gagal menghapus kupon');
+      }
+    }, { title: 'Konfirmasi Hapus' });
   };
 
   const handleViewDetail = async (coupon) => {
@@ -429,22 +429,13 @@ const AdminCoupons = () => {
       />
 
       {/* Create/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white p-6 border-b flex justify-between items-center">
-              <h2 className="text-xl font-bold">
-                {editingCoupon ? 'Edit Kupon' : 'Buat Kupon Baru'}
-              </h2>
-              <button 
-                onClick={() => { setShowModal(false); resetForm(); }}
-                className="p-2 hover:bg-gray-100 rounded"
-              >
-                <FaTimes />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+      <Modal
+        isOpen={showModal}
+        onClose={() => { setShowModal(false); resetForm(); }}
+        title={editingCoupon ? 'Edit Kupon' : 'Buat Kupon Baru'}
+        size="2xl"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
               {/* Basic Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -624,7 +615,7 @@ const AdminCoupons = () => {
               </div>
 
               {/* Submit */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <ModalFooter>
                 <button
                   type="button"
                   onClick={() => { setShowModal(false); resetForm(); }}
@@ -638,27 +629,19 @@ const AdminCoupons = () => {
                 >
                   {editingCoupon ? 'Update Kupon' : 'Buat Kupon'}
                 </button>
-              </div>
+              </ModalFooter>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Detail Modal */}
-      {showDetailModal && selectedCoupon && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white p-6 border-b flex justify-between items-center">
-              <h2 className="text-xl font-bold">Detail Kupon</h2>
-              <button 
-                onClick={() => setShowDetailModal(false)}
-                className="p-2 hover:bg-gray-100 rounded"
-              >
-                <FaTimes />
-              </button>
-            </div>
-
-            <div className="p-6">
+      <Modal
+        isOpen={showDetailModal && !!selectedCoupon}
+        onClose={() => setShowDetailModal(false)}
+        title="Detail Kupon"
+        size="xl"
+      >
+        {selectedCoupon && (
+          <div>
               {/* Coupon Info */}
               <div className="text-center mb-6">
                 <p className="text-3xl font-mono font-bold text-blue-600">{selectedCoupon.code}</p>
@@ -738,10 +721,9 @@ const AdminCoupons = () => {
                   </div>
                 </div>
               )}
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 };

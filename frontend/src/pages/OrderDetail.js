@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Component } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../services/api';
@@ -9,41 +9,77 @@ const formatCurrency = (value) => {
   return num.toLocaleString('id-ID');
 };
 
-export default function OrderDetail() {
+// Error Boundary Component
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('OrderDetail Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-gray-50 py-8">
+          <div className="max-w-4xl mx-auto px-4 text-center">
+            <h1 className="text-3xl font-bold mb-4">Terjadi Kesalahan</h1>
+            <p className="text-gray-600 mb-4">Gagal memuat halaman pesanan</p>
+            <Link
+              to="/orders"
+              className="inline-block bg-black text-white px-6 py-3 rounded hover:bg-gray-900"
+            >
+              Kembali ke Daftar Pesanan
+            </Link>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function OrderDetailContent() {
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (orderId) {
-      fetchOrder();
-    }
+    const fetchOrder = async () => {
+      if (!orderId) return;
+      
+      try {
+        setLoading(true);
+        setError('');
+        const response = await apiClient.get(`/orders/${orderId}`);
+        if (response.data.success && response.data.data) {
+          setOrder(response.data.data);
+        } else {
+          setError('Data pesanan tidak valid');
+        }
+      } catch (err) {
+        console.error('Error fetching order:', err);
+        if (err.response?.status === 404) {
+          setError('Pesanan tidak ditemukan');
+        } else if (err.response?.status === 401) {
+          setError('Silakan login untuk melihat pesanan');
+        } else {
+          setError(err.response?.data?.message || 'Gagal memuat data pesanan');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchOrder();
   }, [orderId]);
-
-  const fetchOrder = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const response = await apiClient.get(`/orders/${orderId}`);
-      if (response.data.success && response.data.data) {
-        setOrder(response.data.data);
-      } else {
-        setError('Data pesanan tidak valid');
-      }
-    } catch (err) {
-      console.error('Error fetching order:', err);
-      if (err.response?.status === 404) {
-        setError('Pesanan tidak ditemukan');
-      } else if (err.response?.status === 401) {
-        setError('Silakan login untuk melihat pesanan');
-      } else {
-        setError(err.response?.data?.message || 'Gagal memuat data pesanan');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getStatusBadge = (status) => {
     const statusConfig = {
@@ -299,5 +335,14 @@ export default function OrderDetail() {
         </div>
       </div>
     </>
+  );
+}
+
+// Wrap the component with ErrorBoundary
+export default function OrderDetail() {
+  return (
+    <ErrorBoundary>
+      <OrderDetailContent />
+    </ErrorBoundary>
   );
 }

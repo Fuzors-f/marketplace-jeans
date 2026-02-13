@@ -47,13 +47,15 @@ exports.createSize = async (req, res) => {
       });
     }
     
+    const { is_active } = req.body;
+    
     const sql = `
       INSERT INTO sizes 
       (name, sort_order, is_active, created_at) 
-      VALUES (?, ?, true, NOW())
+      VALUES (?, ?, ?, NOW())
     `;
     
-    const result = await query(sql, [name, sort_order || 0]);
+    const result = await query(sql, [name, sort_order || 0, is_active !== undefined ? is_active : true]);
     
     await logActivity(req.user.id, 'CREATE', 'size', result.insertId, `Created size: ${name}`);
     

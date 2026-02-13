@@ -5,6 +5,7 @@ import {
   FaSearch, FaFilter, FaWarehouse, FaSpinner
 } from 'react-icons/fa';
 import api from '../../services/api';
+import Modal, { ModalFooter } from '../../components/admin/Modal';
 
 const StockOpname = () => {
   const [opnames, setOpnames] = useState([]);
@@ -304,99 +305,93 @@ const StockOpname = () => {
       </div>
 
       {/* Create Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-bold mb-4">Buat Stock Opname Baru</h3>
-            <form onSubmit={handleCreateOpname}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Gudang</label>
-                <select
-                  value={createForm.warehouse_id}
-                  onChange={(e) => setCreateForm({ ...createForm, warehouse_id: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Pilih Gudang</option>
-                  {warehouses.filter(w => w.is_active).map(w => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Catatan</label>
-                <textarea
-                  value={createForm.notes}
-                  onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
-                  rows="3"
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Catatan opname (opsional)"
-                />
-              </div>
-              <p className="text-sm text-gray-500 mb-4">
-                * Sistem akan mengambil semua stok dari gudang yang dipilih untuk dihitung fisiknya.
-              </p>
-              <div className="flex gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Buat Opname
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Buat Stock Opname Baru"
+        size="md"
+      >
+        <form onSubmit={handleCreateOpname}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Gudang</label>
+            <select
+              value={createForm.warehouse_id}
+              onChange={(e) => setCreateForm({ ...createForm, warehouse_id: e.target.value })}
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              required
+            >
+              <option value="">Pilih Gudang</option>
+              {warehouses.filter(w => w.is_active).map(w => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </select>
           </div>
-        </div>
-      )}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Catatan</label>
+            <textarea
+              value={createForm.notes}
+              onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
+              rows="3"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="Catatan opname (opsional)"
+            />
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            * Sistem akan mengambil semua stok dari gudang yang dipilih untuk dihitung fisiknya.
+          </p>
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(false)}
+              className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Buat Opname
+            </button>
+          </ModalFooter>
+        </form>
+      </Modal>
 
       {/* Detail Modal */}
-      {showDetailModal && selectedOpname && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-hidden">
-            <div className="p-6 border-b">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-lg font-bold">{selectedOpname.opname_number}</h3>
-                  <p className="text-sm text-gray-600">
-                    {selectedOpname.warehouse_name} • {new Date(selectedOpname.opname_date).toLocaleDateString('id-ID')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  {getStatusBadge(selectedOpname.status)}
-                  {selectedOpname.status === 'draft' && (
-                    <>
-                      <button
-                        onClick={() => handleCompleteOpname(selectedOpname.id)}
-                        className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                      >
-                        <FaCheck /> Selesaikan
-                      </button>
-                      <button
-                        onClick={() => handleCancelOpname(selectedOpname.id)}
-                        className="flex items-center gap-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                      >
-                        <FaTimes /> Batalkan
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={() => setShowDetailModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <FaTimes size={20} />
-                  </button>
-                </div>
+      <Modal
+        isOpen={showDetailModal && selectedOpname}
+        onClose={() => setShowDetailModal(false)}
+        title={selectedOpname?.opname_number || ''}
+        size="5xl"
+      >
+        {selectedOpname && (
+          <>
+            <div className="flex justify-between items-center mb-4 pb-4 border-b">
+              <p className="text-sm text-gray-600">
+                {selectedOpname.warehouse_name} • {new Date(selectedOpname.opname_date).toLocaleDateString('id-ID')}
+              </p>
+              <div className="flex items-center gap-4">
+                {getStatusBadge(selectedOpname.status)}
+                {selectedOpname.status === 'draft' && (
+                  <>
+                    <button
+                      onClick={() => handleCompleteOpname(selectedOpname.id)}
+                      className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      <FaCheck /> Selesaikan
+                    </button>
+                    <button
+                      onClick={() => handleCancelOpname(selectedOpname.id)}
+                      className="flex items-center gap-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    >
+                      <FaTimes /> Batalkan
+                    </button>
+                  </>
+                )}
               </div>
             </div>
             
-            <div className="overflow-auto max-h-[60vh] p-6">
+            <div className="overflow-auto max-h-[60vh]">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
@@ -446,18 +441,16 @@ const StockOpname = () => {
               </table>
             </div>
 
-            <div className="p-4 border-t bg-gray-50">
-              <div className="flex justify-between items-center">
-                <div className="text-sm text-gray-600">
-                  Total: {opnameDetails.length} item | 
-                  Selisih Plus: {opnameDetails.filter(d => d.difference > 0).length} | 
-                  Selisih Minus: {opnameDetails.filter(d => d.difference < 0).length}
-                </div>
+            <ModalFooter>
+              <div className="text-sm text-gray-600">
+                Total: {opnameDetails.length} item | 
+                Selisih Plus: {opnameDetails.filter(d => d.difference > 0).length} | 
+                Selisih Minus: {opnameDetails.filter(d => d.difference < 0).length}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </ModalFooter>
+          </>
+        )}
+      </Modal>
     </div>
   );
 };

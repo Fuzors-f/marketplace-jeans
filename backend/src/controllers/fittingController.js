@@ -47,13 +47,15 @@ exports.createFitting = async (req, res) => {
       });
     }
     
+    const { is_active } = req.body;
+    
     const sql = `
       INSERT INTO fittings 
       (name, slug, description, is_active, created_at) 
-      VALUES (?, ?, ?, true, NOW())
+      VALUES (?, ?, ?, ?, NOW())
     `;
     
-    const result = await query(sql, [name, slug, description || null]);
+    const result = await query(sql, [name, slug, description || null, is_active !== undefined ? is_active : true]);
     
     await logActivity(req.user.id, 'CREATE', 'fitting', result.insertId, `Created fitting: ${name}`);
     
