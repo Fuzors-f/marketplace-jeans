@@ -298,6 +298,11 @@ const AdminProducts = () => {
         fitting_id: formData.fitting_id || null
       };
 
+      // Remove SKU from payload when editing - SKU cannot be changed after creation
+      if (editingProduct) {
+        delete payload.sku;
+      }
+
       let productResponse;
       if (editingProduct) {
         productResponse = await apiClient.put(`/products/${editingProduct.id}`, payload);
@@ -522,13 +527,14 @@ const AdminProducts = () => {
           {/* Form Produk */}
           {showForm && (
             <div className="mb-8 bg-white p-6 rounded shadow">
-              <h2 className="text-xl font-bold mb-6">
+              <h2 className="text-xl font-bold mb-4">
                 {editingProduct ? 'Edit Produk' : 'Tambah Produk Baru'}
               </h2>
+              <p className="text-xs text-gray-500 mb-4"><span className="text-red-500">*</span> Wajib diisi</p>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold mb-2">Nama Produk *</label>
+                    <label className="block text-sm font-semibold mb-2">Nama Produk <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       name="name"
@@ -581,7 +587,7 @@ const AdminProducts = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold mb-2">Harga Jual *</label>
+                    <label className="block text-sm font-semibold mb-2">Harga Jual <span className="text-red-500">*</span></label>
                     <input
                       type="number"
                       name="base_price"
@@ -605,13 +611,17 @@ const AdminProducts = () => {
                   </div>
                 
                   <div>
-                    <label className="block text-sm font-semibold mb-2">SKU</label>
+                    <label className="block text-sm font-semibold mb-2">
+                      SKU
+                      {editingProduct && <span className="text-xs text-gray-500 font-normal ml-2">(tidak dapat diubah)</span>}
+                    </label>
                     <input
                       type="text"
                       name="sku"
                       value={formData.sku}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                      disabled={!!editingProduct}
+                      className={`w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black ${editingProduct ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     />
                   </div>
                   <div>

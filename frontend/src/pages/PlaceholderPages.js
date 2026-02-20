@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 const PlaceholderPage = ({ title, description }) => (
   <>
     <Helmet>
-      <title>{title} - Marketplace Jeans</title>
+      <title>{`${title || 'Page'} - Marketplace Jeans`}</title>
     </Helmet>
     <div className="container mx-auto px-4 py-16">
       <div className="max-w-2xl mx-auto text-center">

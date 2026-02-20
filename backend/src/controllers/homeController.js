@@ -20,6 +20,15 @@ exports.getHomeData = async (req, res) => {
     const featuredQuery = `
       SELECT 
         p.id, p.name, p.slug, p.base_price, p.short_description,
+        p.discount_percentage,
+        CASE 
+          WHEN p.discount_percentage IS NOT NULL 
+            AND p.discount_percentage > 0 
+            AND (p.discount_start_date IS NULL OR p.discount_start_date <= NOW())
+            AND (p.discount_end_date IS NULL OR p.discount_end_date >= NOW())
+          THEN ROUND(p.base_price * (1 - p.discount_percentage / 100), 0)
+          ELSE NULL 
+        END as discount_price,
         c.name as category_name, c.slug as category_slug,
         f.name as fitting_name,
         (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as primary_image,
@@ -36,6 +45,15 @@ exports.getHomeData = async (req, res) => {
     const newestQuery = `
       SELECT 
         p.id, p.name, p.slug, p.base_price, p.short_description,
+        p.discount_percentage,
+        CASE 
+          WHEN p.discount_percentage IS NOT NULL 
+            AND p.discount_percentage > 0 
+            AND (p.discount_start_date IS NULL OR p.discount_start_date <= NOW())
+            AND (p.discount_end_date IS NULL OR p.discount_end_date >= NOW())
+          THEN ROUND(p.base_price * (1 - p.discount_percentage / 100), 0)
+          ELSE NULL 
+        END as discount_price,
         c.name as category_name, c.slug as category_slug,
         f.name as fitting_name,
         (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as primary_image,

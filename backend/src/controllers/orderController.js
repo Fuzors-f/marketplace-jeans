@@ -338,17 +338,17 @@ exports.getOrderByToken = async (req, res) => {
 
     const orders = await query(
       `SELECT 
-        o.id, o.order_number, o.unique_token, o.status, o.payment_status, o.payment_method,
-        o.subtotal, o.discount_amount, o.shipping_cost, o.tax, o.total,
-        o.customer_name, o.customer_email, o.customer_phone,
-        o.shipping_address, o.shipping_city, o.shipping_province, o.shipping_postal_code,
-        o.shipping_method, o.tracking_number, o.courier, o.notes, 
+        o.id, o.order_number, o.unique_token, o.status, o.payment_status,
+        o.subtotal, o.discount_amount, o.shipping_cost, o.total_amount as total,
+        o.guest_email as customer_email, o.notes, 
         o.approved_at, o.created_at, o.updated_at,
-        os.recipient_name, os.phone as shipping_phone, os.address as full_address,
-        w.name as warehouse_name, w.city as warehouse_city
+        os.recipient_name as customer_name, os.phone as customer_phone,
+        os.address as shipping_address, os.city as shipping_city, 
+        os.province as shipping_province, os.postal_code as shipping_postal_code,
+        os.shipping_method, os.tracking_number,
+        os.recipient_name, os.phone as shipping_phone, os.address as full_address
       FROM orders o
       LEFT JOIN order_shipping os ON o.id = os.order_id
-      LEFT JOIN warehouses w ON o.warehouse_id = w.id
       WHERE o.unique_token = ?`,
       [token]
     );
@@ -365,11 +365,12 @@ exports.getOrderByToken = async (req, res) => {
     // Get order items
     const items = await query(
       `SELECT 
-        oi.id, oi.quantity, oi.price, oi.total, oi.product_name, oi.size_name,
-        p.id as product_id, p.slug as product_slug,
-        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image
+        oi.id, oi.quantity, oi.unit_price as price, oi.subtotal as total, oi.product_name, oi.size_name,
+        pv.product_id,
+        (SELECT slug FROM products WHERE id = pv.product_id LIMIT 1) as product_slug,
+        (SELECT image_url FROM product_images WHERE product_id = pv.product_id AND is_primary = true LIMIT 1) as product_image
       FROM order_items oi
-      LEFT JOIN products p ON oi.product_id = p.id
+      LEFT JOIN product_variants pv ON oi.product_variant_id = pv.id
       WHERE oi.order_id = ?`,
       [order.id]
     );
@@ -541,7 +542,7 @@ exports.generateInvoice = async (req, res) => {
     // Get order items
     const items = await query(
       `SELECT 
-        oi.id, oi.quantity, oi.price, oi.total, oi.product_name, oi.product_sku, oi.size_name
+        oi.id, oi.quantity, oi.unit_price as price, oi.subtotal as total, oi.product_name, oi.product_sku, oi.size_name
       FROM order_items oi
       WHERE oi.order_id = ?`,
       [order.id]
@@ -958,8 +959,8 @@ exports.getOrder = async (req, res) => {
     const orders = await query(
       `SELECT 
         o.id, o.order_number, o.unique_token, o.user_id, o.guest_email, o.status, o.payment_status,
-        o.subtotal, o.discount_amount, o.tax, o.shipping_cost, o.total_amount as total,
-        o.payment_method, o.notes, o.approved_at, o.approved_by, o.created_at, o.updated_at,
+        o.subtotal, o.discount_amount, o.shipping_cost, o.total_amount as total,
+        o.notes, o.approved_at, o.approved_by, o.created_at, o.updated_at,
         os.recipient_name as customer_name, os.phone as customer_phone, os.address as shipping_address,
         os.city as shipping_city, os.province as shipping_province, os.postal_code as shipping_postal_code,
         os.shipping_method, os.tracking_number, os.country

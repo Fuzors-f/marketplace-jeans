@@ -20,6 +20,7 @@ const MainLayoutNew = () => {
   const [openMegaMenu, setOpenMegaMenu] = useState(null);
   const [mobileSubmenu, setMobileSubmenu] = useState(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   // Get settings
   const siteName = getSetting('site_name', 'JEANS');
@@ -35,11 +36,28 @@ const MainLayoutNew = () => {
     dispatch(fetchCart());
   }, [dispatch]);
 
-  // Close mobile menu on route change
+  // Close all menus on route change
   useEffect(() => {
     setIsMenuOpen(false);
     setMobileSubmenu(null);
+    setOpenMegaMenu(null);
+    setIsUserMenuOpen(false);
   }, [location.pathname]);
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside mega menu and user menu
+      if (!event.target.closest('.mega-menu-container') && !event.target.closest('.mega-menu-trigger')) {
+        setOpenMegaMenu(null);
+      }
+      if (!event.target.closest('.user-menu-container')) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
@@ -223,17 +241,19 @@ const MainLayoutNew = () => {
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-8 flex-1 justify-center">
               {/* Wanita Menu */}
-              <div
-                className="relative group"
-                onMouseEnter={() => setOpenMegaMenu('wanita')}
-                onMouseLeave={() => setOpenMegaMenu(null)}
-              >
-                <Link
-                  to="/products?gender=wanita"
-                  className="font-semibold hover:underline uppercase tracking-wide"
+              <div className="relative mega-menu-container">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenMegaMenu(openMegaMenu === 'wanita' ? null : 'wanita');
+                  }}
+                  className="mega-menu-trigger font-semibold hover:underline uppercase tracking-wide flex items-center gap-1"
                 >
                   {t('women').toUpperCase()}
-                </Link>
+                  <svg className={`w-4 h-4 transition-transform ${openMegaMenu === 'wanita' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
                 
                 {/* Mega Menu */}
                 {openMegaMenu === 'wanita' && (
@@ -251,6 +271,7 @@ const MainLayoutNew = () => {
                                   <Link
                                     to={`/products?gender=wanita&category=${item.toLowerCase().replace(' ', '-')}`}
                                     className="text-gray-600 hover:text-black hover:underline text-sm"
+                                    onClick={() => setOpenMegaMenu(null)}
                                   >
                                     {item}
                                   </Link>
@@ -260,23 +281,34 @@ const MainLayoutNew = () => {
                           </div>
                         ))}
                       </div>
+                      <div className="mt-6 pt-4 border-t">
+                        <Link
+                          to="/products?gender=wanita"
+                          className="text-black font-semibold hover:underline"
+                          onClick={() => setOpenMegaMenu(null)}
+                        >
+                          Lihat Semua Produk Wanita →
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Pria Menu */}
-              <div
-                className="relative group"
-                onMouseEnter={() => setOpenMegaMenu('pria')}
-                onMouseLeave={() => setOpenMegaMenu(null)}
-              >
-                <Link
-                  to="/products?gender=pria"
-                  className="font-semibold hover:underline uppercase tracking-wide"
+              <div className="relative mega-menu-container">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenMegaMenu(openMegaMenu === 'pria' ? null : 'pria');
+                  }}
+                  className="mega-menu-trigger font-semibold hover:underline uppercase tracking-wide flex items-center gap-1"
                 >
                   {t('men').toUpperCase()}
-                </Link>
+                  <svg className={`w-4 h-4 transition-transform ${openMegaMenu === 'pria' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
                 
                 {/* Mega Menu */}
                 {openMegaMenu === 'pria' && (
@@ -294,6 +326,7 @@ const MainLayoutNew = () => {
                                   <Link
                                     to={`/products?gender=pria&category=${item.toLowerCase().replace(' ', '-')}`}
                                     className="text-gray-600 hover:text-black hover:underline text-sm"
+                                    onClick={() => setOpenMegaMenu(null)}
                                   >
                                     {item}
                                   </Link>
@@ -302,6 +335,15 @@ const MainLayoutNew = () => {
                             </ul>
                           </div>
                         ))}
+                      </div>
+                      <div className="mt-6 pt-4 border-t">
+                        <Link
+                          to="/products?gender=pria"
+                          className="text-black font-semibold hover:underline"
+                          onClick={() => setOpenMegaMenu(null)}
+                        >
+                          Lihat Semua Produk Pria →
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -362,44 +404,61 @@ const MainLayoutNew = () => {
 
               {/* User Menu */}
               {isAuthenticated ? (
-                <div className="relative group">
-                  <button className="hover:text-gray-600 p-2">
+                <div className="relative user-menu-container">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsUserMenuOpen(!isUserMenuOpen);
+                    }}
+                    className="hover:text-gray-600 p-2 flex items-center gap-1"
+                  >
                     <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
+                    <svg className={`w-3 h-3 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </button>
-                  <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white shadow-xl border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                    <div className="px-4 py-3 border-b">
-                      <p className="font-semibold text-sm truncate">{user?.full_name}</p>
-                      <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-                    </div>
-                    <Link
-                      to="/profile"
-                      className="block px-4 py-2.5 hover:bg-gray-50 text-sm"
-                    >
-                      {t('myProfile')}
-                    </Link>
-                    <Link
-                      to="/orders"
-                      className="block px-4 py-2.5 hover:bg-gray-50 text-sm"
-                    >
-                      {t('myOrders')}
-                    </Link>
-                    {(user?.role === 'admin' || user?.role === 'admin_stok') && (
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white shadow-xl border z-50 rounded-lg overflow-hidden">
+                      <div className="px-4 py-3 border-b bg-gray-50">
+                        <p className="font-semibold text-sm truncate">{user?.full_name}</p>
+                        <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                      </div>
                       <Link
-                        to="/admin"
-                        className="block px-4 py-2.5 hover:bg-gray-50 text-sm border-t"
+                        to="/profile"
+                        className="block px-4 py-2.5 hover:bg-gray-50 text-sm"
+                        onClick={() => setIsUserMenuOpen(false)}
                       >
-                        {t('adminDashboard')}
+                        {t('myProfile')}
                       </Link>
-                    )}
-                    <button
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2.5 hover:bg-gray-50 text-red-600 text-sm border-t"
-                    >
-                      {t('logout')}
-                    </button>
-                  </div>
+                      <Link
+                        to="/orders"
+                        className="block px-4 py-2.5 hover:bg-gray-50 text-sm"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        {t('myOrders')}
+                      </Link>
+                      {(user?.role === 'admin' || user?.role === 'admin_stok') && (
+                        <Link
+                          to="/admin"
+                          className="block px-4 py-2.5 hover:bg-gray-50 text-sm border-t"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          {t('adminDashboard')}
+                        </Link>
+                      )}
+                      <button
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          handleLogout();
+                        }}
+                        className="block w-full text-left px-4 py-2.5 hover:bg-gray-50 text-red-600 text-sm border-t"
+                      >
+                        {t('logout')}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <Link to="/login" className="hover:text-gray-600 p-2">

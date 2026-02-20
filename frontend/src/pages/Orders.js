@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useSelector } from 'react-redux';
 import apiClient from '../services/api';
+import { getImageUrl } from '../utils/imageUtils';
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
@@ -27,16 +28,29 @@ export default function Orders() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
+      setError('');
       const params = { page: currentPage, limit: itemsPerPage };
       if (statusFilter !== 'all') params.status = statusFilter;
       
       const response = await apiClient.get('/orders', { params });
-      setOrders(response.data.data || []);
-      setTotalPages(response.data.pagination?.pages || 1);
-      setError('');
+      
+      if (response.data.success) {
+        setOrders(response.data.data || []);
+        setTotalPages(response.data.pagination?.pages || 1);
+      } else {
+        setOrders([]);
+        setError(response.data.message || 'Gagal memuat pesanan');
+      }
     } catch (err) {
-      setError('Gagal memuat pesanan');
-      console.error(err);
+      console.error('Error fetching orders:', err);
+      setOrders([]);
+      if (err.response?.status === 401) {
+        setError('Sesi Anda telah berakhir. Silakan login kembali.');
+      } else if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Gagal memuat pesanan. Silakan coba lagi.');
+      }
     } finally {
       setLoading(false);
     }
@@ -144,13 +158,14 @@ export default function Orders() {
                     <div className="p-4">
                       {order.items?.slice(0, 2).map((item, idx) => (
                         <div key={idx} className="flex items-center gap-4 mb-3">
-                          {item.product_image && (
-                            <img
-                              src={item.product_image}
-                              alt={item.product_name}
-                              className="w-16 h-16 object-cover rounded"
-                            />
-                          )}
+                          <img
+                            src={getImageUrl(item.product_image, 'product')}
+                            alt={item.product_name || 'Product'}
+                            className="w-16 h-16 object-cover rounded bg-gray-100"
+                            onError={(e) => {
+                              e.target.src = 'https://via.placeholder.com/64x64?text=No+Image';
+                            }}
+                          />
                           <div className="flex-1">
                             <p className="font-semibold">{item.product_name}</p>
                             <p className="text-sm text-gray-600">

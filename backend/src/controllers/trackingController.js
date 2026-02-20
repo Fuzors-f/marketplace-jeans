@@ -25,13 +25,13 @@ exports.getOrderTracking = async (req, res) => {
     const orders = await query(
       `SELECT 
         o.id, o.order_number, o.status, o.payment_status,
-        o.customer_name, o.shipping_address, o.shipping_city, o.shipping_province,
-        o.shipping_method, o.tracking_number, o.courier,
-        o.subtotal, o.shipping_cost, o.tax, o.discount_amount, o.total,
-        o.created_at, o.updated_at,
-        w.name as warehouse_name, w.city as warehouse_city
+        os.recipient_name as customer_name, os.address as shipping_address, 
+        os.city as shipping_city, os.province as shipping_province,
+        os.shipping_method, os.tracking_number,
+        o.subtotal, o.shipping_cost, o.discount_amount, o.total_amount as total,
+        o.created_at, o.updated_at
       FROM orders o
-      LEFT JOIN warehouses w ON o.warehouse_id = w.id
+      LEFT JOIN order_shipping os ON o.id = os.order_id
       WHERE o.order_number = ? OR o.id = ?`,
       [orderNumber, orderNumber]
     );
@@ -48,8 +48,10 @@ exports.getOrderTracking = async (req, res) => {
     // Get order items
     const items = await query(
       `SELECT 
-        oi.product_name, oi.size_name, oi.quantity, oi.price, oi.total,
-        (SELECT image_url FROM product_images WHERE product_id = oi.product_id AND is_primary = true LIMIT 1) as product_image
+        oi.product_name, oi.size_name, oi.quantity, oi.unit_price as price, oi.subtotal as total,
+        (SELECT image_url FROM product_images pi 
+         JOIN product_variants pv ON pi.product_id = pv.product_id 
+         WHERE pv.id = oi.product_variant_id AND pi.is_primary = true LIMIT 1) as product_image
       FROM order_items oi
       WHERE oi.order_id = ?`,
       [order.id]

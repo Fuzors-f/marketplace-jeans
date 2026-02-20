@@ -13,6 +13,7 @@ const AdminBanners = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingBanner, setEditingBanner] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
+  const [bannerToDelete, setBannerToDelete] = useState(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -110,17 +111,22 @@ const AdminBanners = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (bannerId) => {
-    if (window.confirm('Yakin ingin menghapus banner ini?')) {
-      try {
-        await apiClient.delete(`/banners/${bannerId}`);
-        setSuccess('Banner berhasil dihapus!');
-        setBanners(banners.filter(banner => banner.id !== bannerId));
-        setTimeout(() => setSuccess(''), 3000);
-      } catch (err) {
-        setError('Gagal menghapus banner: ' + err.message);
-        console.error(err);
-      }
+  const handleDelete = (banner) => {
+    setBannerToDelete(banner);
+  };
+
+  const confirmDelete = async () => {
+    if (!bannerToDelete) return;
+    try {
+      await apiClient.delete(`/banners/${bannerToDelete.id}`);
+      setSuccess('Banner berhasil dihapus!');
+      setBanners(banners.filter(banner => banner.id !== bannerToDelete.id));
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError('Gagal menghapus banner: ' + err.message);
+      console.error(err);
+    } finally {
+      setBannerToDelete(null);
     }
   };
 
@@ -220,7 +226,7 @@ const AdminBanners = () => {
             <FaEdit />
           </button>
           <button
-            onClick={() => handleDelete(banner.id)}
+            onClick={() => handleDelete(banner)}
             className="p-2 text-red-600 hover:bg-red-50 rounded"
             title="Hapus"
           >
@@ -262,7 +268,7 @@ const AdminBanners = () => {
             Edit
           </button>
           <button
-            onClick={() => handleDelete(banner.id)}
+            onClick={() => handleDelete(banner)}
             className="flex-1 px-3 py-2 text-red-600 border border-red-600 rounded text-sm font-semibold hover:bg-red-50"
           >
             Hapus
@@ -329,6 +335,7 @@ const AdminBanners = () => {
             size="lg"
           >
             <form onSubmit={handleSubmit} className="space-y-4">
+                  <p className="text-xs text-gray-500 mb-2"><span className="text-red-500">*</span> Wajib diisi</p>
                   {/* Bilingual Title */}
                   <div className="border rounded-lg p-3 bg-gray-50">
                     <h3 className="text-sm font-semibold mb-2 flex items-center gap-1">
@@ -336,7 +343,7 @@ const AdminBanners = () => {
                     </h3>
                     <div className="grid grid-cols-1 gap-3">
                       <div>
-                        <label className="block text-xs font-medium mb-1">🇮🇩 Indonesia *</label>
+                        <label className="block text-xs font-medium mb-1">🇮🇩 Indonesia <span className="text-red-500">*</span></label>
                         <input
                           type="text"
                           name="title"
@@ -391,7 +398,7 @@ const AdminBanners = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold mb-2">URL Gambar *</label>
+                    <label className="block text-sm font-semibold mb-2">URL Gambar <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       name="image_url"
@@ -446,7 +453,7 @@ const AdminBanners = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-semibold mb-2">Posisi *</label>
+                      <label className="block text-sm font-semibold mb-2">Posisi <span className="text-red-500">*</span></label>
                       <select
                         name="position"
                         value={formData.position}
@@ -594,7 +601,7 @@ const AdminBanners = () => {
                             Edit
                           </button>
                           <button
-                            onClick={() => handleDelete(banner.id)}
+                            onClick={() => handleDelete(banner)}
                             className="flex-1 bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 text-sm font-semibold"
                           >
                             Hapus
@@ -613,6 +620,42 @@ const AdminBanners = () => {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!bannerToDelete}
+        onClose={() => setBannerToDelete(null)}
+        title="Konfirmasi Hapus"
+        size="sm"
+      >
+        <div className="text-center py-4">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FaTrash className="text-red-600 text-2xl" />
+          </div>
+          <p className="text-gray-700 mb-2">
+            Yakin ingin menghapus banner ini?
+          </p>
+          {bannerToDelete && (
+            <p className="text-sm text-gray-500 font-semibold">
+              "{bannerToDelete.title}"
+            </p>
+          )}
+        </div>
+        <ModalFooter>
+          <button
+            onClick={() => setBannerToDelete(null)}
+            className="flex-1 px-4 py-2 border rounded hover:bg-gray-50"
+          >
+            Batal
+          </button>
+          <button
+            onClick={confirmDelete}
+            className="flex-1 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 font-semibold"
+          >
+            Hapus
+          </button>
+        </ModalFooter>
+      </Modal>
     </>
   );
 };

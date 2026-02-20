@@ -248,19 +248,28 @@ const Home = () => {
             </div>
           ) : products && products.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {products.map((product) => (
+              {products.map((product) => {
+                const discountPercentage = product.discount_percentage || 
+                  (product.discount_price && product.base_price ? 
+                    Math.round((1 - product.discount_price / product.base_price) * 100) : null);
+                return (
                 <Link
                   key={product.id}
                   to={`/products/${product.slug}`}
                   className="group"
                 >
-                  <div className="aspect-[3/4] overflow-hidden bg-gray-100 mb-3">
+                  <div className="aspect-[3/4] overflow-hidden bg-gray-100 mb-3 relative">
                     <img
                       src={getProductImageUrl(product)}
                       onError={(e) => handleImageError(e, 'product')}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
                     />
+                    {product.discount_price && discountPercentage && (
+                      <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 text-xs font-bold rounded">
+                        -{discountPercentage}%
+                      </div>
+                    )}
                   </div>
                   <h3 className="font-semibold mb-1 group-hover:underline">
                     {product.name}
@@ -272,7 +281,7 @@ const Home = () => {
                           Rp {parseInt(product.discount_price).toLocaleString('id-ID')}
                         </span>
                         <span className="text-sm text-gray-500 line-through">
-                          Rp {parseInt(product.price).toLocaleString('id-ID')}
+                          Rp {parseInt(product.base_price || product.price).toLocaleString('id-ID')}
                         </span>
                       </>
                     ) : (
@@ -282,7 +291,7 @@ const Home = () => {
                     )}
                   </div>
                 </Link>
-              ))}
+              )})}
             </div>
           ) : (
             <p className="text-center text-gray-500 py-12">Tidak ada produk tersedia</p>

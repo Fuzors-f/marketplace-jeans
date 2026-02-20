@@ -2,6 +2,7 @@ import React, { useEffect, useState, Component } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../services/api';
+import { getImageUrl } from '../utils/imageUtils';
 
 // Helper function to safely format currency
 const formatCurrency = (value) => {
@@ -140,7 +141,7 @@ function OrderDetailContent() {
   return (
     <>
       <Helmet>
-        <title>Order #{order.id} - Marketplace Jeans</title>
+        <title>{`Order #${order.id || ''} - Marketplace Jeans`}</title>
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 py-8">
@@ -219,13 +220,14 @@ function OrderDetailContent() {
                 <div className="space-y-4">
                   {order.items?.map((item, idx) => (
                     <div key={idx} className="flex gap-4 pb-4 border-b last:border-0">
-                      {item.product_image && (
-                        <img
-                          src={item.product_image}
-                          alt={item.product_name}
-                          className="w-20 h-20 object-cover rounded"
-                        />
-                      )}
+                      <img
+                        src={getImageUrl(item.product_image, 'product')}
+                        alt={item.product_name || 'Product'}
+                        className="w-20 h-20 object-cover rounded bg-gray-100"
+                        onError={(e) => {
+                          e.target.src = 'https://via.placeholder.com/80x80?text=No+Image';
+                        }}
+                      />
                       <div className="flex-1">
                         <Link
                           to={`/products/${item.product_slug}`}

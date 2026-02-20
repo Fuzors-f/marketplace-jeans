@@ -880,7 +880,7 @@ const AdminOrders = () => {
   return (
     <>
       <Helmet>
-        <title>{t('orderManagement')} - Marketplace Jeans</title>
+        <title>{`${t('orderManagement') || 'Order Management'} - Marketplace Jeans`}</title>
       </Helmet>
 
       <div className="min-h-screen bg-gray-50">

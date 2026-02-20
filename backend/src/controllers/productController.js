@@ -147,7 +147,15 @@ exports.getProduct = async (req, res) => {
     // Get product details
     const products = await query(
       `SELECT 
-        p.*, 
+        p.*,
+        CASE 
+          WHEN p.discount_percentage IS NOT NULL 
+            AND p.discount_percentage > 0 
+            AND (p.discount_start_date IS NULL OR p.discount_start_date <= NOW())
+            AND (p.discount_end_date IS NULL OR p.discount_end_date >= NOW())
+          THEN ROUND(p.base_price * (1 - p.discount_percentage / 100), 0)
+          ELSE NULL 
+        END as discount_price,
         c.name as category_name, c.slug as category_slug,
         f.name as fitting_name, f.slug as fitting_slug
       FROM products p
@@ -316,20 +324,6 @@ exports.updateProduct = async (req, res) => {
     const { id } = req.params;
     const updates = [];
     const values = [];
-
-    // Check SKU uniqueness if SKU is being updated
-    if (req.body.sku) {
-      const existingSku = await query(
-        'SELECT id FROM products WHERE sku = ? AND id != ?',
-        [req.body.sku, id]
-      );
-      if (existingSku.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'SKU sudah digunakan oleh produk lain'
-        });
-      }
-    }
     
     // Check slug uniqueness if slug is being updated
     if (req.body.slug) {
@@ -345,10 +339,12 @@ exports.updateProduct = async (req, res) => {
       }
     }
 
+    // SKU is not included in allowedFields - it should not be updated after creation
     const allowedFields = [
       'name', 'slug', 'category_id', 'fitting_id', 'description', 'short_description',
-      'base_price', 'master_cost_price', 'sku', 'weight', 'is_active', 'is_featured',
-      'meta_title', 'meta_description', 'meta_keywords'
+      'base_price', 'master_cost_price', 'weight', 'is_active', 'is_featured',
+      'meta_title', 'meta_description', 'meta_keywords',
+      'discount_percentage', 'discount_start_date', 'discount_end_date'
     ];
 
     allowedFields.forEach(field => {
