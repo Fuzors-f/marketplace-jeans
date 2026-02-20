@@ -7,7 +7,7 @@ import {
 import { settingsAPI } from '../../services/api';
 import { useSettings } from '../../utils/SettingsContext';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://be-hojdenim.yyyy-zzzzz-online.com';
 
 // Setting Groups Configuration
 const settingGroups = [

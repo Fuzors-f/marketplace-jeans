@@ -55,7 +55,7 @@ export const SettingsProvider = ({ children }) => {
     const value = settings[key];
     if (!value) return null;
     
-    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const baseUrl = process.env.REACT_APP_API_URL || 'https://be-hojdenim.yyyy-zzzzz-online.com';
     // Check if value already has full URL
     if (value.startsWith('http://') || value.startsWith('https://')) {
       return value;

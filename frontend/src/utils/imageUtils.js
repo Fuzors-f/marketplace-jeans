@@ -1,6 +1,6 @@
 // Image utility functions for consistent image URL handling
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://be-hojdenim.yyyy-zzzzz-online.com/api';
 const UPLOADS_BASE_URL = API_BASE_URL.replace('/api', '');
 
 // Default placeholder images

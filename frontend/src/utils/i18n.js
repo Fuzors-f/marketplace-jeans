@@ -494,7 +494,7 @@ export const LanguageProvider = ({ children }) => {
   const fetchExchangeRate = async () => {
     try {
       setExchangeRateLoading(true);
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/exchange-rates/IDR/USD`);
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://be-hojdenim.yyyy-zzzzz-online.com/api'}/exchange-rates/IDR/USD`);
       const data = await response.json();
       
       if (data.success && data.data?.rate) {

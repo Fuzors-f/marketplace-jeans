@@ -5,7 +5,7 @@ import { Eye, EyeOff, Camera, User, Lock, ArrowLeft, Check, X } from 'lucide-rea
 import { userAPI } from '../services/api';
 import { loadUser } from '../redux/slices/authSlice';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://be-hojdenim.yyyy-zzzzz-online.com';
 
 export default function ProfileSettings() {
   const dispatch = useDispatch();
