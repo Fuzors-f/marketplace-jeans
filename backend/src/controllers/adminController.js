@@ -151,7 +151,7 @@ exports.getAdminOrderDetail = async (req, res) => {
         u.full_name as user_name, u.email as user_email,
         p.transaction_id, p.payment_method as payment_method_detail, 
         p.amount as payment_amount, p.status as payment_detail_status,
-        p.paid_at
+        p.paid_at, p.payment_proof
       FROM orders o
       LEFT JOIN order_shipping os ON o.id = os.order_id
       LEFT JOIN users u ON o.user_id = u.id

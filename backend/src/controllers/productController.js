@@ -68,6 +68,16 @@ exports.getProducts = async (req, res) => {
       params.push(`%${search}%`, `%${search}%`);
     }
 
+    // Filter only discounted products
+    if (req.query.discount === 'true') {
+      whereConditions.push(`(
+        p.discount_percentage IS NOT NULL 
+        AND p.discount_percentage > 0 
+        AND (p.discount_start_date IS NULL OR p.discount_start_date <= NOW())
+        AND (p.discount_end_date IS NULL OR p.discount_end_date >= NOW())
+      )`);
+    }
+
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     // Validate sort column (prevent SQL injection)

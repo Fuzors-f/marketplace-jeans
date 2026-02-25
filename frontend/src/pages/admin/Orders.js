@@ -5,6 +5,7 @@ import { FaEye, FaTimes, FaFilter, FaPlus, FaSearch, FaTrash, FaUser, FaUserPlus
 import DataTable from '../../components/admin/DataTable';
 import Modal, { ModalFooter } from '../../components/admin/Modal';
 import { useLanguage } from '../../utils/i18n';
+import { getImageUrl } from '../../utils/imageUtils';
 
 // Tracking status configuration
 const TRACKING_STATUS_CONFIG = {
@@ -876,10 +877,10 @@ const AdminOrders = () => {
   // DataTable columns configuration
   const columns = [
     {
-      key: 'id',
-      label: 'Order ID',
+      key: 'order_number',
+      label: 'No. Invoice',
       sortable: true,
-      render: (value) => <span className="font-semibold">#{value}</span>
+      render: (value, order) => <span className="font-semibold">{value || `#${order.id}`}</span>
     },
     {
       key: 'customer_name',
@@ -945,7 +946,7 @@ const AdminOrders = () => {
     <div className="bg-white rounded-lg shadow p-4 mb-3">
       <div className="flex justify-between items-start mb-2">
         <div>
-          <p className="font-bold text-lg">#{order.id}</p>
+          <p className="font-bold text-lg">{order.order_number || `#${order.id}`}</p>
           <p className="text-sm font-semibold">{order.customer_name || order.user_name || t('guest')}</p>
           <p className="text-xs text-gray-500">{order.customer_email || order.user_email}</p>
         </div>
@@ -1072,7 +1073,7 @@ const AdminOrders = () => {
       <Modal
         isOpen={!!selectedOrder}
         onClose={() => setSelectedOrder(null)}
-        title={selectedOrder ? `${t('orderDetails')} #${selectedOrder.id}` : ''}
+        title={selectedOrder ? `${t('orderDetails')} ${selectedOrder.order_number || '#' + selectedOrder.id}` : ''}
         size="3xl"
       >
         {selectedOrder && (
@@ -1105,7 +1106,7 @@ const AdminOrders = () => {
                 <div className="bg-gray-50 p-4 rounded">
                   <h3 className="font-bold mb-3 uppercase text-sm">{t('orderInfo')}</h3>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-semibold">ID:</span> #{selectedOrder.id}</p>
+                    <p><span className="font-semibold">No. Invoice:</span> {selectedOrder.order_number || `#${selectedOrder.id}`}</p>
                     <p><span className="font-semibold">{t('orderDate')}:</span> {formatDate(selectedOrder.created_at)}</p>
                     <p><span className="font-semibold">{t('shippingCost')}:</span> {selectedOrder.shipping_method}</p>
                     <p><span className="font-semibold">{t('paymentMethod')}:</span> {selectedOrder.payment_method}</p>
@@ -1232,6 +1233,19 @@ const AdminOrders = () => {
                 </div>
               </div>
               
+              {/* Payment Proof */}
+              {selectedOrder.payment_proof && (
+                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <h3 className="font-bold text-sm uppercase mb-2">Bukti Pembayaran</h3>
+                  <img 
+                    src={getImageUrl(selectedOrder.payment_proof)}
+                    alt="Bukti pembayaran" 
+                    className="max-h-64 rounded shadow cursor-pointer hover:opacity-90"
+                    onClick={() => window.open(getImageUrl(selectedOrder.payment_proof), '_blank')}
+                  />
+                </div>
+              )}
+
               {/* Tracking Link */}
               {selectedOrder.order_number && (
                 <div className="mt-4 p-4 bg-blue-50 rounded-lg">

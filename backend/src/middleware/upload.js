@@ -7,7 +7,8 @@ const uploadDirs = [
   './uploads',
   './uploads/products',
   './uploads/categories',
-  './uploads/users'
+  './uploads/users',
+  './uploads/payments'
 ];
 
 uploadDirs.forEach(dir => {
@@ -25,6 +26,8 @@ const storage = multer.diskStorage({
       uploadPath = './uploads/categories';
     } else if (req.baseUrl.includes('users')) {
       uploadPath = './uploads/users';
+    } else if (req.originalUrl.includes('payment-proof') || req.baseUrl.includes('payment')) {
+      uploadPath = './uploads/payments';
     }
     
     cb(null, uploadPath);

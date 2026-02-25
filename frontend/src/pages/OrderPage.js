@@ -6,6 +6,7 @@ import {
   FaSpinner, FaQrcode, FaDownload, FaFilePdf, FaCopy, FaCheck
 } from 'react-icons/fa';
 import api from '../services/api';
+import { getImageUrl } from '../utils/imageUtils';
 
 const STATUS_CONFIG = {
   pending: { icon: FaClock, color: 'text-yellow-500', bg: 'bg-yellow-100', label: 'Menunggu Persetujuan' },
@@ -409,6 +410,18 @@ export default function OrderPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Payment Proof - for bank transfer */}
+                {orderData.order.payment_method === 'bank_transfer' && orderData.order.payment_proof && (
+                  <div className="bg-white rounded-xl shadow-lg p-6">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">Bukti Pembayaran</h3>
+                    <img
+                      src={getImageUrl(orderData.order.payment_proof)}
+                      alt="Bukti pembayaran"
+                      className="max-h-64 rounded shadow"
+                    />
+                  </div>
+                )}
 
                 {/* Payment Summary */}
                 <div className="bg-white rounded-xl shadow-lg p-6">

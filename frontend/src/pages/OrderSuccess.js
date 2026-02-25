@@ -4,11 +4,12 @@ import { FaCheckCircle, FaQrcode, FaFilePdf, FaCopy, FaTruck, FaSpinner, FaDownl
 import api from '../services/api';
 import MidtransPayment from '../components/MidtransPayment';
 import { useSettings } from '../utils/SettingsContext';
+import { getImageUrl } from '../utils/imageUtils';
 
 export default function OrderSuccess() {
   const { orderId } = useParams();
   const location = useLocation();
-  const { midtransEnabled } = useSettings();
+  const { midtransEnabled, getSetting } = useSettings();
   const [order, setOrder] = useState(null);
   const [qrCode, setQrCode] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -239,7 +240,7 @@ export default function OrderSuccess() {
         )}
 
         {/* Bank Transfer Info - Show if payment method is bank_transfer */}
-        {order && order.payment_status === 'pending' && order.payment_method === 'bank_transfer' && (
+        {order && order.payment_status === 'pending' && (order.payment_method === 'bank_transfer' || order.payment?.payment_method === 'bank_transfer') && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Instruksi Pembayaran</h2>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -247,14 +248,24 @@ export default function OrderSuccess() {
                 Silakan transfer ke rekening berikut:
               </p>
               <div className="bg-white rounded p-3 space-y-1">
-                <p><strong>Bank:</strong> {order.bank_name || 'Lihat di detail pesanan'}</p>
-                <p><strong>No. Rekening:</strong> {order.bank_account || 'Lihat di detail pesanan'}</p>
-                <p><strong>Atas Nama:</strong> {order.bank_holder || 'Lihat di detail pesanan'}</p>
+                <p><strong>Bank:</strong> {getSetting('payment_bank_name', '-')}</p>
+                <p className="text-lg"><strong>No. Rekening:</strong> <span className="font-mono font-bold">{getSetting('payment_bank_account', '-')}</span></p>
+                <p><strong>Atas Nama:</strong> {getSetting('payment_bank_holder', '-')}</p>
                 <p className="text-lg font-bold text-blue-600 mt-2">
                   Total: {formatCurrency(order.total || order.total_amount)}
                 </p>
               </div>
             </div>
+            {order.payment?.payment_proof && (
+              <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+                <p className="text-green-800 font-semibold mb-2">Bukti Pembayaran Telah Diunggah</p>
+                <img 
+                  src={getImageUrl(order.payment.payment_proof)}
+                  alt="Bukti pembayaran" 
+                  className="max-h-64 rounded shadow"
+                />
+              </div>
+            )}
           </div>
         )}
 

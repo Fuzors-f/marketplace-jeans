@@ -12,12 +12,16 @@ const {
   generateInvoice,
   approveOrder,
   addShippingHistory,
-  getShippingHistory
+  getShippingHistory,
+  uploadPaymentProof,
+  uploadPaymentProofByToken
 } = require('../controllers/orderController');
 const { protect, authorize, optionalAuth } = require('../middleware/auth');
+const { uploadSingle } = require('../middleware/upload');
 
 // Public routes - order tracking by token
 router.get('/track/:token', getOrderByToken);
+router.post('/track/:token/payment-proof', uploadSingle, uploadPaymentProofByToken);
 router.get('/:id/qrcode', generateQRCode);
 router.get('/:id/qrcode-data', getQRCodeData);
 router.get('/:id/invoice', generateInvoice);
@@ -29,6 +33,7 @@ router.post('/', optionalAuth, createOrder);
 // Protected routes
 router.get('/', protect, getOrders);
 router.get('/:id', optionalAuth, getOrder);
+router.post('/:id/payment-proof', optionalAuth, uploadSingle, uploadPaymentProof);
 
 // Admin routes
 router.put('/:id/status', protect, authorize('admin', 'admin_stok'), updateOrderStatus);

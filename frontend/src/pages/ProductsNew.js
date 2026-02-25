@@ -98,6 +98,7 @@ const Products = () => {
       size: searchParams.get('size') || undefined,
       min_price: searchParams.get('minPrice') || undefined,
       max_price: searchParams.get('maxPrice') || undefined,
+      discount: searchParams.get('discount') || undefined,
     };
 
     // Get sort from URL or use default

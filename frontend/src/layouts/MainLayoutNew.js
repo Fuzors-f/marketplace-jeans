@@ -241,7 +241,7 @@ const MainLayoutNew = () => {
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-8 flex-1 justify-center">
               {/* Wanita Menu */}
-              <div className="relative mega-menu-container">
+              <div className="static mega-menu-container">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -257,7 +257,7 @@ const MainLayoutNew = () => {
                 
                 {/* Mega Menu */}
                 {openMegaMenu === 'wanita' && (
-                  <div className="absolute left-0 top-full mt-2 bg-white shadow-xl border-t-2 border-black w-screen -ml-[50vw] left-[50%]">
+                  <div className="absolute left-0 right-0 top-full mt-0 bg-white shadow-xl border-t-2 border-black z-50">
                     <div className="container mx-auto px-4 py-8">
                       <div className="grid grid-cols-4 gap-8">
                         {megaMenus.wanita.map((section) => (
@@ -296,7 +296,7 @@ const MainLayoutNew = () => {
               </div>
 
               {/* Pria Menu */}
-              <div className="relative mega-menu-container">
+              <div className="static mega-menu-container">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -312,7 +312,7 @@ const MainLayoutNew = () => {
                 
                 {/* Mega Menu */}
                 {openMegaMenu === 'pria' && (
-                  <div className="absolute left-0 top-full mt-2 bg-white shadow-xl border-t-2 border-black w-screen -ml-[50vw] left-[50%]">
+                  <div className="absolute left-0 right-0 top-full mt-0 bg-white shadow-xl border-t-2 border-black z-50">
                     <div className="container mx-auto px-4 py-8">
                       <div className="grid grid-cols-4 gap-8">
                         {megaMenus.pria.map((section) => (

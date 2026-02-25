@@ -135,7 +135,7 @@ export default function Orders() {
                     {/* Header */}
                     <div className="p-4 border-b bg-gray-50 flex flex-wrap justify-between items-center gap-2">
                       <div className="flex items-center gap-4">
-                        <span className="font-bold">Order #{order.id}</span>
+                        <span className="font-bold">{order.order_number || `Order #${order.id}`}</span>
                         <span className="text-sm text-gray-600">
                           {new Date(order.created_at).toLocaleDateString('id-ID', {
                             day: 'numeric',

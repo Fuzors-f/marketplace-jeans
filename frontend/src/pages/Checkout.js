@@ -65,16 +65,23 @@ const Checkout = () => {
   
   const [paymentMethod, setPaymentMethod] = useState('');
 
+  // Payment proof state for bank transfer
+  const [paymentProofFile, setPaymentProofFile] = useState(null);
+  const [paymentProofPreview, setPaymentProofPreview] = useState('');
+
   // Set default payment method based on available options
   useEffect(() => {
-    if (midtransEnabled) {
+    if (isGuest) {
+      // Guest only gets bank_transfer
+      setPaymentMethod('bank_transfer');
+    } else if (midtransEnabled) {
       setPaymentMethod('midtrans');
     } else if (getSetting('payment_bank_transfer_enabled', 'true') === 'true') {
       setPaymentMethod('bank_transfer');
     } else {
       setPaymentMethod('cod');
     }
-  }, [midtransEnabled, getSetting]);
+  }, [midtransEnabled, getSetting, isGuest]);
 
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
@@ -482,6 +489,14 @@ const Checkout = () => {
           return;
         }
 
+        // Guest + bank_transfer must upload proof
+        if (paymentMethod === 'bank_transfer' && !paymentProofFile) {
+          setError('Silakan unggah bukti pembayaran transfer bank');
+          showError('Silakan unggah bukti pembayaran transfer bank');
+          setLoading(false);
+          return;
+        }
+
         // Create guest order
         const orderData = {
           guest_email: guestForm.email,
@@ -510,12 +525,25 @@ const Checkout = () => {
         };
 
         const response = await apiClient.post('/orders', orderData);
+        const { order_id, unique_token } = response.data.data;
         
+        // Upload payment proof if bank transfer
+        if (paymentProofFile && unique_token) {
+          const formData = new FormData();
+          formData.append('image', paymentProofFile);
+          try {
+            await apiClient.post(`/orders/track/${unique_token}/payment-proof`, formData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
+            });
+          } catch (uploadErr) {
+            console.error('Failed to upload payment proof:', uploadErr);
+          }
+        }
+
         setSuccessMessage('Order berhasil dibuat!');
+        showSuccess('Order berhasil dibuat! Anda akan diarahkan ke halaman tracking.', 'Berhasil');
         setTimeout(() => {
-          navigate(`/orders/${response.data.data.id}`, { 
-            state: { orderId: response.data.data.id, isGuest: true } 
-          });
+          navigate(`/order/${unique_token}`);
         }, 2000);
       } else {
         if (!validateUserForm()) {
@@ -555,6 +583,20 @@ const Checkout = () => {
         };
 
         const response = await apiClient.post('/orders', orderData);
+        const { order_id, unique_token } = response.data.data;
+
+        // Upload payment proof if bank transfer
+        if (paymentProofFile && order_id) {
+          const formData = new FormData();
+          formData.append('image', paymentProofFile);
+          try {
+            await apiClient.post(`/orders/${order_id}/payment-proof`, formData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
+            });
+          } catch (uploadErr) {
+            console.error('Failed to upload payment proof:', uploadErr);
+          }
+        }
         
         setSuccessMessage('Order berhasil dibuat!');
         showSuccess('Order berhasil dibuat! Anda akan diarahkan ke halaman pesanan.', 'Berhasil');
@@ -1099,7 +1141,8 @@ const Checkout = () => {
                       </label>
                     )}
                     
-                    {/* COD */}
+                    {/* COD - only for logged-in users */}
+                    {!isGuest && (
                     <label className="flex items-center cursor-pointer p-3 border rounded-lg hover:bg-gray-50 transition">
                       <input
                         type="radio"
@@ -1114,7 +1157,80 @@ const Checkout = () => {
                         <p className="text-xs text-gray-500">Bayar saat barang tiba</p>
                       </div>
                     </label>
+                    )}
                   </div>
+
+                  {/* Bank Transfer Details Box */}
+                  {paymentMethod === 'bank_transfer' && getSetting('payment_bank_name') && (
+                    <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-blue-800 mb-2">Detail Rekening Transfer</h4>
+                      <div className="space-y-1 text-sm">
+                        <p><span className="text-gray-600">Bank:</span> <span className="font-semibold">{getSetting('payment_bank_name')}</span></p>
+                        <p><span className="text-gray-600">No. Rekening:</span> <span className="font-mono font-bold text-lg">{getSetting('payment_bank_account')}</span></p>
+                        <p><span className="text-gray-600">Atas Nama:</span> <span className="font-semibold">{getSetting('payment_bank_holder')}</span></p>
+                      </div>
+                      <p className="text-xs text-blue-600 mt-2">
+                        Transfer sesuai total pembayaran dan unggah bukti transfer di bawah.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Payment Proof Upload for Bank Transfer */}
+                  {paymentMethod === 'bank_transfer' && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-semibold mb-2">
+                        Bukti Pembayaran {isGuest && <span className="text-red-500">*</span>}
+                      </label>
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition relative">
+                        {paymentProofPreview ? (
+                          <div className="space-y-2">
+                            <img 
+                              src={paymentProofPreview} 
+                              alt="Bukti pembayaran" 
+                              className="max-h-48 mx-auto rounded shadow"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPaymentProofFile(null);
+                                setPaymentProofPreview('');
+                              }}
+                              className="text-red-500 text-sm hover:underline"
+                            >
+                              Hapus foto
+                            </button>
+                          </div>
+                        ) : (
+                          <div>
+                            <svg className="mx-auto h-10 w-10 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                              <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            <p className="mt-2 text-sm text-gray-500">Klik untuk unggah bukti transfer</p>
+                            <p className="text-xs text-gray-400">JPG, PNG maks. 5MB</p>
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              if (file.size > 5 * 1024 * 1024) {
+                                showError('Ukuran file maksimal 5MB');
+                                return;
+                              }
+                              setPaymentProofFile(file);
+                              setPaymentProofPreview(URL.createObjectURL(file));
+                            }
+                          }}
+                          className={paymentProofPreview ? 'hidden' : 'absolute inset-0 w-full h-full opacity-0 cursor-pointer'}
+                        />
+                      </div>
+                      {isGuest && !paymentProofFile && (
+                        <p className="text-xs text-red-500 mt-1">* Wajib mengunggah bukti pembayaran untuk checkout tanpa login</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <button

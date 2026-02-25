@@ -141,7 +141,7 @@ function OrderDetailContent() {
   return (
     <>
       <Helmet>
-        <title>{`Order #${order.id || ''} - Marketplace Jeans`}</title>
+        <title>{`Order ${order.order_number || '#' + order.id} - Marketplace Jeans`}</title>
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 py-8">
@@ -152,7 +152,7 @@ function OrderDetailContent() {
               <Link to="/orders" className="text-blue-600 hover:underline mb-2 inline-block">
                 ← Kembali ke Daftar Pesanan
               </Link>
-              <h1 className="text-3xl font-bold">Order #{order.id}</h1>
+              <h1 className="text-3xl font-bold">Order {order.order_number || `#${order.id}`}</h1>
               <p className="text-gray-600">
                 {new Date(order.created_at).toLocaleDateString('id-ID', {
                   weekday: 'long',

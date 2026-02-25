@@ -259,12 +259,13 @@ exports.createOrder = async (req, res) => {
           [shipping_cost_id]
         );
         if (shippingCosts.length > 0) {
-          shippingCost = shippingCosts[0].calculated_cost || shippingCosts[0].cost || 0;
+          // parseFloat required: mysql2 returns decimal columns as strings
+          shippingCost = parseFloat(shippingCosts[0].calculated_cost || shippingCosts[0].cost) || 0;
         }
       }
       // Fallback: if no shipping cost found, use basic calculation
       if (!shippingCost || shippingCost <= 0) {
-        shippingCost = req.body.shipping_cost || (shipping_address.country === 'Indonesia' ? 20000 : 100000);
+        shippingCost = parseFloat(req.body.shipping_cost) || (shipping_address.country === 'Indonesia' ? 20000 : 100000);
       }
 
       // Calculate tax (11% PPN on subtotal after discounts)
@@ -448,7 +449,7 @@ exports.getOrderByToken = async (req, res) => {
 
     const orders = await query(
       `SELECT 
-        o.id, o.order_number, o.unique_token, o.status, o.payment_status,
+        o.id, o.order_number, o.unique_token, o.status, o.payment_status, o.payment_method,
         o.subtotal, o.discount_amount, o.shipping_cost, o.total_amount as total,
         o.guest_email as customer_email, o.notes, 
         o.approved_at, o.created_at, o.updated_at,
@@ -456,9 +457,11 @@ exports.getOrderByToken = async (req, res) => {
         os.address as shipping_address, os.city as shipping_city, 
         os.province as shipping_province, os.postal_code as shipping_postal_code,
         os.shipping_method, os.tracking_number,
-        os.recipient_name, os.phone as shipping_phone, os.address as full_address
+        os.recipient_name, os.phone as shipping_phone, os.address as full_address,
+        p.payment_proof
       FROM orders o
       LEFT JOIN order_shipping os ON o.id = os.order_id
+      LEFT JOIN payments p ON o.id = p.order_id
       WHERE o.unique_token = ?`,
       [token]
     );
@@ -1332,6 +1335,142 @@ exports.addTracking = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error adding tracking number',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Upload payment proof for bank transfer
+// @route   POST /api/orders/:id/payment-proof
+// @access  Public (optionalAuth - guest or authenticated)
+exports.uploadPaymentProof = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id || null;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'File bukti pembayaran wajib diunggah'
+      });
+    }
+
+    // Verify order exists and belongs to user (or is guest order)
+    const orders = await query(
+      'SELECT o.id, o.user_id, o.payment_method, o.unique_token FROM orders o WHERE o.id = ?',
+      [id]
+    );
+
+    if (orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const order = orders[0];
+
+    // Check ownership: either the user owns it, or it's a guest order (user_id is null)
+    if (order.user_id && userId && order.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized'
+      });
+    }
+
+    const paymentProofPath = `/uploads/payments/${req.file.filename}`;
+
+    // Update or insert payment record
+    const existingPayment = await query(
+      'SELECT id FROM payments WHERE order_id = ?',
+      [id]
+    );
+
+    if (existingPayment.length > 0) {
+      await query(
+        'UPDATE payments SET payment_proof = ?, updated_at = NOW() WHERE order_id = ?',
+        [paymentProofPath, id]
+      );
+    } else {
+      await query(
+        `INSERT INTO payments (order_id, payment_method, amount, status, payment_proof, created_at, updated_at)
+         SELECT id, payment_method, total_amount, 'pending', ?, NOW(), NOW() FROM orders WHERE id = ?`,
+        [paymentProofPath, id]
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Bukti pembayaran berhasil diunggah',
+      data: { payment_proof: paymentProofPath }
+    });
+  } catch (error) {
+    console.error('Upload payment proof error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading payment proof',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Upload payment proof by order token (for guest users)
+// @route   POST /api/orders/track/:token/payment-proof
+// @access  Public
+exports.uploadPaymentProofByToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'File bukti pembayaran wajib diunggah'
+      });
+    }
+
+    const orders = await query(
+      'SELECT id, payment_method FROM orders WHERE unique_token = ?',
+      [token]
+    );
+
+    if (orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const order = orders[0];
+    const paymentProofPath = `/uploads/payments/${req.file.filename}`;
+
+    const existingPayment = await query(
+      'SELECT id FROM payments WHERE order_id = ?',
+      [order.id]
+    );
+
+    if (existingPayment.length > 0) {
+      await query(
+        'UPDATE payments SET payment_proof = ?, updated_at = NOW() WHERE order_id = ?',
+        [paymentProofPath, order.id]
+      );
+    } else {
+      await query(
+        `INSERT INTO payments (order_id, payment_method, amount, status, payment_proof, created_at, updated_at)
+         SELECT id, payment_method, total_amount, 'pending', ?, NOW(), NOW() FROM orders WHERE id = ?`,
+        [paymentProofPath, order.id]
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Bukti pembayaran berhasil diunggah',
+      data: { payment_proof: paymentProofPath }
+    });
+  } catch (error) {
+    console.error('Upload payment proof by token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading payment proof',
       error: error.message
     });
   }
