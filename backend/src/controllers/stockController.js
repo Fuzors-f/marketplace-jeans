@@ -416,9 +416,29 @@ exports.getStockMovements = async (req, res) => {
     params.push(parseInt(limit), offset);
     const movements = await query(sql, params);
     
+    // Count total for pagination
+    const countSql = `
+      SELECT COUNT(*) as total
+      FROM inventory_movements im
+      JOIN product_variants pv ON im.product_variant_id = pv.id
+      JOIN warehouses w ON pv.warehouse_id = w.id
+      JOIN products p ON pv.product_id = p.id
+      LEFT JOIN sizes sz ON pv.size_id = sz.id
+      LEFT JOIN users u ON im.created_by = u.id
+      WHERE ${whereConditions.join(' AND ')}
+    `;
+    const countResult = await query(countSql, params.slice(0, -2));
+    const total = countResult[0]?.total || 0;
+    
     res.json({
       success: true,
-      data: movements || []
+      data: movements || [],
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / parseInt(limit))
+      }
     });
   } catch (error) {
     console.error('Get stock movements error:', error);

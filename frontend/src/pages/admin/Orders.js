@@ -61,6 +61,14 @@ const AdminOrders = () => {
   const [selectedShipping, setSelectedShipping] = useState(null);
   const [loadingShipping, setLoadingShipping] = useState(false);
   
+  // Province autocomplete state
+  const [provinces, setProvinces] = useState([]);
+  const [searchProvince, setSearchProvince] = useState('');
+  const [filteredProvinces, setFilteredProvinces] = useState([]);
+  const [selectedProvince, setSelectedProvince] = useState(null);
+  const [showProvinceDropdown, setShowProvinceDropdown] = useState(false);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  
   // Dynamic taxes and discounts state
   const [taxes, setTaxes] = useState([]);
   const [discounts, setDiscounts] = useState([]);
@@ -106,10 +114,20 @@ const AdminOrders = () => {
     fetchOrders();
   }, [statusFilter, paymentFilter]);
   
-  // Fetch warehouses on mount
+  // Fetch warehouses and provinces on mount
   useEffect(() => {
     fetchWarehouses();
+    fetchProvinces();
   }, []);
+
+  const fetchProvinces = async () => {
+    try {
+      const response = await apiClient.get('/cities/provinces');
+      setProvinces(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching provinces:', err);
+    }
+  };
 
   const fetchWarehouses = async () => {
     try {
@@ -190,15 +208,79 @@ const AdminOrders = () => {
     });
   };
 
-  // Search cities
+  // Handle province search/autocomplete
+  const handleSearchProvince = (search) => {
+    setSearchProvince(search);
+    setShowProvinceDropdown(true);
+    if (search.length >= 1) {
+      const filtered = provinces.filter(p => 
+        p.toLowerCase().includes(search.toLowerCase())
+      );
+      setFilteredProvinces(filtered);
+    } else {
+      setFilteredProvinces(provinces);
+    }
+    // Clear city when province changes
+    if (selectedProvince !== search) {
+      setSelectedCity(null);
+      setSearchCity('');
+      setCitySearchResults([]);
+      setSelectedShipping(null);
+      setShippingOptions([]);
+      setNewOrderData(prev => ({
+        ...prev,
+        shipping_city: '',
+        shipping_city_id: null,
+        shipping_province: search,
+        shipping_postal_code: '',
+        shipping_cost: 0,
+        shipping_cost_id: null,
+        courier: '',
+        shipping_method: ''
+      }));
+    }
+  };
+
+  // Select province from dropdown
+  const handleSelectProvince = (province) => {
+    setSelectedProvince(province);
+    setSearchProvince(province);
+    setShowProvinceDropdown(false);
+    setFilteredProvinces([]);
+    setNewOrderData(prev => ({
+      ...prev,
+      shipping_province: province
+    }));
+    // Clear city selection when province changes
+    setSelectedCity(null);
+    setSearchCity('');
+    setCitySearchResults([]);
+    setSelectedShipping(null);
+    setShippingOptions([]);
+  };
+
+  // Search cities with optional province filter
   const handleSearchCity = async (search) => {
     setSearchCity(search);
-    if (search.length >= 2) {
+    setShowCityDropdown(true);
+    if (search.length >= 1) {
       try {
-        const response = await apiClient.get(`/cities?search=${encodeURIComponent(search)}&limit=10`);
+        let url = `/cities?search=${encodeURIComponent(search)}&limit=15`;
+        if (selectedProvince) {
+          url += `&province=${encodeURIComponent(selectedProvince)}`;
+        }
+        const response = await apiClient.get(url);
         setCitySearchResults(response.data.data || []);
       } catch (err) {
         console.error('Error searching cities:', err);
+        setCitySearchResults([]);
+      }
+    } else if (selectedProvince) {
+      // Show all cities in province when input is empty but province selected
+      try {
+        const response = await apiClient.get(`/cities?province=${encodeURIComponent(selectedProvince)}&limit=30`);
+        setCitySearchResults(response.data.data || []);
+      } catch (err) {
         setCitySearchResults([]);
       }
     } else {
@@ -209,15 +291,21 @@ const AdminOrders = () => {
   // Select city and calculate shipping
   const handleSelectCity = async (city) => {
     setSelectedCity(city);
-    setNewOrderData({
-      ...newOrderData,
+    setSearchCity(city.name);
+    setShowCityDropdown(false);
+    setCitySearchResults([]);
+    // Also set province if not already set
+    if (!selectedProvince && city.province) {
+      setSelectedProvince(city.province);
+      setSearchProvince(city.province);
+    }
+    setNewOrderData(prev => ({
+      ...prev,
       shipping_city: city.name,
       shipping_city_id: city.id,
-      shipping_province: city.province,
+      shipping_province: city.province || prev.shipping_province,
       shipping_postal_code: city.postal_code || ''
-    });
-    setSearchCity('');
-    setCitySearchResults([]);
+    }));
     
     // Calculate shipping if warehouse is selected
     if (newOrderData.warehouse_id) {
@@ -225,13 +313,18 @@ const AdminOrders = () => {
     }
   };
 
-  // Clear selected city
+  // Clear selected city and province
   const handleClearSelectedCity = () => {
     setSelectedCity(null);
+    setSelectedProvince(null);
+    setSearchCity('');
+    setSearchProvince('');
     setSelectedShipping(null);
     setShippingOptions([]);
-    setNewOrderData({
-      ...newOrderData,
+    setCitySearchResults([]);
+    setFilteredProvinces([]);
+    setNewOrderData(prev => ({
+      ...prev,
       shipping_city: '',
       shipping_city_id: null,
       shipping_province: '',
@@ -240,7 +333,7 @@ const AdminOrders = () => {
       shipping_cost_id: null,
       courier: '',
       shipping_method: ''
-    });
+    }));
   };
 
   // Handle warehouse change
@@ -507,8 +600,13 @@ const AdminOrders = () => {
     setSearchUser('');
     setUserSearchResults([]);
     setSelectedCity(null);
+    setSelectedProvince(null);
     setSearchCity('');
+    setSearchProvince('');
     setCitySearchResults([]);
+    setFilteredProvinces([]);
+    setShowProvinceDropdown(false);
+    setShowCityDropdown(false);
     setShippingOptions([]);
     setSelectedShipping(null);
     setTaxes([]);
@@ -1522,53 +1620,104 @@ const AdminOrders = () => {
                     />
                   </div>
                   
-                  {/* City Search with auto-complete */}
-                  <div className="relative">
-                    <label className="block text-sm font-semibold mb-1">
-                      <FaMapMarkerAlt className="inline mr-1" /> Kota Tujuan
-                    </label>
-                    {!selectedCity ? (
-                      <>
+                  {/* Province & City Autocomplete */}
+                  {selectedCity && selectedProvince ? (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-green-800">
+                            <FaMapMarkerAlt className="inline mr-1" />
+                            {selectedCity.name}
+                          </p>
+                          <p className="text-sm text-green-600">{selectedProvince}{newOrderData.shipping_postal_code ? ` - ${newOrderData.shipping_postal_code}` : ''}</p>
+                        </div>
+                        <button type="button" onClick={handleClearSelectedCity} className="text-green-600 hover:text-green-800">
+                          <FaTimes />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Province Autocomplete */}
+                      <div className="relative">
+                        <label className="block text-sm font-semibold mb-1">
+                          <FaMapMarkerAlt className="inline mr-1" /> Provinsi
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={searchProvince}
+                            onChange={(e) => handleSearchProvince(e.target.value)}
+                            onFocus={() => {
+                              setShowProvinceDropdown(true);
+                              if (!searchProvince) setFilteredProvinces(provinces);
+                            }}
+                            onBlur={() => setTimeout(() => setShowProvinceDropdown(false), 200)}
+                            placeholder="Ketik provinsi..."
+                            className="w-full px-4 py-2 pl-10 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                            autoComplete="off"
+                          />
+                          <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                        </div>
+                        {showProvinceDropdown && filteredProvinces.length > 0 && (
+                          <div className="absolute z-20 w-full bg-white border rounded-lg shadow-lg mt-1 max-h-48 overflow-auto">
+                            {filteredProvinces.map((prov, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => handleSelectProvince(prov)}
+                                className={`w-full px-4 py-2 text-left hover:bg-gray-100 border-b last:border-b-0 text-sm ${
+                                  selectedProvince === prov ? 'bg-blue-50 font-semibold text-blue-700' : ''
+                                }`}
+                              >
+                                {prov}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* City Autocomplete */}
+                      <div className="relative">
+                        <label className="block text-sm font-semibold mb-1">
+                          Kota / Kabupaten
+                        </label>
                         <div className="relative">
                           <input
                             type="text"
                             value={searchCity}
                             onChange={(e) => handleSearchCity(e.target.value)}
-                            placeholder="Cari kota..."
+                            onFocus={() => {
+                              setShowCityDropdown(true);
+                              if (selectedProvince && !searchCity) handleSearchCity('');
+                            }}
+                            onBlur={() => setTimeout(() => setShowCityDropdown(false), 200)}
+                            placeholder={selectedProvince ? 'Ketik kota...' : 'Pilih provinsi dulu'}
                             className="w-full px-4 py-2 pl-10 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                            autoComplete="off"
                           />
                           <FaSearch className="absolute left-3 top-3 text-gray-400" />
                         </div>
-                        {citySearchResults.length > 0 && (
-                          <div className="absolute z-10 w-full bg-white border rounded-lg shadow-lg mt-1 max-h-60 overflow-auto">
+                        {showCityDropdown && citySearchResults.length > 0 && (
+                          <div className="absolute z-20 w-full bg-white border rounded-lg shadow-lg mt-1 max-h-48 overflow-auto">
                             {citySearchResults.map((city) => (
                               <button
                                 key={city.id}
                                 type="button"
+                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => handleSelectCity(city)}
-                                className="w-full px-4 py-3 text-left hover:bg-gray-100 border-b last:border-b-0"
+                                className="w-full px-4 py-2 text-left hover:bg-gray-100 border-b last:border-b-0"
                               >
-                                <p className="font-medium">{city.name}</p>
-                                <p className="text-sm text-gray-500">{city.province}</p>
+                                <p className="text-sm font-medium">{city.name}</p>
+                                {!selectedProvince && <p className="text-xs text-gray-500">{city.province}</p>}
                               </button>
                             ))}
                           </div>
                         )}
-                      </>
-                    ) : (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-green-800">{selectedCity.name}</p>
-                            <p className="text-sm text-green-600">{selectedCity.province}</p>
-                          </div>
-                          <button type="button" onClick={handleClearSelectedCity} className="text-green-600 hover:text-green-800">
-                            <FaTimes />
-                          </button>
-                        </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>

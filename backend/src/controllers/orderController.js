@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const { logActivity } = require('../middleware/activityLogger');
 const { sendOrderConfirmationEmail, sendOrderStatusEmail, sendAdminOrderNotificationEmail, isUserNotificationEnabled } = require('../services/emailService');
+const { applyCouponToOrder } = require('./couponController');
 
 // Generate unique order number
 const generateOrderNumber = () => {
@@ -33,11 +34,15 @@ const getOrderTrackingUrl = (uniqueToken) => {
 exports.createOrder = async (req, res) => {
   try {
     const {
-      items, shipping_address, discount_code, notes, payment_method
+      items, shipping_address, discount_code, coupon_code, coupon_id, notes, payment_method,
+      shipping_cost_id, courier, shipping_method
     } = req.body;
 
     const userId = req.user ? req.user.id : null;
     const guestEmail = req.body.guest_email;
+    
+    // Support both discount_code (legacy) and coupon_code (new frontend)
+    const effectiveDiscountCode = discount_code || coupon_code || null;
 
     if (!userId && !guestEmail) {
       return res.status(400).json({
@@ -101,7 +106,9 @@ exports.createOrder = async (req, res) => {
 
       for (const item of items) {
         const [variants] = await conn.execute(
-          `SELECT pv.*, p.name, p.base_price, p.master_cost_price, s.name as size_name
+          `SELECT pv.*, p.name, p.base_price, p.master_cost_price, 
+                  p.discount_percentage, p.discount_start_date, p.discount_end_date,
+                  s.name as size_name
            FROM product_variants pv
            JOIN products p ON pv.product_id = p.id
            JOIN sizes s ON pv.size_id = s.id
@@ -116,10 +123,21 @@ exports.createOrder = async (req, res) => {
         const variant = variants[0];
 
         if (variant.stock_quantity < item.quantity) {
-          throw new Error(`Insufficient stock for ${variant.name}`);
+          throw new Error(`Stok tidak cukup untuk ${variant.name} (tersisa: ${variant.stock_quantity})`);
         }
 
-        const unitPrice = parseFloat(variant.base_price) + parseFloat(variant.additional_price || 0);
+        // Calculate unit price considering product-level discount
+        let basePrice = parseFloat(variant.base_price);
+        const now = new Date();
+        const hasProductDiscount = variant.discount_percentage > 0
+          && (!variant.discount_start_date || new Date(variant.discount_start_date) <= now)
+          && (!variant.discount_end_date || new Date(variant.discount_end_date) >= now);
+
+        if (hasProductDiscount) {
+          basePrice = Math.round(basePrice * (1 - variant.discount_percentage / 100));
+        }
+
+        const unitPrice = basePrice + parseFloat(variant.additional_price || 0);
         const itemSubtotal = unitPrice * item.quantity;
         subtotal += itemSubtotal;
 
@@ -132,7 +150,7 @@ exports.createOrder = async (req, res) => {
           size_id: variant.size_id,
           quantity: item.quantity,
           unit_price: unitPrice,
-          unit_cost: variant.master_cost_price || 0,
+          unit_cost: variant.master_cost_price || variant.cost_price || 0,
           subtotal: itemSubtotal
         });
       }
@@ -140,47 +158,120 @@ exports.createOrder = async (req, res) => {
       // Apply member discount if applicable
       let memberDiscountAmount = 0;
       if (userId && req.user && req.user.role === 'member' && req.user.member_discount > 0) {
-        memberDiscountAmount = subtotal * (req.user.member_discount / 100);
+        memberDiscountAmount = Math.round(subtotal * (req.user.member_discount / 100));
       }
 
-      // Apply discount code if provided
+      // Apply coupon/discount code if provided (server re-validates, never trust client amount)
       let discountAmount = 0;
-      if (discount_code) {
-        const [discounts] = await conn.execute(
-          `SELECT * FROM discounts 
-           WHERE code = ? AND is_active = true 
+      let appliedCouponId = null;
+      let appliedDiscountCode = effectiveDiscountCode;
+
+      if (effectiveDiscountCode) {
+        // First try coupons table (new system)
+        const [coupons] = await conn.execute(
+          `SELECT * FROM coupons 
+           WHERE code = ? AND is_active = true
            AND (start_date IS NULL OR start_date <= NOW())
            AND (end_date IS NULL OR end_date >= NOW())
            AND (usage_limit IS NULL OR usage_count < usage_limit)`,
-          [discount_code]
+          [effectiveDiscountCode.toUpperCase()]
         );
 
-        if (discounts.length > 0) {
-          const discount = discounts[0];
+        if (coupons.length > 0) {
+          const coupon = coupons[0];
           
-          if (subtotal >= (discount.min_purchase || 0)) {
-            if (discount.type === 'percentage') {
-              discountAmount = subtotal * (discount.value / 100);
-              if (discount.max_discount && discountAmount > discount.max_discount) {
-                discountAmount = discount.max_discount;
-              }
-            } else if (discount.type === 'fixed') {
-              discountAmount = discount.value;
+          // Check per-user limit
+          let canUseCoupon = true;
+          if (coupon.usage_limit_per_user) {
+            let userUsageCount = 0;
+            if (userId) {
+              const [userUsage] = await conn.execute(
+                'SELECT COUNT(*) as count FROM coupon_usages WHERE coupon_id = ? AND user_id = ?',
+                [coupon.id, userId]
+              );
+              userUsageCount = userUsage[0].count;
+            } else if (guestEmail) {
+              const [guestUsage] = await conn.execute(
+                'SELECT COUNT(*) as count FROM coupon_usages WHERE coupon_id = ? AND guest_email = ?',
+                [coupon.id, guestEmail]
+              );
+              userUsageCount = guestUsage[0].count;
             }
+            if (userUsageCount >= coupon.usage_limit_per_user) {
+              canUseCoupon = false;
+            }
+          }
 
-            // Update usage count
-            await conn.execute(
-              'UPDATE discounts SET usage_count = usage_count + 1 WHERE id = ?',
-              [discount.id]
-            );
+          if (canUseCoupon && subtotal >= (coupon.min_purchase || 0)) {
+            if (coupon.discount_type === 'percentage') {
+              discountAmount = Math.round(subtotal * (coupon.discount_value / 100));
+              if (coupon.max_discount && discountAmount > coupon.max_discount) {
+                discountAmount = coupon.max_discount;
+              }
+            } else {
+              discountAmount = coupon.discount_value;
+              if (discountAmount > subtotal) {
+                discountAmount = subtotal;
+              }
+            }
+            appliedCouponId = coupon.id;
+          }
+        } else {
+          // Fallback: try discounts table (legacy system)
+          const [discounts] = await conn.execute(
+            `SELECT * FROM discounts 
+             WHERE code = ? AND is_active = true 
+             AND (start_date IS NULL OR start_date <= NOW())
+             AND (end_date IS NULL OR end_date >= NOW())
+             AND (usage_limit IS NULL OR usage_count < usage_limit)`,
+            [effectiveDiscountCode]
+          );
+
+          if (discounts.length > 0) {
+            const discount = discounts[0];
+            
+            if (subtotal >= (discount.min_purchase || 0)) {
+              if (discount.type === 'percentage') {
+                discountAmount = Math.round(subtotal * (discount.value / 100));
+                if (discount.max_discount && discountAmount > discount.max_discount) {
+                  discountAmount = discount.max_discount;
+                }
+              } else if (discount.type === 'fixed') {
+                discountAmount = discount.value;
+              }
+
+              // Update usage count
+              await conn.execute(
+                'UPDATE discounts SET usage_count = usage_count + 1 WHERE id = ?',
+                [discount.id]
+              );
+            }
           }
         }
       }
 
-      // Calculate shipping cost (simplified - could integrate with shipping API)
-      const shippingCost = shipping_address.country === 'Indonesia' ? 20000 : 100000;
+      // Calculate shipping cost from frontend-selected option, or use fallback
+      let shippingCost = 0;
+      if (shipping_cost_id) {
+        // Fetch actual shipping cost from database to prevent client-side tampering
+        const [shippingCosts] = await conn.execute(
+          'SELECT * FROM shipping_costs WHERE id = ?',
+          [shipping_cost_id]
+        );
+        if (shippingCosts.length > 0) {
+          shippingCost = shippingCosts[0].calculated_cost || shippingCosts[0].cost || 0;
+        }
+      }
+      // Fallback: if no shipping cost found, use basic calculation
+      if (!shippingCost || shippingCost <= 0) {
+        shippingCost = req.body.shipping_cost || (shipping_address.country === 'Indonesia' ? 20000 : 100000);
+      }
 
-      const totalAmount = subtotal - memberDiscountAmount - discountAmount + shippingCost;
+      // Calculate tax (11% PPN on subtotal after discounts)
+      const taxableAmount = subtotal - memberDiscountAmount - discountAmount;
+      const tax = Math.round(taxableAmount > 0 ? taxableAmount * 0.11 : 0);
+
+      const totalAmount = subtotal - memberDiscountAmount - discountAmount + shippingCost + tax;
 
       // Create order with unique token
       const orderNumber = generateOrderNumber();
@@ -189,10 +280,15 @@ exports.createOrder = async (req, res) => {
       const [orderResult] = await conn.execute(
         `INSERT INTO orders 
         (order_number, unique_token, user_id, guest_email, status, subtotal, discount_amount, discount_code, 
-         member_discount_amount, shipping_cost, total_amount, notes, payment_method)
-        VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [orderNumber, uniqueToken, userId || null, guestEmail || null, subtotal, discountAmount, discount_code || null,
-         memberDiscountAmount, shippingCost, totalAmount, notes || null, payment_method || 'bank_transfer']
+         member_discount_amount, shipping_cost, tax, total_amount, notes, payment_method, courier, shipping_method,
+         shipping_cost_id, coupon_id, coupon_code, coupon_discount,
+         customer_name, customer_email, customer_phone)
+        VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [orderNumber, uniqueToken, userId || null, guestEmail || null, subtotal, discountAmount, appliedDiscountCode,
+         memberDiscountAmount, shippingCost, tax, totalAmount, notes || null, payment_method || 'bank_transfer',
+         courier || null, shipping_method || null,
+         shipping_cost_id || null, appliedCouponId || null, appliedDiscountCode || null, discountAmount || 0,
+         shipping_address.recipient_name || null, guestEmail || null, shipping_address.phone || null]
       );
 
       const orderId = orderResult.insertId;
@@ -201,10 +297,11 @@ exports.createOrder = async (req, res) => {
       for (const item of orderItems) {
         await conn.execute(
           `INSERT INTO order_items 
-          (order_id, product_variant_id, product_name, product_sku, size_name, 
+          (order_id, product_id, product_variant_id, size_id, product_name, product_sku, size_name, 
            quantity, unit_price, unit_cost, subtotal)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [orderId, item.variant_id, item.name || '', item.sku || '', item.size || '',
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [orderId, item.product_id, item.variant_id, item.size_id || null, 
+           item.name || '', item.sku || '', item.size || '',
            item.quantity, item.unit_price, item.unit_cost || 0, item.subtotal]
         );
 
@@ -259,6 +356,19 @@ exports.createOrder = async (req, res) => {
         await conn.execute(
           'DELETE ci FROM cart_items ci JOIN carts c ON ci.cart_id = c.id WHERE c.user_id = ?',
           [userId]
+        );
+      }
+
+      // Record coupon usage if a coupon was applied
+      if (appliedCouponId && discountAmount > 0) {
+        await conn.execute(
+          `INSERT INTO coupon_usages (coupon_id, user_id, guest_email, order_id, discount_amount)
+           VALUES (?, ?, ?, ?, ?)`,
+          [appliedCouponId, userId || null, guestEmail || null, orderId, discountAmount]
+        );
+        await conn.execute(
+          'UPDATE coupons SET usage_count = usage_count + 1 WHERE id = ?',
+          [appliedCouponId]
         );
       }
 
@@ -1062,6 +1172,23 @@ exports.updateOrderStatus = async (req, res) => {
     };
 
     await transaction(async (conn) => {
+      // Get current order status to validate transition
+      const [currentOrders] = await conn.execute('SELECT status FROM orders WHERE id = ?', [id]);
+      if (currentOrders.length === 0) {
+        throw new Error('Order not found');
+      }
+      const currentStatus = currentOrders[0].status;
+
+      // Prevent cancelling already delivered/shipped orders
+      if (status === 'cancelled' && ['delivered', 'shipped', 'in_transit', 'out_for_delivery'].includes(currentStatus)) {
+        throw new Error('Tidak dapat membatalkan pesanan yang sudah dikirim atau diterima');
+      }
+
+      // Prevent updating already cancelled orders
+      if (currentStatus === 'cancelled') {
+        throw new Error('Tidak dapat mengubah status pesanan yang sudah dibatalkan');
+      }
+
       await conn.execute('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
 
       // Add shipping history entry
@@ -1076,6 +1203,53 @@ exports.updateOrderStatus = async (req, res) => {
         await conn.execute('UPDATE order_shipping SET shipped_at = NOW() WHERE order_id = ?', [id]);
       } else if (status === 'delivered') {
         await conn.execute('UPDATE order_shipping SET delivered_at = NOW() WHERE order_id = ?', [id]);
+      }
+
+      // Restore stock when order is cancelled
+      if (status === 'cancelled') {
+        const [orderItems] = await conn.execute(
+          'SELECT product_variant_id, quantity FROM order_items WHERE order_id = ?',
+          [id]
+        );
+
+        for (const item of orderItems) {
+          // Restore stock quantity
+          await conn.execute(
+            'UPDATE product_variants SET stock_quantity = stock_quantity + ? WHERE id = ?',
+            [item.quantity, item.product_variant_id]
+          );
+
+          // Log inventory movement (stock return)
+          await conn.execute(
+            `INSERT INTO inventory_movements 
+            (product_variant_id, type, quantity, reference_type, reference_id, notes, created_by)
+            VALUES (?, 'in', ?, 'order_cancelled', ?, 'Stok dikembalikan karena pesanan dibatalkan', ?)`,
+            [item.product_variant_id, item.quantity, id, adminId]
+          );
+        }
+
+        // Restore coupon usage if coupon was used
+        const [orderInfo] = await conn.execute(
+          'SELECT discount_code, discount_amount, user_id, guest_email FROM orders WHERE id = ?',
+          [id]
+        );
+        if (orderInfo.length > 0 && orderInfo[0].discount_code) {
+          // Restore coupon usage count
+          await conn.execute(
+            'UPDATE coupons SET usage_count = GREATEST(usage_count - 1, 0) WHERE code = ?',
+            [orderInfo[0].discount_code]
+          );
+          // Remove coupon usage record
+          await conn.execute(
+            'DELETE FROM coupon_usages WHERE order_id = ?',
+            [id]
+          );
+          // Also restore discount usage count (legacy)
+          await conn.execute(
+            'UPDATE discounts SET usage_count = GREATEST(usage_count - 1, 0) WHERE code = ?',
+            [orderInfo[0].discount_code]
+          );
+        }
       }
     });
 

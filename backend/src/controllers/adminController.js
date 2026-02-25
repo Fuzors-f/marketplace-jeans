@@ -1,6 +1,15 @@
 const { query, transaction } = require('../config/database');
 const { logActivity } = require('../middleware/activityLogger');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const moment = require('moment');
+
+// Generate unique order number
+const generateOrderNumber = () => {
+  const date = moment().format('YYYYMMDD');
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `ORD-${date}-${random}`;
+};
 
 // @desc    Get all orders for admin
 // @route   GET /api/admin/orders
@@ -236,7 +245,7 @@ exports.updateOrderStatus = async (req, res) => {
     const { id } = req.params;
     const { status, notes } = req.body;
 
-    const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const validStatuses = ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'in_transit', 'out_for_delivery', 'delivered', 'cancelled'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -244,8 +253,20 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
 
+    const statusTitles = {
+      pending: 'Menunggu Persetujuan',
+      confirmed: 'Pesanan Dikonfirmasi',
+      processing: 'Pesanan Diproses',
+      packed: 'Pesanan Dikemas',
+      shipped: 'Pesanan Dikirim',
+      in_transit: 'Dalam Perjalanan',
+      out_for_delivery: 'Sedang Diantar',
+      delivered: 'Pesanan Diterima',
+      cancelled: 'Pesanan Dibatalkan'
+    };
+
     // Get current order
-    const currentOrder = await query('SELECT status, user_id FROM orders WHERE id = ?', [id]);
+    const currentOrder = await query('SELECT status, user_id, discount_code FROM orders WHERE id = ?', [id]);
     if (currentOrder.length === 0) {
       return res.status(404).json({
         success: false,
@@ -255,11 +276,47 @@ exports.updateOrderStatus = async (req, res) => {
 
     const previousStatus = currentOrder[0].status;
 
-    // Handle stock management for cancelled orders
-    if (status === 'cancelled' && previousStatus !== 'cancelled') {
-      await transaction(async (conn) => {
-        // Get order items
-        const items = await query(
+    // Prevent cancelling already shipped/delivered orders
+    if (status === 'cancelled' && ['delivered', 'shipped', 'in_transit', 'out_for_delivery'].includes(previousStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tidak dapat membatalkan pesanan yang sudah dikirim atau diterima'
+      });
+    }
+
+    // Prevent updating already cancelled orders
+    if (previousStatus === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Tidak dapat mengubah status pesanan yang sudah dibatalkan'
+      });
+    }
+
+    await transaction(async (conn) => {
+      // Update order status
+      await conn.execute(
+        'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
+        [status, id]
+      );
+
+      // Add shipping history entry
+      await conn.execute(
+        `INSERT INTO order_shipping_history (order_id, status, title, description, created_by)
+         VALUES (?, ?, ?, ?, ?)`,
+        [id, status, statusTitles[status], notes || null, req.user.id]
+      );
+
+      // Update timestamps
+      if (status === 'shipped') {
+        await conn.execute('UPDATE order_shipping SET shipped_at = NOW() WHERE order_id = ?', [id]);
+      } else if (status === 'delivered') {
+        await conn.execute('UPDATE order_shipping SET delivered_at = NOW() WHERE order_id = ?', [id]);
+      }
+
+      // Handle stock and coupon restoration for cancelled orders
+      if (status === 'cancelled' && previousStatus !== 'cancelled') {
+        // Get order items using conn (inside transaction)
+        const [items] = await conn.execute(
           'SELECT product_variant_id, quantity FROM order_items WHERE order_id = ?',
           [id]
         );
@@ -267,35 +324,37 @@ exports.updateOrderStatus = async (req, res) => {
         // Return stock for each item
         for (const item of items) {
           if (item.product_variant_id) {
-            // Increase stock back
             await conn.execute(
               'UPDATE product_variants SET stock_quantity = stock_quantity + ? WHERE id = ?',
               [item.quantity, item.product_variant_id]
             );
 
-            // Log inventory movement
             await conn.execute(
               `INSERT INTO inventory_movements 
               (product_variant_id, type, quantity, reference_type, reference_id, notes, created_by)
-              VALUES (?, 'in', ?, 'order_cancelled', ?, 'Stock returned from cancelled order', ?)`,
+              VALUES (?, 'in', ?, 'order_cancelled', ?, 'Stok dikembalikan karena pesanan dibatalkan', ?)`,
               [item.product_variant_id, item.quantity, id, req.user.id]
             );
           }
         }
 
-        // Update order status
-        await conn.execute(
-          'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
-          [status, id]
-        );
-      });
-    } else {
-      // Just update status
-      await query(
-        'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
-        [status, id]
-      );
-    }
+        // Restore coupon/discount usage
+        if (currentOrder[0].discount_code) {
+          await conn.execute(
+            'UPDATE coupons SET usage_count = GREATEST(usage_count - 1, 0) WHERE code = ?',
+            [currentOrder[0].discount_code]
+          );
+          await conn.execute(
+            'DELETE FROM coupon_usages WHERE order_id = ?',
+            [id]
+          );
+          await conn.execute(
+            'UPDATE discounts SET usage_count = GREATEST(usage_count - 1, 0) WHERE code = ?',
+            [currentOrder[0].discount_code]
+          );
+        }
+      }
+    });
 
     await logActivity(req.user.id, 'update_order_status', 'order', id,
       `Status changed from ${previousStatus} to ${status}${notes ? ': ' + notes : ''}`, req);
@@ -464,6 +523,10 @@ exports.createManualOrder = async (req, res) => {
       });
     }
 
+    // Handle shipping_address if passed as object
+    const shippingAddressStr = typeof shipping_address === 'object' ? 
+      (shipping_address.address || JSON.stringify(shipping_address)) : shipping_address;
+
     const orderId = await transaction(async (conn) => {
       let finalUserId = user_id || null;
       
@@ -514,48 +577,35 @@ exports.createManualOrder = async (req, res) => {
       }
 
       const shippingCostAmount = parseFloat(shipping_cost) || 0;
-      const total = subtotal + shippingCostAmount + totalTax - totalDiscount;
+      const totalAmount = subtotal + shippingCostAmount + totalTax - totalDiscount;
 
       // Determine if international order
       const isInternational = shipping_country && shipping_country !== 'Indonesia';
       const orderCurrency = currency || (isInternational ? 'USD' : 'IDR');
       const orderExchangeRate = exchange_rate || null;
 
+      // Generate order number and unique token
+      const orderNumber = generateOrderNumber();
+      const uniqueToken = crypto.randomBytes(32).toString('hex');
+
       // Create order with warehouse and shipping details
       let orderResult;
-      try {
-        [orderResult] = await conn.execute(
-          `INSERT INTO orders 
-          (user_id, status, payment_status, payment_method, subtotal, shipping_cost, discount_amount, tax, total,
-           customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_city_id,
-           shipping_province, shipping_postal_code, shipping_country, shipping_method, 
-           warehouse_id, shipping_cost_id, courier, notes, currency, exchange_rate, created_by)
-          VALUES (?, 'confirmed', 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [finalUserId, payment_method || 'cash', subtotal, shippingCostAmount, totalDiscount, totalTax, total,
-           customer_name, customer_email || null, customer_phone, shipping_address, shipping_city || null, 
-           shipping_city_id || null, shipping_province || null, shipping_postal_code || null, 
-           shipping_country || 'Indonesia', shipping_method || 'manual', 
-           warehouse_id || null, shipping_cost_id || null, courier || null,
-           notes || 'Manual order created by admin', orderCurrency, orderExchangeRate, req.user.id]
-        );
-      } catch (insertError) {
-        // Fallback: try without new columns if they don't exist yet
-        if (insertError.code === 'ER_BAD_FIELD_ERROR') {
-          [orderResult] = await conn.execute(
-            `INSERT INTO orders 
-            (user_id, status, payment_status, payment_method, subtotal, shipping_cost, discount_amount, tax, total,
-             customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_province,
-             shipping_postal_code, shipping_method, notes, created_by)
-            VALUES (?, 'confirmed', 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [finalUserId, payment_method || 'cash', subtotal, shippingCostAmount, totalDiscount, totalTax, total,
-             customer_name, customer_email || null, customer_phone, shipping_address, shipping_city || null,
-             shipping_province || null, shipping_postal_code || null,
-             shipping_method || 'manual', notes || 'Manual order created by admin', req.user.id]
-          );
-        } else {
-          throw insertError;
-        }
-      }
+      [orderResult] = await conn.execute(
+        `INSERT INTO orders 
+        (order_number, unique_token, user_id, status, payment_status, payment_method, 
+         subtotal, shipping_cost, tax, discount_amount, total_amount,
+         customer_name, customer_email, customer_phone, shipping_address, shipping_city, shipping_city_id,
+         shipping_province, shipping_postal_code, shipping_country, shipping_method, 
+         warehouse_id, shipping_cost_id, courier, notes, currency, exchange_rate, created_by)
+        VALUES (?, ?, ?, 'confirmed', 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [orderNumber, uniqueToken, finalUserId, payment_method || 'cash', 
+         subtotal, shippingCostAmount, totalTax, totalDiscount, totalAmount,
+         customer_name, customer_email || null, customer_phone, shippingAddressStr, shipping_city || null, 
+         shipping_city_id || null, shipping_province || null, shipping_postal_code || null, 
+         shipping_country || 'Indonesia', shipping_method || 'manual', 
+         warehouse_id || null, shipping_cost_id || null, courier || null,
+         notes || 'Manual order created by admin', orderCurrency, orderExchangeRate, req.user.id]
+      );
 
       const newOrderId = orderResult.insertId;
 
@@ -597,17 +647,29 @@ exports.createManualOrder = async (req, res) => {
 
       // Create order items and update stock
       for (const item of items) {
-        // Get product and size info
-        let productVariantId = item.variant_id;
+        // Get product and variant info
+        let productVariantId = item.variant_id || null;
+        let productId = item.product_id || null;
         let sizeId = null;
+        let productName = '';
+        let productSku = '';
+        let sizeName = '';
 
         if (productVariantId) {
-          const variant = await query(
-            'SELECT size_id FROM product_variants WHERE id = ?',
+          const [variantRows] = await conn.execute(
+            `SELECT pv.product_id, pv.size_id, pv.sku_variant, p.name as product_name, s.name as size_name
+             FROM product_variants pv
+             JOIN products p ON pv.product_id = p.id
+             JOIN sizes s ON pv.size_id = s.id
+             WHERE pv.id = ?`,
             [productVariantId]
           );
-          if (variant.length > 0) {
-            sizeId = variant[0].size_id;
+          if (variantRows.length > 0) {
+            productId = variantRows[0].product_id;
+            sizeId = variantRows[0].size_id;
+            productName = variantRows[0].product_name;
+            productSku = variantRows[0].sku_variant || '';
+            sizeName = variantRows[0].size_name || '';
           }
 
           // Update stock
@@ -628,9 +690,12 @@ exports.createManualOrder = async (req, res) => {
         // Insert order item
         await conn.execute(
           `INSERT INTO order_items 
-          (order_id, product_id, product_variant_id, size_id, quantity, price, total)
-          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [newOrderId, item.product_id, productVariantId, sizeId, item.quantity, item.price, item.price * item.quantity]
+          (order_id, product_id, product_variant_id, size_id, product_name, product_sku, size_name, 
+           quantity, unit_price, unit_cost, subtotal)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+          [newOrderId, productId, productVariantId, sizeId, 
+           productName || 'Unknown', productSku || '-', sizeName || '-',
+           item.quantity, item.price, item.price * item.quantity]
         );
       }
 
@@ -638,7 +703,24 @@ exports.createManualOrder = async (req, res) => {
       await conn.execute(
         `INSERT INTO payments (order_id, payment_method, amount, status)
         VALUES (?, ?, ?, 'pending')`,
-        [newOrderId, payment_method || 'cash', total]
+        [newOrderId, payment_method || 'cash', totalAmount]
+      );
+
+      // Insert shipping info
+      await conn.execute(
+        `INSERT INTO order_shipping 
+        (order_id, recipient_name, phone, address, city, province, postal_code, country)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newOrderId, customer_name, customer_phone || '',
+         shippingAddressStr, shipping_city || '', shipping_province || '',
+         shipping_postal_code || '', shipping_country || 'Indonesia']
+      );
+
+      // Insert shipping history
+      await conn.execute(
+        `INSERT INTO order_shipping_history (order_id, status, title, description, created_by)
+         VALUES (?, 'confirmed', 'Pesanan Manual Dibuat', 'Pesanan dibuat secara manual oleh admin', ?)`,
+        [newOrderId, req.user.id]
       );
 
       return newOrderId;

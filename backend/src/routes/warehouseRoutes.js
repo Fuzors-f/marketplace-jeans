@@ -6,7 +6,9 @@ const { protect, authorize } = require('../middleware/auth');
 // Public routes
 router.get('/', warehouseController.getAllWarehouses);
 router.get('/:id', warehouseController.getWarehouse);
-router.get('/:id/stock', warehouseController.getWarehouseStock);
+
+// Protected routes (require authentication)
+router.get('/:id/stock', protect, warehouseController.getWarehouseStock);
 
 // Admin routes
 router.post('/', protect, authorize('admin'), warehouseController.createWarehouse);

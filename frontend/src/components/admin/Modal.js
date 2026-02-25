@@ -75,42 +75,58 @@ const Modal = ({
 
 /**
  * Modal Footer with standard button layout
+ * Supports two usage patterns:
+ * 1. Props-based: <ModalFooter onCancel={...} onSubmit={...} />
+ * 2. Children-based: <ModalFooter><button>...</button></ModalFooter>
  */
 export const ModalFooter = ({ 
+  children,
   onCancel, 
   onSubmit, 
   cancelText = 'Batal', 
   submitText = 'Simpan',
   isLoading = false,
   submitDisabled = false
-}) => (
-  <div className="flex flex-col-reverse sm:flex-row justify-end gap-2">
-    <button
-      type="button"
-      onClick={onCancel}
-      className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm font-medium transition-colors"
-    >
-      {cancelText}
-    </button>
-    <button
-      type="submit"
-      onClick={onSubmit}
-      disabled={isLoading || submitDisabled}
-      className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors flex items-center justify-center gap-2"
-    >
-      {isLoading ? (
-        <>
-          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          Processing...
-        </>
-      ) : (
-        submitText
-      )}
-    </button>
-  </div>
-);
+}) => {
+  // If children are provided, render them directly in the footer layout
+  if (children) {
+    return (
+      <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t mt-4">
+        {children}
+      </div>
+    );
+  }
+
+  // Otherwise, render default props-based buttons
+  return (
+    <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t mt-4">
+      <button
+        type="button"
+        onClick={onCancel}
+        className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-100 text-sm font-medium transition-colors"
+      >
+        {cancelText}
+      </button>
+      <button
+        type="submit"
+        onClick={onSubmit}
+        disabled={isLoading || submitDisabled}
+        className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors flex items-center justify-center gap-2"
+      >
+        {isLoading ? (
+          <>
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            Processing...
+          </>
+        ) : (
+          submitText
+        )}
+      </button>
+    </div>
+  );
+};
 
 export default Modal;

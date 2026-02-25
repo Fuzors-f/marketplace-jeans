@@ -314,6 +314,24 @@ export default function AdminInventory() {
           notes: 'Edit stok dari halaman inventori'
         });
       }
+
+      // Always update min_stock and cost_price via inventory variant endpoint
+      const updatePayload = {};
+      const currentMinStock = currentStock?.min_stock || currentStock?.minimum_stock || 5;
+      const newMinStock = parseInt(editForm.min_stock);
+      if (!isNaN(newMinStock) && newMinStock !== currentMinStock) {
+        updatePayload.min_stock = newMinStock;
+      }
+      if (qtyDiff === 0 && editForm.cost_price) {
+        const currentCostPrice = currentStock?.cost_price || 0;
+        const newCostPrice = parseFloat(editForm.cost_price);
+        if (newCostPrice !== currentCostPrice) {
+          updatePayload.cost_price = newCostPrice;
+        }
+      }
+      if (Object.keys(updatePayload).length > 0) {
+        await api.put(`/inventory/variants/${variantId}`, updatePayload);
+      }
       
       alert('Data stok berhasil diupdate!');
       setEditingStock(null);

@@ -105,6 +105,29 @@ exports.createDiscount = async (req, res) => {
       });
     }
 
+    if (!['percentage', 'fixed'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Type must be either "percentage" or "fixed"'
+      });
+    }
+
+    if (type === 'percentage' && (value < 0 || value > 100)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Percentage discount value must be between 0 and 100'
+      });
+    }
+
+    // Check for duplicate code
+    const existing = await query('SELECT id FROM discounts WHERE code = ?', [code]);
+    if (existing.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Discount code already exists'
+      });
+    }
+
     const result = await query(
       `INSERT INTO discounts
       (code, type, value, min_purchase, max_discount, start_date, end_date,
@@ -174,6 +197,16 @@ exports.updateDiscount = async (req, res) => {
 exports.deleteDiscount = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Check if discount exists
+    const existing = await query('SELECT id FROM discounts WHERE id = ?', [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Discount not found'
+      });
+    }
+    
     await query('DELETE FROM discounts WHERE id = ?', [id]);
     res.json({ success: true, message: 'Discount deleted' });
   } catch (error) {

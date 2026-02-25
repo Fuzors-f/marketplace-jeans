@@ -154,6 +154,7 @@ exports.updateContent = async (req, res) => {
   try {
     const { id } = req.params;
     const {
+      section_name,
       title_id, title_en,
       subtitle_id, subtitle_en,
       content_id, content_en,
@@ -173,6 +174,7 @@ exports.updateContent = async (req, res) => {
 
     const sql = `
       UPDATE content_settings SET
+        section_name = COALESCE(?, section_name),
         title_id = COALESCE(?, title_id),
         title_en = COALESCE(?, title_en),
         subtitle_id = COALESCE(?, subtitle_id),
@@ -192,13 +194,14 @@ exports.updateContent = async (req, res) => {
     `;
 
     await query(sql, [
-      title_id, title_en,
-      subtitle_id, subtitle_en,
-      content_id, content_en,
-      button_text_id, button_text_en,
-      button_url, image_url,
+      section_name ?? null,
+      title_id ?? null, title_en ?? null,
+      subtitle_id ?? null, subtitle_en ?? null,
+      content_id ?? null, content_en ?? null,
+      button_text_id ?? null, button_text_en ?? null,
+      button_url ?? null, image_url ?? null,
       extra_data ? JSON.stringify(extra_data) : null,
-      is_active, sort_order,
+      is_active ?? null, sort_order ?? null,
       req.user.id,
       id
     ]);

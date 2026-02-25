@@ -98,7 +98,7 @@ exports.addToCart = async (req, res) => {
 
     // Check variant availability
     const variants = await query(
-      `SELECT pv.*, p.base_price 
+      `SELECT pv.*, p.base_price, p.discount_percentage, p.discount_start_date, p.discount_end_date
        FROM product_variants pv
        JOIN products p ON pv.product_id = p.id
        WHERE pv.id = ? AND pv.is_active = true`,
@@ -121,7 +121,17 @@ exports.addToCart = async (req, res) => {
       });
     }
 
-    const price = variant.base_price + variant.additional_price;
+    // Calculate price considering product-level discount
+    let basePrice = parseFloat(variant.base_price);
+    const now = new Date();
+    const hasDiscount = variant.discount_percentage > 0
+      && (!variant.discount_start_date || new Date(variant.discount_start_date) <= now)
+      && (!variant.discount_end_date || new Date(variant.discount_end_date) >= now);
+
+    if (hasDiscount) {
+      basePrice = Math.round(basePrice * (1 - variant.discount_percentage / 100));
+    }
+    const price = basePrice + parseFloat(variant.additional_price || 0);
 
     await transaction(async (conn) => {
       // Get or create cart

@@ -118,15 +118,15 @@ const ContentSettings = () => {
         return;
       }
 
-      // Validate content (at least one language required)
-      if (!formData.content_id && !formData.content_en) {
+      // Validate content (at least one language required) - only for new content
+      if (!editingId && !formData.content_id && !formData.content_en) {
         setFormError('Minimal satu konten (ID atau EN) wajib diisi');
         setSaving(false);
         return;
       }
 
-      // Validate image URL
-      if (!formData.image_url) {
+      // Validate image URL - only for new content
+      if (!editingId && !formData.image_url) {
         setFormError('URL Gambar wajib diisi');
         setSaving(false);
         return;

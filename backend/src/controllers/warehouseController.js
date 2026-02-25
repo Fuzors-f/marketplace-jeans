@@ -42,7 +42,7 @@ exports.getWarehouse = async (req, res) => {
              is_main, is_active, created_at
       FROM warehouses WHERE id = ?
     `;
-    const [warehouses] = await db.query(sql, [id]);
+    const warehouses = await db.query(sql, [id]);
     
     if (warehouses.length === 0) {
       return res.status(404).json({ success: false, message: 'Gudang tidak ditemukan' });
@@ -69,7 +69,7 @@ exports.createWarehouse = async (req, res) => {
     
     // Check if code already exists
     if (code) {
-      const [existing] = await db.query('SELECT id FROM warehouses WHERE code = ?', [code]);
+      const existing = await db.query('SELECT id FROM warehouses WHERE code = ?', [code]);
       if (existing.length > 0) {
         return res.status(400).json({ success: false, message: 'Kode gudang sudah digunakan' });
       }
@@ -85,7 +85,7 @@ exports.createWarehouse = async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, true)
     `;
     
-    const [result] = await db.query(sql, [
+    const result = await db.query(sql, [
       name, code || null, location || null, address || null, city || null, province || null, 
       phone || null, email || null, is_main || false
     ]);
@@ -108,14 +108,14 @@ exports.updateWarehouse = async (req, res) => {
     const { name, code, location, address, city, province, phone, email, is_main, is_active } = req.body;
     
     // Check if warehouse exists
-    const [existing] = await db.query('SELECT id FROM warehouses WHERE id = ?', [id]);
+    const existing = await db.query('SELECT id FROM warehouses WHERE id = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'Gudang tidak ditemukan' });
     }
     
     // Check if code is unique (excluding current warehouse)
     if (code) {
-      const [codeCheck] = await db.query('SELECT id FROM warehouses WHERE code = ? AND id != ?', [code, id]);
+      const codeCheck = await db.query('SELECT id FROM warehouses WHERE code = ? AND id != ?', [code, id]);
       if (codeCheck.length > 0) {
         return res.status(400).json({ success: false, message: 'Kode gudang sudah digunakan' });
       }
@@ -155,7 +155,7 @@ exports.deleteWarehouse = async (req, res) => {
     const { id } = req.params;
     
     // Check if warehouse has stock
-    const [stocks] = await db.query('SELECT id FROM stocks WHERE warehouse_id = ? LIMIT 1', [id]);
+    const stocks = await db.query('SELECT id FROM stocks WHERE warehouse_id = ? LIMIT 1', [id]);
     if (stocks.length > 0) {
       return res.status(400).json({ 
         success: false, 
@@ -163,7 +163,7 @@ exports.deleteWarehouse = async (req, res) => {
       });
     }
     
-    const [result] = await db.query('DELETE FROM warehouses WHERE id = ?', [id]);
+    const result = await db.query('DELETE FROM warehouses WHERE id = ?', [id]);
     
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: 'Gudang tidak ditemukan' });
@@ -194,7 +194,7 @@ exports.getWarehouseStock = async (req, res) => {
       WHERE s.warehouse_id = ? AND s.quantity > 0
       ORDER BY p.name ASC, f.name ASC, sz.sort_order ASC
     `;
-    const [stocks] = await db.query(sql, [id]);
+    const stocks = await db.query(sql, [id]);
     
     res.json({
       success: true,

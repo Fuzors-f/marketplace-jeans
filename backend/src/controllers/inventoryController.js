@@ -32,7 +32,7 @@ const getVariantInventory = async (req, res) => {
     const whereClause = whereConditions.join(' AND ');
 
     // Get inventory list
-    const [inventory] = await query(
+    const inventory = await query(
       `SELECT 
         pv.id as variant_id,
         pv.sku_variant,
@@ -62,11 +62,11 @@ const getVariantInventory = async (req, res) => {
       WHERE ${whereClause}
       ORDER BY p.name, sz.sort_order, w.name
       LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
+      [...params, parseInt(limit), offset]
     );
 
     // Get total count
-    const [countResult] = await query(
+    const countResult = await query(
       `SELECT COUNT(*) as total FROM product_variants pv
       JOIN products p ON pv.product_id = p.id
       LEFT JOIN categories c ON p.category_id = c.id
@@ -77,7 +77,7 @@ const getVariantInventory = async (req, res) => {
     );
 
     // Get summary
-    const [summary] = await query(
+    const summaryResult = await query(
       `SELECT 
         COUNT(DISTINCT p.id) as total_products,
         SUM(pv.stock_quantity) as total_quantity,
@@ -92,12 +92,12 @@ const getVariantInventory = async (req, res) => {
       success: true,
       data: {
         stocks: inventory || [],
-        summary: summary[0] || { total_products: 0, total_quantity: 0, total_value: 0 },
+        summary: summaryResult[0] || { total_products: 0, total_quantity: 0, total_value: 0 },
         pagination: {
           total: countResult[0]?.total || 0,
           page: parseInt(page),
           limit: parseInt(limit),
-          pages: Math.ceil((countResult[0]?.total || 0) / limit)
+          pages: Math.ceil((countResult[0]?.total || 0) / parseInt(limit))
         }
       }
     });
@@ -139,13 +139,13 @@ const updateVariantStock = async (req, res) => {
       params.push(parseFloat(cost_price));
     }
     if (min_stock !== undefined) {
-      updateFields.push('min_stock = ?');
+      updateFields.push('minimum_stock = ?');
       params.push(parseInt(min_stock));
     }
 
     params.push(variantId);
 
-    const [result] = await query(
+    const result = await query(
       `UPDATE product_variants SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       params
     );
@@ -428,15 +428,14 @@ const createAdjustment = async (req, res) => {
     const adjustmentQty = adjustment_type === 'in' ? Math.abs(quantity) : -Math.abs(quantity);
 
     await transaction(async (conn) => {
-      // Get current stock
-      const currentStock = await query(
+      // Get current stock - use conn.execute() to run within the transaction
+      const [currentStock] = await conn.execute(
         `SELECT quantity, avg_cost_price 
         FROM stocks 
         WHERE warehouse_id = ? AND product_id = ? 
         AND fitting_id ${fitting_id ? '= ?' : 'IS NULL'} 
         AND size_id ${size_id ? '= ?' : 'IS NULL'}`,
-        [warehouse_id, product_id, fitting_id, size_id].filter(p => p !== undefined),
-        conn
+        [warehouse_id, product_id, fitting_id, size_id].filter(p => p !== undefined)
       );
 
       const current = currentStock[0] || { quantity: 0, avg_cost_price: 0 };
@@ -448,32 +447,29 @@ const createAdjustment = async (req, res) => {
 
       // Update or insert stock
       if (currentStock.length > 0) {
-        await query(
+        await conn.execute(
           `UPDATE stocks 
           SET quantity = quantity + ?, last_updated = NOW()
           WHERE warehouse_id = ? AND product_id = ? 
           AND fitting_id ${fitting_id ? '= ?' : 'IS NULL'} 
           AND size_id ${size_id ? '= ?' : 'IS NULL'}`,
-          [adjustmentQty, warehouse_id, product_id, fitting_id, size_id].filter(p => p !== undefined),
-          conn
+          [adjustmentQty, warehouse_id, product_id, fitting_id, size_id].filter(p => p !== undefined)
         );
       } else {
-        await query(
+        await conn.execute(
           `INSERT INTO stocks (warehouse_id, product_id, fitting_id, size_id, quantity, avg_cost_price, last_updated)
           VALUES (?, ?, ?, ?, ?, 0, NOW())`,
-          [warehouse_id, product_id, fitting_id, size_id, Math.max(0, adjustmentQty)],
-          conn
+          [warehouse_id, product_id, fitting_id, size_id, Math.max(0, adjustmentQty)]
         );
       }
 
       // Record stock movement
-      await query(
+      await conn.execute(
         `INSERT INTO stock_movements 
         (warehouse_id, product_id, fitting_id, size_id, movement_type, quantity, 
          reference_type, reference_id, notes, created_by)
         VALUES (?, ?, ?, ?, 'adjustment', ?, 'manual_adjustment', NULL, ?, ?)`,
-        [warehouse_id, product_id, fitting_id, size_id, adjustmentQty, notes || `Manual ${adjustment_type} adjustment`, req.user.id],
-        conn
+        [warehouse_id, product_id, fitting_id, size_id, adjustmentQty, notes || `Manual ${adjustment_type} adjustment`, req.user.id]
       );
     });
 
