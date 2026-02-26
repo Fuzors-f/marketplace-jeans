@@ -5,11 +5,13 @@ import api from '../services/api';
 import MidtransPayment from '../components/MidtransPayment';
 import { useSettings } from '../utils/SettingsContext';
 import { getImageUrl } from '../utils/imageUtils';
+import { useLanguage } from '../utils/i18n';
 
 export default function OrderSuccess() {
   const { orderId } = useParams();
   const location = useLocation();
   const { midtransEnabled, getSetting } = useSettings();
+  const { t, formatCurrency } = useLanguage();
   const [order, setOrder] = useState(null);
   const [qrCode, setQrCode] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -96,20 +98,14 @@ export default function OrderSuccess() {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
+
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12">
         <div className="text-center">
           <FaSpinner className="animate-spin text-4xl text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Memuat detail pesanan...</p>
+          <p className="text-gray-600">{t('loadingOrderDetails')}</p>
         </div>
       </div>
     );
@@ -123,18 +119,18 @@ export default function OrderSuccess() {
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <FaCheckCircle className="text-5xl text-green-500" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Pesanan Berhasil!</h1>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">{t('orderSuccessTitle')}</h1>
           <p className="text-gray-600 mb-4">
-            Terima kasih telah berbelanja. Pesanan Anda sedang diproses.
+            {t('orderSuccessMessage')}
           </p>
           
           {order && (
             <div className="bg-gray-50 rounded-lg p-4 inline-block">
-              <p className="text-sm text-gray-500">No. Pesanan</p>
+              <p className="text-sm text-gray-500">{t('noOrderNumber')}</p>
               <p className="text-2xl font-bold text-gray-800">{order.order_number}</p>
               {order.total && (
                 <p className="text-lg text-green-600 font-semibold mt-2">
-                  Total: {formatCurrency(order.total)}
+                  {t('total')}: {formatCurrency(order.total)}
                 </p>
               )}
             </div>
@@ -145,7 +141,7 @@ export default function OrderSuccess() {
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
           <div className="flex items-center gap-3 mb-4">
             <FaQrcode className="text-2xl text-purple-600" />
-            <h2 className="text-xl font-bold text-gray-800">QR Code Pesanan</h2>
+            <h2 className="text-xl font-bold text-gray-800">{t('orderQRCode')}</h2>
           </div>
           
           <div className="flex flex-col md:flex-row items-center gap-6">
@@ -153,7 +149,7 @@ export default function OrderSuccess() {
               <div className="flex-shrink-0">
                 <img 
                   src={qrCode.qr_code} 
-                  alt="QR Code Pesanan" 
+                  alt={t('orderQRCode')} 
                   className="w-48 h-48 border-4 border-gray-200 rounded-lg"
                 />
               </div>
@@ -165,7 +161,7 @@ export default function OrderSuccess() {
             
             <div className="flex-1 text-center md:text-left">
               <p className="text-gray-600 mb-3">
-                Scan QR code ini atau bagikan link di bawah untuk melacak pesanan
+                {t('scanQRCode')}
               </p>
               
               {qrCode?.tracking_url && (
@@ -180,7 +176,7 @@ export default function OrderSuccess() {
                   className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm"
                 >
                   <FaCopy />
-                  {copied ? 'Tersalin!' : 'Salin Link'}
+                  {copied ? t('copied') : t('copyLink')}
                 </button>
                 
                 <button
@@ -188,7 +184,7 @@ export default function OrderSuccess() {
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm"
                 >
                   <FaDownload />
-                  Download QR
+                  {t('downloadQR')}
                 </button>
               </div>
             </div>
@@ -200,7 +196,7 @@ export default function OrderSuccess() {
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
             <div className="flex items-center gap-3 mb-4">
               <FaCreditCard className="text-2xl text-blue-600" />
-              <h2 className="text-xl font-bold text-gray-800">Pembayaran Online</h2>
+              <h2 className="text-xl font-bold text-gray-800">{t('onlinePaymentTitle')}</h2>
             </div>
             
             {showPayment ? (
@@ -225,14 +221,14 @@ export default function OrderSuccess() {
             ) : (
               <div className="text-center">
                 <p className="text-gray-600 mb-4">
-                  Klik tombol di bawah untuk melakukan pembayaran online dengan berbagai metode pembayaran.
+                  {t('clickToPayOnline')}
                 </p>
                 <button
                   onClick={() => setShowPayment(true)}
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
                 >
                   <FaCreditCard className="inline mr-2" />
-                  Bayar Sekarang
+                  {t('payNow')}
                 </button>
               </div>
             )}
@@ -242,26 +238,26 @@ export default function OrderSuccess() {
         {/* Bank Transfer Info - Show if payment method is bank_transfer */}
         {order && order.payment_status === 'pending' && (order.payment_method === 'bank_transfer' || order.payment?.payment_method === 'bank_transfer') && (
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Instruksi Pembayaran</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">{t('paymentInstructions')}</h2>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-blue-800 mb-3">
-                Silakan transfer ke rekening berikut:
+                {t('transferToAccount')}
               </p>
               <div className="bg-white rounded p-3 space-y-1">
-                <p><strong>Bank:</strong> {getSetting('payment_bank_name', '-')}</p>
-                <p className="text-lg"><strong>No. Rekening:</strong> <span className="font-mono font-bold">{getSetting('payment_bank_account', '-')}</span></p>
-                <p><strong>Atas Nama:</strong> {getSetting('payment_bank_holder', '-')}</p>
+                <p><strong>{t('bankLabel')}:</strong> {getSetting('payment_bank_name', '-')}</p>
+                <p className="text-lg"><strong>{t('accountNumber')}:</strong> <span className="font-mono font-bold">{getSetting('payment_bank_account', '-')}</span></p>
+                <p><strong>{t('accountName')}:</strong> {getSetting('payment_bank_holder', '-')}</p>
                 <p className="text-lg font-bold text-blue-600 mt-2">
-                  Total: {formatCurrency(order.total || order.total_amount)}
+                  {t('total')}: {formatCurrency(order.total || order.total_amount)}
                 </p>
               </div>
             </div>
             {order.payment?.payment_proof && (
               <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
-                <p className="text-green-800 font-semibold mb-2">Bukti Pembayaran Telah Diunggah</p>
+                <p className="text-green-800 font-semibold mb-2">{t('proofUploaded')}</p>
                 <img 
                   src={getImageUrl(order.payment.payment_proof)}
-                  alt="Bukti pembayaran" 
+                  alt={t('proofUploaded')} 
                   className="max-h-64 rounded shadow"
                 />
               </div>
@@ -271,7 +267,7 @@ export default function OrderSuccess() {
 
         {/* Actions Section */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Tindakan</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">{t('actions')}</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
@@ -280,9 +276,9 @@ export default function OrderSuccess() {
               className="flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
             >
               {downloadingPdf ? (
-                <><FaSpinner className="animate-spin" /> Mengunduh...</>
+                <><FaSpinner className="animate-spin" /> {t('downloading')}</>
               ) : (
-                <><FaFilePdf /> Download Invoice PDF</>
+                <><FaFilePdf /> {t('downloadInvoicePDF')}</>
               )}
             </button>
             
@@ -291,19 +287,19 @@ export default function OrderSuccess() {
               className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
             >
               <FaTruck />
-              Lacak Pesanan
+              {t('trackOrderBtn')}
             </Link>
           </div>
         </div>
 
         {/* Info Section */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
-          <h3 className="font-semibold text-yellow-800 mb-2">Apa selanjutnya?</h3>
+          <h3 className="font-semibold text-yellow-800 mb-2">{t('whatNext')}</h3>
           <ul className="text-yellow-700 text-sm space-y-2">
-            <li>• Pesanan Anda saat ini berstatus <strong>Pending</strong> dan menunggu pembayaran</li>
-            <li>• Setelah pembayaran dikonfirmasi, pesanan akan diproses</li>
-            <li>• Simpan QR code atau link tracking untuk memantau pesanan kapan saja</li>
-            <li>• Anda akan menerima update status pesanan melalui email</li>
+            <li>• {t('nextStepConfirm')}</li>
+            <li>• {t('nextStepEmail')}</li>
+            <li>• {t('nextStepTracking')}</li>
+            <li>• {t('nextStepCS')}</li>
           </ul>
         </div>
 
@@ -313,13 +309,13 @@ export default function OrderSuccess() {
             to="/orders"
             className="inline-block px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition"
           >
-            Lihat Semua Pesanan
+            {t('viewAllOrders')}
           </Link>
           <Link
             to="/products"
             className="inline-block px-6 py-3 bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
           >
-            Lanjut Belanja
+            {t('continueShopping')}
           </Link>
         </div>
       </div>

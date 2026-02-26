@@ -7,21 +7,23 @@ import {
 } from 'react-icons/fa';
 import api from '../services/api';
 import { getImageUrl } from '../utils/imageUtils';
+import { useLanguage } from '../utils/i18n';
 
 const STATUS_CONFIG = {
-  pending: { icon: FaClock, color: 'text-yellow-500', bg: 'bg-yellow-100', label: 'Menunggu Persetujuan' },
-  confirmed: { icon: FaCheckCircle, color: 'text-blue-500', bg: 'bg-blue-100', label: 'Dikonfirmasi' },
-  processing: { icon: FaBox, color: 'text-indigo-500', bg: 'bg-indigo-100', label: 'Diproses' },
-  packed: { icon: FaBox, color: 'text-purple-500', bg: 'bg-purple-100', label: 'Dikemas' },
-  shipped: { icon: FaTruck, color: 'text-cyan-500', bg: 'bg-cyan-100', label: 'Dikirim' },
-  in_transit: { icon: FaTruck, color: 'text-orange-500', bg: 'bg-orange-100', label: 'Dalam Perjalanan' },
-  out_for_delivery: { icon: FaTruck, color: 'text-teal-500', bg: 'bg-teal-100', label: 'Sedang Diantar' },
-  delivered: { icon: FaCheckCircle, color: 'text-green-500', bg: 'bg-green-100', label: 'Diterima' },
-  cancelled: { icon: FaTimesCircle, color: 'text-red-500', bg: 'bg-red-100', label: 'Dibatalkan' }
+  pending: { icon: FaClock, color: 'text-yellow-500', bg: 'bg-yellow-100', labelKey: 'waitingConfirmation' },
+  confirmed: { icon: FaCheckCircle, color: 'text-blue-500', bg: 'bg-blue-100', labelKey: 'confirmed' },
+  processing: { icon: FaBox, color: 'text-indigo-500', bg: 'bg-indigo-100', labelKey: 'processing' },
+  packed: { icon: FaBox, color: 'text-purple-500', bg: 'bg-purple-100', labelKey: 'packed' },
+  shipped: { icon: FaTruck, color: 'text-cyan-500', bg: 'bg-cyan-100', labelKey: 'shipped' },
+  in_transit: { icon: FaTruck, color: 'text-orange-500', bg: 'bg-orange-100', labelKey: 'inTransit' },
+  out_for_delivery: { icon: FaTruck, color: 'text-teal-500', bg: 'bg-teal-100', labelKey: 'outForDelivery' },
+  delivered: { icon: FaCheckCircle, color: 'text-green-500', bg: 'bg-green-100', labelKey: 'delivered' },
+  cancelled: { icon: FaTimesCircle, color: 'text-red-500', bg: 'bg-red-100', labelKey: 'cancelled' }
 };
 
 export default function OrderPage() {
   const { token } = useParams();
+  const { t, formatCurrency } = useLanguage();
   
   const [orderData, setOrderData] = useState(null);
   const [qrCodeData, setQrCodeData] = useState(null);
@@ -47,10 +49,10 @@ export default function OrderPage() {
         // Fetch QR code data
         fetchQRCode();
       } else {
-        setError(response.data.message || 'Pesanan tidak ditemukan');
+        setError(response.data.message || t('orderNotFound'));
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Pesanan tidak ditemukan');
+      setError(err.response?.data?.message || t('orderNotFound'));
     } finally {
       setLoading(false);
     }
@@ -83,7 +85,7 @@ export default function OrderPage() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error downloading QR code:', err);
-      alert('Gagal mengunduh QR Code');
+      alert(t('failedDownloadQR'));
     }
   };
 
@@ -104,7 +106,7 @@ export default function OrderPage() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error downloading invoice:', err);
-      alert('Gagal mengunduh invoice');
+      alert(t('failedDownloadInvoice'));
     } finally {
       setDownloadingPdf(false);
     }
@@ -128,13 +130,7 @@ export default function OrderPage() {
     });
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
+
 
   const getStatusConfig = (status) => {
     return STATUS_CONFIG[status] || STATUS_CONFIG.pending;
@@ -150,7 +146,7 @@ export default function OrderPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <FaSpinner className="animate-spin text-4xl text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Memuat data pesanan...</p>
+          <p className="text-gray-600">{t('loadingOrderData')}</p>
         </div>
       </div>
     );
@@ -161,13 +157,13 @@ export default function OrderPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
           <FaTimesCircle className="text-red-500 text-5xl mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Pesanan Tidak Ditemukan</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">{t('orderNotFound')}</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <Link 
             to="/orders/track" 
             className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
-            Cari Pesanan Lain
+            {t('searchAnotherOrder')}
           </Link>
         </div>
       </div>
@@ -179,8 +175,8 @@ export default function OrderPage() {
       <div className="max-w-5xl mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Detail Pesanan</h1>
-          <p className="text-gray-600">No. Pesanan: <span className="font-semibold">{orderData?.order?.order_number}</span></p>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">{t('orderDetails')}</h1>
+          <p className="text-gray-600">{t('noOrderNumber')}: <span className="font-semibold">{orderData?.order?.order_number}</span></p>
         </div>
 
         {orderData && (
@@ -197,23 +193,23 @@ export default function OrderPage() {
                     </div>
                   )}
                   <div>
-                    <p className="text-sm text-gray-600 font-medium">Status Pesanan</p>
+                    <p className="text-sm text-gray-600 font-medium">{t('orderStatus')}</p>
                     <p className={`text-2xl font-bold ${getCurrentStatus()?.color}`}>
-                      {getCurrentStatus()?.label}
+                      {t(getCurrentStatus()?.labelKey)}
                     </p>
                     {orderData.order.status === 'pending' && (
                       <p className="text-sm text-yellow-700 mt-1">
-                        Menunggu persetujuan admin untuk memproses pesanan
+                        {t('waitingApproval')}
                       </p>
                     )}
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">Tanggal Pesanan</p>
+                  <p className="text-sm text-gray-600">{t('orderDate')}</p>
                   <p className="font-medium text-gray-800">{formatDate(orderData.order.created_at)}</p>
                   {orderData.order.tracking_number && (
                     <p className="text-sm text-gray-600 mt-1">
-                      Resi: <span className="font-medium">{orderData.order.tracking_number}</span>
+                      {t('resiLabel')}: <span className="font-medium">{orderData.order.tracking_number}</span>
                     </p>
                   )}
                 </div>
@@ -229,7 +225,7 @@ export default function OrderPage() {
                   className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
                 >
                   {downloadingPdf ? <FaSpinner className="animate-spin" /> : <FaFilePdf />}
-                  Download Invoice PDF
+                  {t('downloadInvoicePDF')}
                 </button>
                 
                 <button
@@ -237,7 +233,7 @@ export default function OrderPage() {
                   className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                 >
                   <FaDownload />
-                  Download QR Code
+                  {t('downloadQRCode')}
                 </button>
 
                 <button
@@ -245,7 +241,7 @@ export default function OrderPage() {
                   className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
                 >
                   {copied ? <FaCheck /> : <FaCopy />}
-                  {copied ? 'Tersalin!' : 'Salin Link'}
+                  {copied ? t('copied') : t('copyLink')}
                 </button>
               </div>
             </div>
@@ -257,7 +253,7 @@ export default function OrderPage() {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                     <FaTruck className="text-blue-500" />
-                    Riwayat Pengiriman
+                    {t('shipmentHistory')}
                   </h2>
                   
                   {orderData.tracking && orderData.tracking.length > 0 ? (
@@ -301,7 +297,7 @@ export default function OrderPage() {
                               </div>
                               {track.updated_by && (
                                 <p className="text-xs text-gray-400 mt-2">
-                                  Diupdate oleh: {track.updated_by}
+                                  {t('updatedBy')}: {track.updated_by}
                                 </p>
                               )}
                             </div>
@@ -312,7 +308,7 @@ export default function OrderPage() {
                   ) : (
                     <div className="text-center py-8 text-gray-500">
                       <FaClock className="text-4xl mx-auto mb-3 text-gray-400" />
-                      <p>Belum ada riwayat pengiriman</p>
+                      <p>{t('noShipmentHistory')}</p>
                     </div>
                   )}
                 </div>
@@ -321,7 +317,7 @@ export default function OrderPage() {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                     <FaQrcode className="text-purple-500" />
-                    QR Code Pesanan
+                    {t('orderQRCode')}
                   </h2>
                   
                   <div className="flex flex-col md:flex-row items-center gap-6">
@@ -336,13 +332,13 @@ export default function OrderPage() {
                     )}
                     <div className="flex-1 text-center md:text-left">
                       <p className="text-gray-600 mb-3">
-                        Scan QR code ini untuk mengakses halaman tracking pesanan
+                        {t('scanQRCodeAccess')}
                       </p>
                       <div className="bg-gray-100 rounded-lg p-3 break-all text-sm text-gray-700">
                         {qrCodeData?.tracking_url || `${window.location.origin}/order/${token}`}
                       </div>
                       <p className="text-xs text-gray-500 mt-2">
-                        Bagikan link ini kepada orang lain untuk melacak pesanan
+                        {t('shareTrackingLink')}
                       </p>
                     </div>
                   </div>
@@ -355,7 +351,7 @@ export default function OrderPage() {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <FaMapMarkerAlt className="text-red-500" />
-                    Alamat Pengiriman
+                    {t('shippingAddress')}
                   </h3>
                   <div className="space-y-2 text-sm">
                     <p className="font-medium text-gray-800 flex items-center gap-2">
@@ -374,7 +370,7 @@ export default function OrderPage() {
                     </p>
                     {orderData.order.courier && (
                       <p className="text-gray-600 mt-3 pt-3 border-t">
-                        <span className="font-medium">Kurir:</span> {orderData.order.courier.toUpperCase()}
+                        <span className="font-medium">{t('courier')}:</span> {orderData.order.courier.toUpperCase()}
                         {orderData.order.shipping_method && ` - ${orderData.order.shipping_method}`}
                       </p>
                     )}
@@ -385,7 +381,7 @@ export default function OrderPage() {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <FaBox className="text-blue-500" />
-                    Produk Dipesan
+                    {t('orderedProducts')}
                   </h3>
                   <div className="space-y-3">
                     {orderData.items && orderData.items.map((item, index) => (
@@ -400,7 +396,7 @@ export default function OrderPage() {
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-800 truncate">{item.product_name}</p>
                           <p className="text-sm text-gray-500">
-                            {item.size_name && `Ukuran: ${item.size_name}`} • Qty: {item.quantity}
+                            {item.size_name && `${t('size')}: ${item.size_name}`} • Qty: {item.quantity}
                           </p>
                           <p className="text-sm font-medium text-gray-700">
                             {formatCurrency(item.price)} x {item.quantity}
@@ -414,10 +410,10 @@ export default function OrderPage() {
                 {/* Payment Proof - for bank transfer */}
                 {orderData.order.payment_method === 'bank_transfer' && orderData.order.payment_proof && (
                   <div className="bg-white rounded-xl shadow-lg p-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">Bukti Pembayaran</h3>
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">{t('paymentProof')}</h3>
                     <img
                       src={getImageUrl(orderData.order.payment_proof)}
-                      alt="Bukti pembayaran"
+                      alt={t('paymentProof')}
                       className="max-h-64 rounded shadow"
                     />
                   </div>
@@ -427,31 +423,31 @@ export default function OrderPage() {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <FaReceipt className="text-green-500" />
-                    Ringkasan Pembayaran
+                    {t('paymentSummary')}
                   </h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Subtotal</span>
+                      <span className="text-gray-600">{t('subtotal')}</span>
                       <span className="font-medium">{formatCurrency(orderData.order.subtotal)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Ongkos Kirim</span>
+                      <span className="text-gray-600">{t('shippingCost')}</span>
                       <span className="font-medium">{formatCurrency(orderData.order.shipping_cost)}</span>
                     </div>
                     {orderData.order.tax > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Pajak</span>
+                        <span className="text-gray-600">{t('tax')}</span>
                         <span className="font-medium">{formatCurrency(orderData.order.tax)}</span>
                       </div>
                     )}
                     {orderData.order.discount_amount > 0 && (
                       <div className="flex justify-between text-green-600">
-                        <span>Diskon</span>
+                        <span>{t('discount')}</span>
                         <span>-{formatCurrency(orderData.order.discount_amount)}</span>
                       </div>
                     )}
                     <div className="flex justify-between pt-3 mt-3 border-t border-gray-200">
-                      <span className="font-bold text-gray-800">Total</span>
+                      <span className="font-bold text-gray-800">{t('total')}</span>
                       <span className="font-bold text-lg text-blue-600">{formatCurrency(orderData.order.total)}</span>
                     </div>
                   </div>
@@ -459,7 +455,7 @@ export default function OrderPage() {
                   {/* Order Date */}
                   <div className="mt-4 pt-4 border-t border-gray-200 flex items-center gap-2 text-sm text-gray-500">
                     <FaCalendarAlt />
-                    Tanggal Pesanan: {formatDate(orderData.order.created_at)}
+                    {t('orderDate')}: {formatDate(orderData.order.created_at)}
                   </div>
                 </div>
               </div>

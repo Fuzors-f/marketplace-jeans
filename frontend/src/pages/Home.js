@@ -6,9 +6,11 @@ import { fetchProducts } from '../redux/slices/productSlice';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import apiClient from '../services/api';
 import { getProductImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../utils/imageUtils';
+import { useLanguage } from '../utils/i18n';
 
 const Home = () => {
   const dispatch = useDispatch();
+  const { t, formatCurrency } = useLanguage();
   const { products, isLoading } = useSelector((state) => state.products);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [homeData, setHomeData] = useState(null);
@@ -30,7 +32,7 @@ const Home = () => {
       setHomeError('');
     } catch (err) {
       console.error('Error fetching home data:', err);
-      setHomeError('Failed to load homepage data');
+      setHomeError(t('failedLoadHomepage'));
     } finally {
       setHomeLoading(false);
     }
@@ -53,32 +55,32 @@ const Home = () => {
         title: banner.title,
         subtitle: banner.subtitle,
         link: banner.link || '/products',
-        linkText: 'BELANJA SEKARANG'
+        linkText: t('shopNow')
       }))
     : [
         {
           id: 1,
           image: 'https://images.unsplash.com/photo-1565084888279-aca607ecce0c?w=1600&h=900&fit=crop',
-          title: 'KOLEKSI MUSIM INI',
-          subtitle: 'Tampil percaya diri dengan denim terbaru',
+          title: t('thisSeasonCollection'),
+          subtitle: t('thisSeasonSubtitle'),
           link: '/products?category=new-arrivals',
-          linkText: 'BELANJA SEKARANG'
+          linkText: t('shopNow')
         },
         {
           id: 2,
           image: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?w=1600&h=900&fit=crop',
-          title: 'BAGGY JEANS',
-          subtitle: 'Gaya santai yang tetap stylish',
+          title: t('baggyJeans'),
+          subtitle: t('baggyJeansSubtitle'),
           link: '/products?fitting=baggy',
-          linkText: 'TEMUKAN FITTING ANDA'
+          linkText: t('findYourFitting')
         },
         {
           id: 3,
           image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?w=1600&h=900&fit=crop',
-          title: 'DISKON HINGGA 40%',
-          subtitle: 'Dapatkan koleksi favorit dengan harga spesial',
+          title: t('discountUpTo40'),
+          subtitle: t('discountSubtitle'),
           link: '/products?discount=true',
-          linkText: 'LIHAT PROMO'
+          linkText: t('viewPromo')
         }
       ];
 
@@ -95,14 +97,14 @@ const Home = () => {
     ? categories.map((cat, index) => ({
         id: cat.id,
         name: cat.name.toUpperCase(),
-        subtitle: cat.description || 'Lihat koleksi lengkap',
+        subtitle: cat.description || t('viewFullCollection'),
         image: cat.image_url || categoryImages[index % categoryImages.length],
         link: `/products?category=${cat.id}`
       }))
     : [
         {
-          name: 'SEMUA PRODUK',
-          subtitle: 'Lihat seluruh koleksi',
+          name: t('allProducts').toUpperCase(),
+          subtitle: t('viewAllCollection'),
           image: categoryImages[0],
           link: '/products'
         }
@@ -129,7 +131,7 @@ const Home = () => {
         <title>Marketplace Jeans - Premium Denim Collection</title>
         <meta
           name="description"
-          content="Koleksi denim premium dengan kualitas dan gaya terbaik. Belanja jeans, jaket, dan aksesoris dengan berbagai fitting dan ukuran."
+          content={t('premiumDenimDesc')}
         />
       </Helmet>
 
@@ -198,7 +200,7 @@ const Home = () => {
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-12 uppercase tracking-wide">
-            BELANJA BERDASARKAN KATEGORI
+            {t('shopByCategory')}
           </h2>
           <div className={`grid grid-cols-1 md:grid-cols-2 ${categoryCards.length >= 4 ? 'lg:grid-cols-4' : categoryCards.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
             {categoryCards.map((category) => (
@@ -232,13 +234,13 @@ const Home = () => {
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center mb-12">
             <h2 className="text-4xl font-bold uppercase tracking-wide">
-              PRODUK UNGGULAN
+              {t('featuredProducts')}
             </h2>
             <Link
               to="/products"
               className="text-sm font-bold uppercase tracking-wider hover:underline"
             >
-              LIHAT SEMUA
+              {t('viewAllProducts')}
             </Link>
           </div>
 
@@ -278,15 +280,15 @@ const Home = () => {
                     {product.discount_price ? (
                       <>
                         <span className="font-bold text-red-600">
-                          Rp {parseInt(product.discount_price).toLocaleString('id-ID')}
+                          {formatCurrency(product.discount_price)}
                         </span>
                         <span className="text-sm text-gray-500 line-through">
-                          Rp {parseInt(product.base_price || product.price).toLocaleString('id-ID')}
+                          {formatCurrency(product.base_price || product.price)}
                         </span>
                       </>
                     ) : (
                       <span className="font-bold">
-                        Rp {parseInt(product.base_price || product.price || 0).toLocaleString('id-ID')}
+                        {formatCurrency(product.base_price || product.price || 0)}
                       </span>
                     )}
                   </div>
@@ -294,7 +296,7 @@ const Home = () => {
               )})}
             </div>
           ) : (
-            <p className="text-center text-gray-500 py-12">Tidak ada produk tersedia</p>
+            <p className="text-center text-gray-500 py-12">{t('noProductsAvailable')}</p>
           )}
         </div>
       </section>
@@ -319,9 +321,9 @@ const Home = () => {
                 />
               </div>
               <div className="p-6">
-                <h3 className="text-xl font-bold mb-2 uppercase">PANDUAN FITTING</h3>
+                <h3 className="text-xl font-bold mb-2 uppercase">{t('fittingGuide')}</h3>
                 <p className="text-gray-600">
-                  Temukan fitting yang sempurna untuk anda
+                  {t('fittingGuideDesc')}
                 </p>
               </div>
             </Link>
@@ -342,9 +344,9 @@ const Home = () => {
                 />
               </div>
               <div className="p-6">
-                <h3 className="text-xl font-bold mb-2 uppercase">PROGRAM MEMBER</h3>
+                <h3 className="text-xl font-bold mb-2 uppercase">{t('memberProgramTitle')}</h3>
                 <p className="text-gray-600">
-                  Dapatkan diskon spesial dan reward points
+                  {t('memberProgramDesc')}
                 </p>
               </div>
             </Link>
@@ -365,9 +367,9 @@ const Home = () => {
                 />
               </div>
               <div className="p-6">
-                <h3 className="text-xl font-bold mb-2 uppercase">TEMUKAN TOKO</h3>
+                <h3 className="text-xl font-bold mb-2 uppercase">{t('findStoreTitle')}</h3>
                 <p className="text-gray-600">
-                  Kunjungi toko terdekat di kota anda
+                  {t('findStoreDesc')}
                 </p>
               </div>
             </Link>
@@ -379,23 +381,22 @@ const Home = () => {
       <section className="py-16 bg-black text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4 uppercase tracking-wide">
-            DAPATKAN UPDATE TERBARU
+            {t('getLatestUpdates')}
           </h2>
           <p className="text-gray-300 mb-8 max-w-2xl mx-auto">
-            Daftarkan email anda untuk mendapatkan informasi koleksi terbaru,
-            promo eksklusif, dan penawaran spesial lainnya.
+            {t('newsletterDesc')}
           </p>
           <form className="flex flex-col md:flex-row gap-4 max-w-xl mx-auto">
             <input
               type="email"
-              placeholder="Masukkan email anda"
+              placeholder={t('enterYourEmail')}
               className="flex-1 px-4 py-3 bg-white text-black focus:outline-none focus:ring-2 focus:ring-white"
             />
             <button
               type="submit"
               className="px-8 py-3 bg-white text-black font-bold uppercase tracking-wider hover:bg-gray-100 transition"
             >
-              DAFTAR
+              {t('registerNewsletter')}
             </button>
           </form>
         </div>

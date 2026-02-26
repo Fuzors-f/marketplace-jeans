@@ -38,7 +38,7 @@ const Addresses = () => {
       }
     } catch (error) {
       console.error('Error fetching addresses:', error);
-      toast.error('Gagal memuat alamat');
+      toast.error(t('failedLoadAddresses'));
     } finally {
       setLoading(false);
     }
@@ -90,7 +90,7 @@ const Addresses = () => {
     // Validate required fields
     if (!formData.recipient_name || !formData.phone || !formData.address || 
         !formData.city || !formData.province || !formData.postal_code) {
-      toast.error('Mohon lengkapi semua field yang wajib');
+      toast.error(t('pleaseFillRequired'));
       return;
     }
 
@@ -99,43 +99,43 @@ const Addresses = () => {
       
       if (editingAddress) {
         await userAPI.updateAddress(editingAddress.id, formData);
-        toast.success('Alamat berhasil diperbarui');
+        toast.success(t('addressUpdatedSuccess'));
       } else {
         await userAPI.createAddress(formData);
-        toast.success('Alamat berhasil ditambahkan');
+        toast.success(t('addressAddedSuccess'));
       }
       
       setShowModal(false);
       fetchAddresses();
     } catch (error) {
       console.error('Error saving address:', error);
-      toast.error(error.response?.data?.message || 'Gagal menyimpan alamat');
+      toast.error(error.response?.data?.message || t('failedSaveAddress'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Yakin ingin menghapus alamat ini?')) return;
+    if (!window.confirm(t('confirmDeleteAddress'))) return;
     
     try {
       await userAPI.deleteAddress(id);
-      toast.success('Alamat berhasil dihapus');
+      toast.success(t('addressDeletedSuccess'));
       fetchAddresses();
     } catch (error) {
       console.error('Error deleting address:', error);
-      toast.error('Gagal menghapus alamat');
+      toast.error(t('failedDeleteAddress'));
     }
   };
 
   const handleSetDefault = async (id) => {
     try {
       await userAPI.setDefaultAddress(id);
-      toast.success('Alamat utama berhasil diubah');
+      toast.success(t('primaryAddressChanged'));
       fetchAddresses();
     } catch (error) {
       console.error('Error setting default address:', error);
-      toast.error('Gagal mengubah alamat utama');
+      toast.error(t('failedChangePrimary'));
     }
   };
 
@@ -150,7 +150,7 @@ const Addresses = () => {
   return (
     <>
       <Helmet>
-        <title>Alamat Saya - Marketplace Jeans</title>
+        <title>{t('myAddresses')} - Marketplace Jeans</title>
       </Helmet>
       
       <div className="min-h-screen bg-gray-50 py-8">
@@ -165,10 +165,10 @@ const Addresses = () => {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                Kembali ke Profil
+                {t('backToProfile')}
               </button>
-              <h1 className="text-2xl font-bold">Alamat Saya</h1>
-              <p className="text-gray-600">Kelola alamat pengiriman Anda</p>
+              <h1 className="text-2xl font-bold">{t('myAddressesTitle')}</h1>
+              <p className="text-gray-600">{t('manageShippingDesc')}</p>
             </div>
             <button
               onClick={openAddModal}
@@ -177,7 +177,7 @@ const Addresses = () => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Tambah Alamat
+              {t('addAddress')}
             </button>
           </div>
 
@@ -185,13 +185,13 @@ const Addresses = () => {
           {addresses.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-8 text-center">
               <div className="text-6xl mb-4">📍</div>
-              <h2 className="text-xl font-semibold mb-2">Belum Ada Alamat</h2>
-              <p className="text-gray-600 mb-6">Tambahkan alamat pengiriman untuk mempermudah checkout</p>
+              <h2 className="text-xl font-semibold mb-2">{t('noAddressesYet')}</h2>
+              <p className="text-gray-600 mb-6">{t('addAddressHint')}</p>
               <button
                 onClick={openAddModal}
                 className="px-6 py-2 bg-black text-white rounded hover:bg-gray-800"
               >
-                Tambah Alamat Pertama
+                {t('addFirstAddress')}
               </button>
             </div>
           ) : (
@@ -206,10 +206,10 @@ const Addresses = () => {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="font-semibold text-lg">{address.address_label || 'Alamat'}</span>
+                        <span className="font-semibold text-lg">{address.address_label || t('addressLabel')}</span>
                         {address.is_default && (
                           <span className="px-2 py-0.5 bg-black text-white text-xs rounded">
-                            Utama
+                            {t('primaryAddress')}
                           </span>
                         )}
                       </div>
@@ -228,7 +228,7 @@ const Addresses = () => {
                       <button
                         onClick={() => openEditModal(address)}
                         className="p-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded"
-                        title="Edit"
+                        title={t('edit')}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -237,7 +237,7 @@ const Addresses = () => {
                       <button
                         onClick={() => handleDelete(address.id)}
                         className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                        title="Hapus"
+                        title={t('delete')}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -251,7 +251,7 @@ const Addresses = () => {
                       onClick={() => handleSetDefault(address.id)}
                       className="mt-4 text-sm text-gray-600 hover:text-black underline"
                     >
-                      Jadikan Alamat Utama
+                      {t('makePrimary')}
                     </button>
                   )}
                 </div>
@@ -268,7 +268,7 @@ const Addresses = () => {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">
-                  {editingAddress ? 'Edit Alamat' : 'Tambah Alamat Baru'}
+                  {editingAddress ? t('editAddress') : t('addNewAddress')}
                 </h2>
                 <button
                   onClick={() => setShowModal(false)}
@@ -283,21 +283,21 @@ const Addresses = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Label Alamat
+                    {t('addressLabel')}
                   </label>
                   <input
                     type="text"
                     name="address_label"
                     value={formData.address_label}
                     onChange={handleInputChange}
-                    placeholder="contoh: Rumah, Kantor"
+                    placeholder={t('addressLabelPlaceholder')}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-black focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nama Penerima <span className="text-red-500">*</span>
+                    {t('recipientNameLabel')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -311,7 +311,7 @@ const Addresses = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nomor Telepon <span className="text-red-500">*</span>
+                    {t('phoneNumberLabel')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
@@ -326,7 +326,7 @@ const Addresses = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Alamat Lengkap <span className="text-red-500">*</span>
+                    {t('fullAddressLabel')} <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     name="address"
@@ -334,7 +334,7 @@ const Addresses = () => {
                     onChange={handleInputChange}
                     required
                     rows={3}
-                    placeholder="Nama jalan, nomor rumah, RT/RW, kelurahan, kecamatan"
+                    placeholder={t('fullAddressPlaceholder')}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-black focus:outline-none"
                   />
                 </div>
@@ -342,7 +342,7 @@ const Addresses = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kota/Kabupaten <span className="text-red-500">*</span>
+                      {t('cityDistrict')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -355,7 +355,7 @@ const Addresses = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Provinsi <span className="text-red-500">*</span>
+                      {t('province')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -371,7 +371,7 @@ const Addresses = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kode Pos <span className="text-red-500">*</span>
+                      {t('postalCode')} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -385,7 +385,7 @@ const Addresses = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Negara
+                      {t('country')}
                     </label>
                     <input
                       type="text"
@@ -407,7 +407,7 @@ const Addresses = () => {
                     className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
                   />
                   <label htmlFor="is_default" className="text-sm text-gray-700">
-                    Jadikan sebagai alamat utama
+                    {t('makePrimaryCheckbox')}
                   </label>
                 </div>
 
@@ -417,14 +417,14 @@ const Addresses = () => {
                     onClick={() => setShowModal(false)}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                   >
-                    Batal
+                    {t('cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
                     className="flex-1 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
                   >
-                    {saving ? 'Menyimpan...' : (editingAddress ? 'Perbarui' : 'Simpan')}
+                    {saving ? t('saving') : (editingAddress ? t('update') : t('save'))}
                   </button>
                 </div>
               </form>

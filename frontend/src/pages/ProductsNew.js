@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProducts } from '../redux/slices/productSlice';
 import { getProductImageUrl, handleImageError } from '../utils/imageUtils';
+import { useLanguage } from '../utils/i18n';
 import apiClient from '../services/api';
 
 const Products = () => {
@@ -11,6 +12,7 @@ const Products = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { products, isLoading, pagination } = useSelector((state) => state.products);
+  const { t, formatCurrency } = useLanguage();
 
   // Categories & Fittings & Sizes from API
   const [categories, setCategories] = useState([]);
@@ -171,26 +173,26 @@ const Products = () => {
   return (
     <>
       <Helmet>
-        <title>Produk - Marketplace Jeans</title>
-        <meta name="description" content="Jelajahi koleksi lengkap celana jeans, jaket, dan aksesoris" />
+        <title>{t('productsTitle')}</title>
+        <meta name="description" content={t('productsMetaDesc')} />
       </Helmet>
 
       <div className="bg-gray-50 min-h-screen">
         <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
           {/* Breadcrumb */}
           <div className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
-            <Link to="/" className="hover:underline">Home</Link>
+            <Link to="/" className="hover:underline">{t('home')}</Link>
             <span className="mx-1 sm:mx-2">/</span>
-            <span className="text-black font-semibold">Produk</span>
+            <span className="text-black font-semibold">{t('products')}</span>
           </div>
 
           {/* Page Title */}
           <div className="mb-4 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-1 sm:mb-2 uppercase tracking-wide">
-              {filters.gender === 'wanita' ? 'WANITA' : filters.gender === 'pria' ? 'PRIA' : 'SEMUA PRODUK'}
+              {filters.gender === 'wanita' ? t('women').toUpperCase() : filters.gender === 'pria' ? t('men').toUpperCase() : t('allProducts').toUpperCase()}
             </h1>
             <p className="text-gray-600 text-sm sm:text-base">
-              {pagination?.total || 0} produk ditemukan
+              {pagination?.total || 0} {t('productsFound')}
             </p>
           </div>
 
@@ -199,32 +201,32 @@ const Products = () => {
             <aside className="hidden lg:block w-64 flex-shrink-0">
               <div className="bg-white p-4 sm:p-6 sticky top-24">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="font-bold text-lg uppercase tracking-wide">FILTER</h2>
+                  <h2 className="font-bold text-lg uppercase tracking-wide">{t('filter').toUpperCase()}</h2>
                   {activeFiltersCount > 0 && (
                     <button
                       onClick={clearFilters}
                       className="text-xs text-red-600 hover:underline uppercase"
                     >
-                      Hapus ({activeFiltersCount})
+                      {t('clear')} ({activeFiltersCount})
                     </button>
                   )}
                 </div>
 
                 {/* Gender Filter */}
                 <div className="mb-6 pb-6 border-b">
-                  <h3 className="font-semibold mb-3 uppercase text-sm">JENIS KELAMIN</h3>
+                  <h3 className="font-semibold mb-3 uppercase text-sm">{t('gender').toUpperCase()}</h3>
                   <div className="space-y-2">
-                    {['pria', 'wanita'].map((gender) => (
-                      <label key={gender} className="flex items-center cursor-pointer">
+                    {['pria', 'wanita'].map((g) => (
+                      <label key={g} className="flex items-center cursor-pointer">
                         <input
                           type="radio"
                           name="gender"
-                          value={gender}
-                          checked={filters.gender === gender}
+                          value={g}
+                          checked={filters.gender === g}
                           onChange={(e) => handleFilterChange('gender', e.target.value)}
                           className="mr-2"
                         />
-                        <span className="text-sm capitalize">{gender}</span>
+                        <span className="text-sm capitalize">{g === 'pria' ? t('men') : t('women')}</span>
                       </label>
                     ))}
                     <label className="flex items-center cursor-pointer">
@@ -236,14 +238,14 @@ const Products = () => {
                         onChange={(e) => handleFilterChange('gender', '')}
                         className="mr-2"
                       />
-                      <span className="text-sm">Semua</span>
+                      <span className="text-sm">{t('all')}</span>
                     </label>
                   </div>
                 </div>
 
                 {/* Category Filter */}
                 <div className="mb-6 pb-6 border-b">
-                  <h3 className="font-semibold mb-3 uppercase text-sm">KATEGORI</h3>
+                  <h3 className="font-semibold mb-3 uppercase text-sm">{t('category').toUpperCase()}</h3>
                   <div className="space-y-2">
                     {categories.map((cat) => (
                       <label key={cat.id} className="flex items-center cursor-pointer">
@@ -261,7 +263,7 @@ const Products = () => {
 
                 {/* Fitting Filter */}
                 <div className="mb-6 pb-6 border-b">
-                  <h3 className="font-semibold mb-3 uppercase text-sm">FITTING</h3>
+                  <h3 className="font-semibold mb-3 uppercase text-sm">{t('fitting').toUpperCase()}</h3>
                   <div className="space-y-2">
                     {fittings.map((fit) => (
                       <label key={fit.id} className="flex items-center cursor-pointer">
@@ -279,7 +281,7 @@ const Products = () => {
 
                 {/* Size Filter */}
                 <div className="mb-6 pb-6 border-b">
-                  <h3 className="font-semibold mb-3 uppercase text-sm">UKURAN</h3>
+                  <h3 className="font-semibold mb-3 uppercase text-sm">{t('sizeLabel').toUpperCase()}</h3>
                   <div className="grid grid-cols-3 gap-2">
                     {sizes.map((size) => (
                       <button
@@ -299,18 +301,18 @@ const Products = () => {
 
                 {/* Price Range Filter */}
                 <div className="mb-6">
-                  <h3 className="font-semibold mb-3 uppercase text-sm">HARGA</h3>
+                  <h3 className="font-semibold mb-3 uppercase text-sm">{t('price').toUpperCase()}</h3>
                   <div className="space-y-2">
                     <input
                       type="number"
-                      placeholder="Min"
+                      placeholder={t('priceMin')}
                       value={filters.minPrice}
                       onChange={(e) => handleFilterChange('minPrice', e.target.value)}
                       className="w-full px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black"
                     />
                     <input
                       type="number"
-                      placeholder="Max"
+                      placeholder={t('priceMax')}
                       value={filters.maxPrice}
                       onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
                       className="w-full px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black"
@@ -333,7 +335,7 @@ const Products = () => {
                     <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                     </svg>
-                    <span>FILTER {activeFiltersCount > 0 && `(${activeFiltersCount})`}</span>
+                    <span>{t('filter').toUpperCase()} {activeFiltersCount > 0 && `(${activeFiltersCount})`}</span>
                   </button>
 
                   <select
@@ -341,11 +343,11 @@ const Products = () => {
                     onChange={(e) => handleSortChange(e.target.value)}
                     className="flex-1 sm:flex-none px-3 sm:px-4 py-2 border focus:outline-none focus:ring-2 focus:ring-black text-xs sm:text-sm"
                   >
-                    <option value="newest">TERBARU</option>
-                    <option value="price_asc">HARGA: RENDAH</option>
-                    <option value="price_desc">HARGA: TINGGI</option>
-                    <option value="name_asc">NAMA: A-Z</option>
-                    <option value="popular">TERPOPULER</option>
+                    <option value="newest">{t('sortNewest').toUpperCase()}</option>
+                    <option value="price_asc">{t('sortPriceLow').toUpperCase()}</option>
+                    <option value="price_desc">{t('sortPriceHigh').toUpperCase()}</option>
+                    <option value="name_asc">{t('sortNameAZ').toUpperCase()}</option>
+                    <option value="popular">{t('sortPopular').toUpperCase()}</option>
                   </select>
                 </div>
 
@@ -374,26 +376,26 @@ const Products = () => {
               {showFilters && (
                 <div className="lg:hidden fixed inset-0 bg-white z-50 overflow-y-auto">
                   <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
-                    <h2 className="font-bold uppercase text-lg">FILTER</h2>
+                    <h2 className="font-bold uppercase text-lg">{t('filter').toUpperCase()}</h2>
                     <button onClick={() => setShowFilters(false)} className="text-2xl p-2">&times;</button>
                   </div>
                   
                   <div className="p-4 space-y-6 pb-32">
                     {/* Gender */}
                     <div>
-                      <h3 className="font-semibold mb-3 text-sm uppercase">JENIS KELAMIN</h3>
+                      <h3 className="font-semibold mb-3 text-sm uppercase">{t('gender').toUpperCase()}</h3>
                       <div className="flex flex-wrap gap-2">
-                        {['pria', 'wanita'].map((gender) => (
+                        {['pria', 'wanita'].map((g) => (
                           <button
-                            key={gender}
-                            onClick={() => handleFilterChange('gender', filters.gender === gender ? '' : gender)}
+                            key={g}
+                            onClick={() => handleFilterChange('gender', filters.gender === g ? '' : g)}
                             className={`px-4 py-2 text-sm border transition capitalize ${
-                              filters.gender === gender
+                              filters.gender === g
                                 ? 'bg-black text-white border-black'
                                 : 'bg-white text-black border-gray-300'
                             }`}
                           >
-                            {gender}
+                            {g === 'pria' ? t('men') : t('women')}
                           </button>
                         ))}
                       </div>
@@ -401,7 +403,7 @@ const Products = () => {
 
                     {/* Category */}
                     <div>
-                      <h3 className="font-semibold mb-3 text-sm uppercase">KATEGORI</h3>
+                      <h3 className="font-semibold mb-3 text-sm uppercase">{t('category').toUpperCase()}</h3>
                       <div className="flex flex-wrap gap-2">
                         {categories.map((cat) => (
                           <button
@@ -421,7 +423,7 @@ const Products = () => {
 
                     {/* Fitting */}
                     <div>
-                      <h3 className="font-semibold mb-3 text-sm uppercase">FITTING</h3>
+                      <h3 className="font-semibold mb-3 text-sm uppercase">{t('fitting').toUpperCase()}</h3>
                       <div className="flex flex-wrap gap-2">
                         {fittings.map((fit) => (
                           <button
@@ -441,7 +443,7 @@ const Products = () => {
 
                     {/* Size */}
                     <div>
-                      <h3 className="font-semibold mb-3 text-sm uppercase">UKURAN</h3>
+                      <h3 className="font-semibold mb-3 text-sm uppercase">{t('sizeLabel').toUpperCase()}</h3>
                       <div className="grid grid-cols-5 gap-2">
                         {sizes.map((size) => (
                           <button
@@ -461,18 +463,18 @@ const Products = () => {
 
                     {/* Price Range */}
                     <div>
-                      <h3 className="font-semibold mb-3 text-sm uppercase">HARGA</h3>
+                      <h3 className="font-semibold mb-3 text-sm uppercase">{t('price').toUpperCase()}</h3>
                       <div className="flex gap-2">
                         <input
                           type="number"
-                          placeholder="Min"
+                          placeholder={t('priceMin')}
                           value={filters.minPrice}
                           onChange={(e) => handleFilterChange('minPrice', e.target.value)}
                           className="flex-1 px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black text-sm"
                         />
                         <input
                           type="number"
-                          placeholder="Max"
+                          placeholder={t('priceMax')}
                           value={filters.maxPrice}
                           onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
                           className="flex-1 px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black text-sm"
@@ -490,13 +492,13 @@ const Products = () => {
                       }}
                       className="flex-1 py-3 border border-gray-300 text-gray-700 font-semibold uppercase text-sm"
                     >
-                      HAPUS
+                      {t('clear').toUpperCase()}
                     </button>
                     <button
                       onClick={() => setShowFilters(false)}
                       className="flex-1 py-3 bg-black text-white font-semibold uppercase text-sm"
                     >
-                      TERAPKAN ({pagination?.total || 0})
+                      {t('applyFilters').toUpperCase()} ({pagination?.total || 0})
                     </button>
                   </div>
                 </div>
@@ -560,12 +562,12 @@ const Products = () => {
                 </>
               ) : (
                 <div className="text-center py-16 sm:py-20">
-                  <p className="text-gray-600 text-base sm:text-lg mb-4">Tidak ada produk ditemukan</p>
+                  <p className="text-gray-600 text-base sm:text-lg mb-4">{t('noProductsFound')}</p>
                   <button
                     onClick={clearFilters}
                     className="px-6 py-2.5 bg-black text-white font-semibold uppercase text-sm hover:bg-gray-800"
                   >
-                    HAPUS FILTER
+                    {t('clearFilters').toUpperCase()}
                   </button>
                 </div>
               )}
@@ -580,6 +582,7 @@ const Products = () => {
 // Product Card Component
 const ProductCard = ({ product, viewMode }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const { t, formatCurrency } = useLanguage();
 
   // Calculate discount percentage for badge display
   const discountPercentage = product.discount_percentage || 
@@ -612,15 +615,15 @@ const ProductCard = ({ product, viewMode }) => {
             {product.discount_price ? (
               <>
                 <span className="font-bold text-sm sm:text-xl text-red-600">
-                  Rp {parseInt(product.discount_price).toLocaleString('id-ID')}
+                  {formatCurrency(parseInt(product.discount_price))}
                 </span>
                 <span className="text-xs sm:text-sm text-gray-400 line-through">
-                  Rp {parseInt(product.price || product.base_price).toLocaleString('id-ID')}
+                  {formatCurrency(parseInt(product.price || product.base_price))}
                 </span>
               </>
             ) : (
               <span className="font-bold text-sm sm:text-xl">
-                Rp {parseInt(product.price || product.base_price || 0).toLocaleString('id-ID')}
+                {formatCurrency(parseInt(product.price || product.base_price || 0))}
               </span>
             )}
           </div>
@@ -651,7 +654,7 @@ const ProductCard = ({ product, viewMode }) => {
         {isHovered && (
           <div className="hidden sm:flex absolute inset-0 bg-black/10 items-center justify-center">
             <span className="bg-white px-4 sm:px-6 py-1.5 sm:py-2 font-bold uppercase text-xs sm:text-sm rounded">
-              LIHAT DETAIL
+              {t('viewDetail')}
             </span>
           </div>
         )}
@@ -665,15 +668,15 @@ const ProductCard = ({ product, viewMode }) => {
           {product.discount_price ? (
             <>
               <span className="font-bold text-red-600 text-sm sm:text-base">
-                Rp {parseInt(product.discount_price).toLocaleString('id-ID')}
+                {formatCurrency(parseInt(product.discount_price))}
               </span>
               <span className="text-[10px] sm:text-xs text-gray-400 line-through">
-                Rp {parseInt(product.price || product.base_price).toLocaleString('id-ID')}
+                {formatCurrency(parseInt(product.price || product.base_price))}
               </span>
             </>
           ) : (
             <span className="font-bold text-sm sm:text-base">
-              Rp {parseInt(product.price || product.base_price || 0).toLocaleString('id-ID')}
+              {formatCurrency(parseInt(product.price || product.base_price || 0))}
             </span>
           )}
         </div>

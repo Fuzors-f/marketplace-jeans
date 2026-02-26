@@ -16,7 +16,7 @@ export default function Profile() {
           <div className="space-y-6">
             {/* Profile Info Card */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Informasi Akun</h2>
+              <h2 className="text-lg font-semibold mb-4">{t('accountInfo')}</h2>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
@@ -32,19 +32,19 @@ export default function Profile() {
                 <hr className="my-4" />
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-500">Nama Lengkap</p>
+                    <p className="text-sm text-gray-500">{t('fullNameLabel')}</p>
                     <p className="font-medium">{user.full_name || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="text-sm text-gray-500">{t('email')}</p>
                     <p className="font-medium">{user.email || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Telepon</p>
+                    <p className="text-sm text-gray-500">{t('phoneLabel')}</p>
                     <p className="font-medium">{user.phone || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Status Member</p>
+                    <p className="text-sm text-gray-500">{t('memberStatus')}</p>
                     <p className="font-medium capitalize">{user.membership_level || 'Regular'}</p>
                   </div>
                 </div>
@@ -65,8 +65,8 @@ export default function Profile() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold">Alamat Saya</h3>
-                  <p className="text-sm text-gray-600">Kelola alamat pengiriman</p>
+                  <h3 className="font-semibold">{t('myAddresses')}</h3>
+                  <p className="text-sm text-gray-600">{t('manageShippingAddresses')}</p>
                 </div>
                 <svg className="w-5 h-5 text-gray-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -85,7 +85,7 @@ export default function Profile() {
                 </div>
                 <div>
                   <h3 className="font-semibold">{t('myOrders')}</h3>
-                  <p className="text-sm text-gray-600">Lihat riwayat pesanan</p>
+                  <p className="text-sm text-gray-600">{t('viewOrderHistory')}</p>
                 </div>
                 <svg className="w-5 h-5 text-gray-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -104,7 +104,7 @@ export default function Profile() {
                 </div>
                 <div>
                   <h3 className="font-semibold">{t('wishlist')}</h3>
-                  <p className="text-sm text-gray-600">Produk yang disimpan</p>
+                  <p className="text-sm text-gray-600">{t('savedProductsLabel')}</p>
                 </div>
                 <svg className="w-5 h-5 text-gray-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -124,7 +124,7 @@ export default function Profile() {
                 </div>
                 <div>
                   <h3 className="font-semibold">{t('settings')}</h3>
-                  <p className="text-sm text-gray-600">Pengaturan akun</p>
+                  <p className="text-sm text-gray-600">{t('accountSettings')}</p>
                 </div>
                 <svg className="w-5 h-5 text-gray-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

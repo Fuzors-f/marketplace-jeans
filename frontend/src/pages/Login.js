@@ -5,10 +5,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { toast } from 'react-toastify';
 import { login, clearError } from '../redux/slices/authSlice';
+import { useLanguage } from '../utils/i18n';
 
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { isAuthenticated, isLoading, error } = useSelector((state) => state.auth);
   const { register, handleSubmit, formState: { errors } } = useForm();
 
@@ -32,14 +34,14 @@ const Login = () => {
   return (
     <>
       <Helmet>
-        <title>Login - Marketplace Jeans</title>
+        <title>{t('login')} - Marketplace Jeans</title>
       </Helmet>
 
       <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
           <div>
             <h2 className="text-center text-3xl font-bold text-gray-900">
-              Sign in to your account
+              {t('signInTitle')}
             </h2>
           </div>
 
@@ -47,14 +49,14 @@ const Login = () => {
             <div className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email address
+                  {t('emailAddress')}
                 </label>
                 <input
                   {...register('email', {
-                    required: 'Email is required',
+                    required: t('emailIsRequired'),
                     pattern: {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Invalid email address',
+                      message: t('invalidEmailAddress'),
                     },
                   })}
                   type="email"
@@ -67,14 +69,14 @@ const Login = () => {
 
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
+                  {t('password')}
                 </label>
                 <input
                   {...register('password', {
-                    required: 'Password is required',
+                    required: t('passwordIsRequired'),
                     minLength: {
                       value: 6,
-                      message: 'Password must be at least 6 characters',
+                      message: t('passwordMinLengthMsg'),
                     },
                   })}
                   type="password"
@@ -92,15 +94,15 @@ const Login = () => {
                 disabled={isLoading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
               >
-                {isLoading ? 'Signing in...' : 'Sign in'}
+                {isLoading ? t('signingIn') : t('signIn')}
               </button>
             </div>
 
             <div className="text-center">
               <p className="text-sm text-gray-600">
-                Don't have an account?{' '}
+                {t('dontHaveAccount')}{' '}
                 <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500">
-                  Sign up
+                  {t('signUp')}
                 </Link>
               </p>
             </div>

@@ -4,12 +4,14 @@ import { Link } from 'react-router-dom';
 import { Eye, EyeOff, Camera, User, Lock, ArrowLeft, Check, X } from 'lucide-react';
 import { userAPI } from '../services/api';
 import { loadUser } from '../redux/slices/authSlice';
+import { useLanguage } from '../utils/i18n';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://be-hojdenim.yyyy-zzzzz-online.com';
 
 export default function ProfileSettings() {
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
+  const { t } = useLanguage();
   const fileInputRef = useRef(null);
   
   const [activeTab, setActiveTab] = useState('profile');
@@ -64,13 +66,13 @@ export default function ProfileSettings() {
     try {
       const response = await userAPI.updateProfile(profileForm);
       if (response.data.success) {
-        setMessage({ type: 'success', text: 'Profil berhasil diperbarui' });
+        setMessage({ type: 'success', text: t('profileUpdated') });
         dispatch(loadUser());
       }
     } catch (error) {
       setMessage({ 
         type: 'error', 
-        text: error.response?.data?.message || 'Gagal memperbarui profil' 
+        text: error.response?.data?.message || t('failedUpdateProfile') 
       });
     } finally {
       setLoading(false);
@@ -84,13 +86,13 @@ export default function ProfileSettings() {
 
     // Validation
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      setMessage({ type: 'error', text: 'Password baru tidak cocok' });
+      setMessage({ type: 'error', text: t('newPasswordMismatch') });
       setLoading(false);
       return;
     }
 
     if (passwordForm.new_password.length < 6) {
-      setMessage({ type: 'error', text: 'Password minimal 6 karakter' });
+      setMessage({ type: 'error', text: t('passwordMinLength') });
       setLoading(false);
       return;
     }
@@ -102,7 +104,7 @@ export default function ProfileSettings() {
       });
       
       if (response.data.success) {
-        setMessage({ type: 'success', text: 'Password berhasil diubah' });
+        setMessage({ type: 'success', text: t('passwordChanged') });
         setPasswordForm({
           current_password: '',
           new_password: '',
@@ -112,7 +114,7 @@ export default function ProfileSettings() {
     } catch (error) {
       setMessage({ 
         type: 'error', 
-        text: error.response?.data?.message || 'Gagal mengubah password' 
+        text: error.response?.data?.message || t('failedChangePassword') 
       });
     } finally {
       setLoading(false);
@@ -123,7 +125,7 @@ export default function ProfileSettings() {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
-        setMessage({ type: 'error', text: 'Ukuran file maksimal 2MB' });
+        setMessage({ type: 'error', text: t('fileSizeMax') });
         return;
       }
       
@@ -149,14 +151,14 @@ export default function ProfileSettings() {
       const response = await userAPI.uploadProfilePicture(formData);
       
       if (response.data.success) {
-        setMessage({ type: 'success', text: 'Foto profil berhasil diperbarui' });
+        setMessage({ type: 'success', text: t('profilePhotoUpdated') });
         setPreviewImage(null);
         dispatch(loadUser());
       }
     } catch (error) {
       setMessage({ 
         type: 'error', 
-        text: error.response?.data?.message || 'Gagal mengunggah foto' 
+        text: error.response?.data?.message || t('failedUploadPhoto') 
       });
     } finally {
       setUploadingImage(false);
@@ -184,7 +186,7 @@ export default function ProfileSettings() {
           <Link to="/profile" className="p-2 hover:bg-gray-200 rounded-lg transition">
             <ArrowLeft size={20} />
           </Link>
-          <h1 className="text-2xl font-bold">Pengaturan Akun</h1>
+          <h1 className="text-2xl font-bold">{t('accountSettingsTitle')}</h1>
         </div>
 
         {/* Message Alert */}
@@ -210,7 +212,7 @@ export default function ProfileSettings() {
               }`}
             >
               <User size={18} className="inline-block mr-2" />
-              Profil
+              {t('profileTab')}
             </button>
             <button
               onClick={() => setActiveTab('password')}
@@ -221,7 +223,7 @@ export default function ProfileSettings() {
               }`}
             >
               <Lock size={18} className="inline-block mr-2" />
-              Password
+              {t('passwordTab')}
             </button>
           </div>
         </div>
@@ -231,14 +233,14 @@ export default function ProfileSettings() {
           <div className="space-y-6">
             {/* Profile Picture Section */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Foto Profil</h2>
+              <h2 className="text-lg font-semibold mb-4">{t('profilePhoto')}</h2>
               <div className="flex items-center gap-6">
                 <div className="relative">
                   <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
                     {getProfilePicture() ? (
                       <img 
                         src={getProfilePicture()} 
-                        alt="Profile" 
+                        alt={t('profile')} 
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -263,7 +265,7 @@ export default function ProfileSettings() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm text-gray-600 mb-2">
-                    Upload foto profil baru. Format: JPG, PNG, GIF. Maksimal 2MB.
+                    {t('uploadPhotoHint')}
                   </p>
                   {previewImage && (
                     <div className="flex gap-2">
@@ -273,14 +275,14 @@ export default function ProfileSettings() {
                         className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
                       >
                         <Check size={14} />
-                        {uploadingImage ? 'Mengunggah...' : 'Simpan'}
+                        {uploadingImage ? t('uploading') : t('save')}
                       </button>
                       <button
                         onClick={cancelImageUpload}
                         className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300"
                       >
                         <X size={14} />
-                        Batal
+                        {t('cancel')}
                       </button>
                     </div>
                   )}
@@ -290,11 +292,11 @@ export default function ProfileSettings() {
 
             {/* Profile Info Form */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Informasi Profil</h2>
+              <h2 className="text-lg font-semibold mb-4">{t('profileInfo')}</h2>
               <form onSubmit={handleProfileSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
+                    {t('email')}
                   </label>
                   <input
                     type="email"
@@ -302,12 +304,12 @@ export default function ProfileSettings() {
                     disabled
                     className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-gray-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Email tidak dapat diubah</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('emailCannotChange')}</p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nama Lengkap
+                    {t('fullName')}
                   </label>
                   <input
                     type="text"
@@ -321,7 +323,7 @@ export default function ProfileSettings() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nomor Telepon
+                    {t('phoneNumber')}
                   </label>
                   <input
                     type="tel"
@@ -338,7 +340,7 @@ export default function ProfileSettings() {
                   disabled={loading}
                   className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
                 >
-                  {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
+                  {loading ? t('saving') : t('saveChanges')}
                 </button>
               </form>
             </div>
@@ -348,11 +350,11 @@ export default function ProfileSettings() {
         {/* Password Tab */}
         {activeTab === 'password' && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Ubah Password</h2>
+            <h2 className="text-lg font-semibold mb-4">{t('changePassword')}</h2>
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password Saat Ini
+                  {t('currentPassword')}
                 </label>
                 <div className="relative">
                   <input
@@ -375,7 +377,7 @@ export default function ProfileSettings() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password Baru
+                  {t('newPassword')}
                 </label>
                 <div className="relative">
                   <input
@@ -395,12 +397,12 @@ export default function ProfileSettings() {
                     {showPasswords.new ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Minimal 6 karakter</p>
+                <p className="text-xs text-gray-500 mt-1">{t('minSixChars')}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Konfirmasi Password Baru
+                  {t('confirmNewPassword')}
                 </label>
                 <div className="relative">
                   <input
@@ -426,7 +428,7 @@ export default function ProfileSettings() {
                 disabled={loading}
                 className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
               >
-                {loading ? 'Mengubah...' : 'Ubah Password'}
+                {loading ? t('changingPassword') : t('changePassword')}
               </button>
             </form>
           </div>

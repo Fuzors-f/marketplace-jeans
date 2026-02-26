@@ -5,22 +5,24 @@ import {
   FaMapMarkerAlt, FaUser, FaPhone, FaCalendarAlt, FaReceipt, FaSpinner
 } from 'react-icons/fa';
 import api from '../services/api';
+import { useLanguage } from '../utils/i18n';
 
 const STATUS_CONFIG = {
-  pending: { icon: FaClock, color: 'text-yellow-500', bg: 'bg-yellow-100', label: 'Menunggu' },
-  confirmed: { icon: FaCheckCircle, color: 'text-blue-500', bg: 'bg-blue-100', label: 'Dikonfirmasi' },
-  processing: { icon: FaBox, color: 'text-indigo-500', bg: 'bg-indigo-100', label: 'Diproses' },
-  packed: { icon: FaBox, color: 'text-purple-500', bg: 'bg-purple-100', label: 'Dikemas' },
-  shipped: { icon: FaTruck, color: 'text-cyan-500', bg: 'bg-cyan-100', label: 'Dikirim' },
-  in_transit: { icon: FaTruck, color: 'text-orange-500', bg: 'bg-orange-100', label: 'Dalam Perjalanan' },
-  out_for_delivery: { icon: FaTruck, color: 'text-teal-500', bg: 'bg-teal-100', label: 'Sedang Diantar' },
-  delivered: { icon: FaCheckCircle, color: 'text-green-500', bg: 'bg-green-100', label: 'Diterima' },
-  cancelled: { icon: FaTimesCircle, color: 'text-red-500', bg: 'bg-red-100', label: 'Dibatalkan' }
+  pending: { icon: FaClock, color: 'text-yellow-500', bg: 'bg-yellow-100', labelKey: 'pending' },
+  confirmed: { icon: FaCheckCircle, color: 'text-blue-500', bg: 'bg-blue-100', labelKey: 'confirmed' },
+  processing: { icon: FaBox, color: 'text-indigo-500', bg: 'bg-indigo-100', labelKey: 'processing' },
+  packed: { icon: FaBox, color: 'text-purple-500', bg: 'bg-purple-100', labelKey: 'packed' },
+  shipped: { icon: FaTruck, color: 'text-cyan-500', bg: 'bg-cyan-100', labelKey: 'shipped' },
+  in_transit: { icon: FaTruck, color: 'text-orange-500', bg: 'bg-orange-100', labelKey: 'inTransit' },
+  out_for_delivery: { icon: FaTruck, color: 'text-teal-500', bg: 'bg-teal-100', labelKey: 'outForDelivery' },
+  delivered: { icon: FaCheckCircle, color: 'text-green-500', bg: 'bg-green-100', labelKey: 'delivered' },
+  cancelled: { icon: FaTimesCircle, color: 'text-red-500', bg: 'bg-red-100', labelKey: 'cancelled' }
 };
 
 export default function OrderTracking() {
   const { trackingNumber } = useParams();
   const navigate = useNavigate();
+  const { t, formatCurrency } = useLanguage();
   
   const [searchQuery, setSearchQuery] = useState(trackingNumber || '');
   const [orderData, setOrderData] = useState(null);
@@ -46,11 +48,11 @@ export default function OrderTracking() {
       if (response.data.success) {
         setOrderData(response.data.data);
       } else {
-        setError(response.data.message || 'Pesanan tidak ditemukan');
+        setError(response.data.message || t('orderNotFoundError'));
         setOrderData(null);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Pesanan tidak ditemukan. Pastikan nomor pesanan benar.');
+      setError(err.response?.data?.message || t('orderNotFoundMsg'));
       setOrderData(null);
     } finally {
       setLoading(false);
@@ -75,14 +77,6 @@ export default function OrderTracking() {
     });
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
-
   const getStatusConfig = (status) => {
     return STATUS_CONFIG[status] || STATUS_CONFIG.pending;
   };
@@ -97,8 +91,8 @@ export default function OrderTracking() {
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Lacak Pesanan Anda</h1>
-          <p className="text-gray-600">Masukkan nomor pesanan untuk melihat status pengiriman</p>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">{t('trackYourOrder')}</h1>
+          <p className="text-gray-600">{t('enterOrderNumber')}</p>
         </div>
 
         {/* Search Form */}
@@ -110,7 +104,7 @@ export default function OrderTracking() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Masukkan Nomor Pesanan (contoh: ORD-20241225-XXXX)"
+                placeholder={t('enterOrderNumberPlaceholder')}
                 className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
               />
             </div>
@@ -122,12 +116,12 @@ export default function OrderTracking() {
               {loading ? (
                 <>
                   <FaSpinner className="animate-spin" />
-                  Mencari...
+                  {t('searching')}
                 </>
               ) : (
                 <>
                   <FaSearch />
-                  Lacak
+                  {t('track')}
                 </>
               )}
             </button>
@@ -140,7 +134,7 @@ export default function OrderTracking() {
             <FaTimesCircle className="text-red-500 text-4xl mx-auto mb-3" />
             <p className="text-red-700 font-medium">{error}</p>
             <p className="text-red-600 text-sm mt-2">
-              Pastikan nomor pesanan yang Anda masukkan benar dan lengkap.
+              {t('ensureOrderNumber')}
             </p>
           </div>
         )}
@@ -160,18 +154,18 @@ export default function OrderTracking() {
                     </div>
                   )}
                   <div>
-                    <p className="text-sm text-gray-600 font-medium">Status Pesanan</p>
+                    <p className="text-sm text-gray-600 font-medium">{t('orderStatus')}</p>
                     <p className={`text-2xl font-bold ${getCurrentStatus()?.color}`}>
-                      {getCurrentStatus()?.label}
+                      {t(getCurrentStatus()?.labelKey)}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">No. Pesanan</p>
+                  <p className="text-sm text-gray-600">{t('noOrderNumber')}</p>
                   <p className="text-xl font-bold text-gray-800">{orderData.order.order_number}</p>
                   {orderData.order.tracking_number && (
                     <p className="text-sm text-gray-600 mt-1">
-                      Resi: <span className="font-medium">{orderData.order.tracking_number}</span>
+                      {t('trackingNumber')}: <span className="font-medium">{orderData.order.tracking_number}</span>
                     </p>
                   )}
                 </div>
@@ -184,7 +178,7 @@ export default function OrderTracking() {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                     <FaTruck className="text-blue-500" />
-                    Riwayat Pengiriman
+                    {t('shipmentHistory')}
                   </h2>
                   
                   {orderData.tracking && orderData.tracking.length > 0 ? (
@@ -228,7 +222,7 @@ export default function OrderTracking() {
                               </div>
                               {track.updated_by && (
                                 <p className="text-xs text-gray-400 mt-2">
-                                  Diupdate oleh: {track.updated_by}
+                                  {t('updatedBy')}: {track.updated_by}
                                 </p>
                               )}
                             </div>
@@ -239,7 +233,7 @@ export default function OrderTracking() {
                   ) : (
                     <div className="text-center py-8 text-gray-500">
                       <FaClock className="text-4xl mx-auto mb-3 text-gray-400" />
-                      <p>Belum ada riwayat pengiriman</p>
+                      <p>{t('noShipmentHistory')}</p>
                     </div>
                   )}
                 </div>
@@ -251,7 +245,7 @@ export default function OrderTracking() {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <FaMapMarkerAlt className="text-red-500" />
-                    Alamat Pengiriman
+                    {t('shippingAddress')}
                   </h3>
                   <div className="space-y-2 text-sm">
                     <p className="font-medium text-gray-800 flex items-center gap-2">
@@ -266,13 +260,13 @@ export default function OrderTracking() {
                     </p>
                     {orderData.order.courier && (
                       <p className="text-gray-600 mt-3 pt-3 border-t">
-                        <span className="font-medium">Kurir:</span> {orderData.order.courier.toUpperCase()}
+                        <span className="font-medium">{t('courier')}:</span> {orderData.order.courier.toUpperCase()}
                         {orderData.order.shipping_method && ` - ${orderData.order.shipping_method}`}
                       </p>
                     )}
                     {orderData.order.warehouse_name && (
                       <p className="text-gray-500 text-xs mt-2">
-                        Dikirim dari: {orderData.order.warehouse_name} ({orderData.order.warehouse_city})
+                        {t('shippedFrom')}: {orderData.order.warehouse_name} ({orderData.order.warehouse_city})
                       </p>
                     )}
                   </div>
@@ -282,7 +276,7 @@ export default function OrderTracking() {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <FaBox className="text-blue-500" />
-                    Produk Dipesan
+                    {t('orderedProducts')}
                   </h3>
                   <div className="space-y-3">
                     {orderData.items && orderData.items.map((item, index) => (
@@ -297,7 +291,7 @@ export default function OrderTracking() {
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-800 truncate">{item.product_name}</p>
                           <p className="text-sm text-gray-500">
-                            {item.size_name && `Ukuran: ${item.size_name}`} • Qty: {item.quantity}
+                            {item.size_name && `${t('size')}: ${item.size_name}`} • {t('quantity')}: {item.quantity}
                           </p>
                           <p className="text-sm font-medium text-gray-700">
                             {formatCurrency(item.price)} x {item.quantity}
@@ -312,31 +306,31 @@ export default function OrderTracking() {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <FaReceipt className="text-green-500" />
-                    Ringkasan Pembayaran
+                    {t('paymentSummary')}
                   </h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Subtotal</span>
+                      <span className="text-gray-600">{t('subtotal')}</span>
                       <span className="font-medium">{formatCurrency(orderData.order.subtotal)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Ongkos Kirim</span>
+                      <span className="text-gray-600">{t('shippingCost')}</span>
                       <span className="font-medium">{formatCurrency(orderData.order.shipping_cost)}</span>
                     </div>
                     {orderData.order.tax > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Pajak</span>
+                        <span className="text-gray-600">{t('tax')}</span>
                         <span className="font-medium">{formatCurrency(orderData.order.tax)}</span>
                       </div>
                     )}
                     {orderData.order.discount_amount > 0 && (
                       <div className="flex justify-between text-green-600">
-                        <span>Diskon</span>
+                        <span>{t('discount')}</span>
                         <span>-{formatCurrency(orderData.order.discount_amount)}</span>
                       </div>
                     )}
                     <div className="flex justify-between pt-3 mt-3 border-t border-gray-200">
-                      <span className="font-bold text-gray-800">Total</span>
+                      <span className="font-bold text-gray-800">{t('total')}</span>
                       <span className="font-bold text-lg text-blue-600">{formatCurrency(orderData.order.total)}</span>
                     </div>
                   </div>
@@ -344,7 +338,7 @@ export default function OrderTracking() {
                   {/* Order Date */}
                   <div className="mt-4 pt-4 border-t border-gray-200 flex items-center gap-2 text-sm text-gray-500">
                     <FaCalendarAlt />
-                    Tanggal Pesanan: {formatDate(orderData.order.created_at)}
+                    {t('orderDate')}: {formatDate(orderData.order.created_at)}
                   </div>
                 </div>
               </div>
@@ -356,9 +350,9 @@ export default function OrderTracking() {
         {!orderData && !error && !loading && !searched && (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <FaTruck className="text-6xl text-gray-300 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">Lacak Pesanan Anda</h2>
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">{t('trackYourOrder')}</h2>
             <p className="text-gray-500 max-w-md mx-auto">
-              Masukkan nomor pesanan Anda di kotak pencarian di atas untuk melihat status pengiriman secara real-time.
+              {t('initialTrackMsg')}
             </p>
           </div>
         )}

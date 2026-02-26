@@ -4,10 +4,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { FaShoppingCart, FaUser, FaSearch } from 'react-icons/fa';
 import { fetchCart } from '../redux/slices/cartSlice';
 import { logout } from '../redux/slices/authSlice';
+import { useLanguage, LanguageSwitcher } from '../utils/i18n';
 
 const MainLayout = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const cartState = useSelector((state) => state.cart);
   const items = cartState?.items || [];
   const { isAuthenticated, user } = useSelector((state) => state.auth);
@@ -41,7 +43,7 @@ const MainLayout = () => {
               <div className="relative w-full max-w-xl">
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder={t('searchProducts')}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <FaSearch className="absolute right-3 top-3 text-gray-400" />
@@ -51,7 +53,7 @@ const MainLayout = () => {
             {/* Navigation */}
             <nav className="flex items-center space-x-6">
               <Link to="/products" className="hover:text-primary-600">
-                Products
+                {t('products')}
               </Link>
               
               {/* Cart */}
@@ -76,35 +78,36 @@ const MainLayout = () => {
                       to="/profile"
                       className="block px-4 py-2 hover:bg-gray-100"
                     >
-                      Profile
+                      {t('profile')}
                     </Link>
                     <Link
                       to="/orders"
                       className="block px-4 py-2 hover:bg-gray-100"
                     >
-                      My Orders
+                      {t('myOrders')}
                     </Link>
                     {(user?.role === 'admin' || user?.role === 'admin_stok') && (
                       <Link
                         to="/admin"
                         className="block px-4 py-2 hover:bg-gray-100"
                       >
-                        Admin Dashboard
+                        {t('adminDashboard')}
                       </Link>
                     )}
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
                     >
-                      Logout
+                      {t('logout')}
                     </button>
                   </div>
                 </div>
               ) : (
                 <Link to="/login" className="hover:text-primary-600">
-                  Login
+                  {t('login')}
                 </Link>
               )}
+              <LanguageSwitcher />
             </nav>
           </div>
         </div>
@@ -120,41 +123,41 @@ const MainLayout = () => {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="font-bold text-lg mb-4">About Us</h3>
+              <h3 className="font-bold text-lg mb-4">{t('aboutUs')}</h3>
               <p className="text-gray-400">
-                Premium denim collection with the best quality and style.
+                {t('premiumDenimCollection')}
               </p>
             </div>
             <div>
-              <h3 className="font-bold text-lg mb-4">Quick Links</h3>
+              <h3 className="font-bold text-lg mb-4">{t('quickLinks')}</h3>
               <ul className="space-y-2">
                 <li>
                   <Link to="/products" className="text-gray-400 hover:text-white">
-                    Products
+                    {t('products')}
                   </Link>
                 </li>
                 <li>
                   <Link to="/about" className="text-gray-400 hover:text-white">
-                    About Us
+                    {t('aboutUs')}
                   </Link>
                 </li>
                 <li>
                   <Link to="/contact" className="text-gray-400 hover:text-white">
-                    Contact
+                    {t('contact')}
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h3 className="font-bold text-lg mb-4">Customer Service</h3>
+              <h3 className="font-bold text-lg mb-4">{t('customerService')}</h3>
               <ul className="space-y-2">
-                <li className="text-gray-400">Help Center</li>
-                <li className="text-gray-400">Returns</li>
-                <li className="text-gray-400">Shipping Info</li>
+                <li className="text-gray-400">{t('helpCenter')}</li>
+                <li className="text-gray-400">{t('returns')}</li>
+                <li className="text-gray-400">{t('shippingInfo')}</li>
               </ul>
             </div>
             <div>
-              <h3 className="font-bold text-lg mb-4">Contact</h3>
+              <h3 className="font-bold text-lg mb-4">{t('contact')}</h3>
               <ul className="space-y-2 text-gray-400">
                 <li>Email: info@marketplacejeans.com</li>
                 <li>Phone: +62 123 456 789</li>
@@ -162,7 +165,7 @@ const MainLayout = () => {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 Marketplace Jeans. All rights reserved.</p>
+            <p>&copy; 2025 Marketplace Jeans. {t('allRightsReserved')}.</p>
           </div>
         </div>
       </footer>

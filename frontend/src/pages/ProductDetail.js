@@ -5,6 +5,7 @@ import api from '../services/api';
 import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../utils/imageUtils';
 import { useAlert } from '../utils/AlertContext';
 import { fetchCart } from '../redux/slices/cartSlice';
+import { useLanguage } from '../utils/i18n';
 
 export default function ProductDetail() {
   const { slug } = useParams();
@@ -12,6 +13,7 @@ export default function ProductDetail() {
   const dispatch = useDispatch();
   const { isAuthenticated } = useSelector((state) => state.auth);
   const { showSuccess, showError, showWarning, showInfo } = useAlert();
+  const { t, formatCurrency } = useLanguage();
   
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -61,7 +63,7 @@ export default function ProductDetail() {
       }
     } catch (err) {
       console.error('Error fetching product:', err);
-      setError('Produk tidak ditemukan atau terjadi kesalahan');
+      setError(t('productNotAvailable'));
     } finally {
       setLoading(false);
     }
@@ -69,12 +71,12 @@ export default function ProductDetail() {
 
   const handleAddToCart = async () => {
     if (!selectedVariant) {
-      showWarning('Pilih ukuran terlebih dahulu');
+      showWarning(t('pleaseSelectSize'));
       return;
     }
     
     if (quantity > selectedVariant.stock_quantity) {
-      showWarning('Jumlah melebihi stok yang tersedia');
+      showWarning(t('quantityExceedsStock'));
       return;
     }
 
@@ -86,16 +88,16 @@ export default function ProductDetail() {
       });
       
       if (response.data.success) {
-        showSuccess('Produk berhasil ditambahkan ke keranjang!', 'Berhasil');
+        showSuccess(t('addedToCartSuccess'), t('success'));
         // Update cart count in navbar
         dispatch(fetchCart());
       }
     } catch (err) {
       if (err.response?.status === 401) {
-        showInfo('Silakan login terlebih dahulu untuk menambahkan ke keranjang');
+        showInfo(t('pleaseLoginCart'));
         navigate('/login');
       } else {
-        showError(err.response?.data?.message || 'Gagal menambahkan ke keranjang');
+        showError(err.response?.data?.message || t('failedAddCart'));
       }
     } finally {
       setAddingToCart(false);
@@ -112,31 +114,23 @@ export default function ProductDetail() {
         // Remove from wishlist
         await api.delete(`/wishlist/${product.id}`);
         setIsWishlisted(false);
-        showSuccess('Produk dihapus dari wishlist');
+        showSuccess(t('removedFromWishlist'));
       } else {
         // Add to wishlist
         await api.post('/wishlist', { product_id: product.id });
         setIsWishlisted(true);
-        showSuccess('Produk ditambahkan ke wishlist!', 'Berhasil');
+        showSuccess(t('addedToWishlist'), t('success'));
       }
     } catch (err) {
       if (err.response?.status === 401) {
-        showInfo('Silakan login terlebih dahulu untuk menyimpan ke wishlist');
+        showInfo(t('pleaseLoginWishlist'));
         navigate('/login');
       } else {
-        showError(err.response?.data?.message || 'Gagal memperbarui wishlist');
+        showError(err.response?.data?.message || t('failedUpdateWishlist'));
       }
     } finally {
       setAddingToWishlist(false);
     }
-  };
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(value || 0);
   };
 
   const calculatePrice = () => {
@@ -161,13 +155,13 @@ export default function ProductDetail() {
   if (error || !product) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Produk Tidak Ditemukan</h2>
-        <p className="text-gray-600 mb-6">{error || 'Produk yang Anda cari tidak tersedia'}</p>
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">{t('productNotFound')}</h2>
+        <p className="text-gray-600 mb-6">{error || t('productNotAvailable')}</p>
         <button
           onClick={() => navigate('/products')}
           className="px-6 py-2 bg-black text-white rounded hover:bg-gray-800"
         >
-          Kembali ke Katalog
+          {t('backToCatalog')}
         </button>
       </div>
     );
@@ -185,13 +179,13 @@ export default function ProductDetail() {
           <ol className="flex items-center space-x-2">
             <li>
               <button onClick={() => navigate('/')} className="text-gray-500 hover:text-gray-700">
-                Home
+                {t('home')}
               </button>
             </li>
             <li className="text-gray-400">/</li>
             <li>
               <button onClick={() => navigate('/products')} className="text-gray-500 hover:text-gray-700">
-                Katalog
+                {t('catalog')}
               </button>
             </li>
             {product.category_name && (
@@ -258,7 +252,7 @@ export default function ProductDetail() {
                 )}
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{product.name}</h1>
                 {product.fitting_name && (
-                  <p className="text-sm text-gray-600 mt-1">Fitting: {product.fitting_name}</p>
+                  <p className="text-sm text-gray-600 mt-1">{t('fitting')}: {product.fitting_name}</p>
                 )}
               </div>
 
@@ -271,7 +265,7 @@ export default function ProductDetail() {
                       <span className="bg-red-600 text-white px-2 py-1 text-sm font-bold rounded">
                         -{product.discount_percentage || Math.round((1 - product.discount_price / product.base_price) * 100)}%
                       </span>
-                      <span className="text-sm text-gray-500">Hemat {formatCurrency(calculatePrice() - (parseFloat(product.discount_price) + (selectedVariant ? parseFloat(selectedVariant.additional_price) || 0 : 0)))}</span>
+                      <span className="text-sm text-gray-500">{t('save_discount')} {formatCurrency(calculatePrice() - (parseFloat(product.discount_price) + (selectedVariant ? parseFloat(selectedVariant.additional_price) || 0 : 0)))}</span>
                     </div>
                     {/* Discounted Price */}
                     <p className="text-3xl font-bold text-red-600">
@@ -289,14 +283,14 @@ export default function ProductDetail() {
                 )}
                 {selectedVariant && selectedVariant.additional_price > 0 && (
                   <p className="text-sm text-gray-500 mt-1">
-                    Harga dasar: {formatCurrency(product.discount_price || product.base_price)} + Ukuran: {formatCurrency(selectedVariant.additional_price)}
+                    {t('basePriceLabel')}: {formatCurrency(product.discount_price || product.base_price)} + {t('sizePrice')}: {formatCurrency(selectedVariant.additional_price)}
                   </p>
                 )}
               </div>
 
               {/* Size Selection */}
               <div>
-                <h3 className="font-semibold mb-3">Pilih Ukuran</h3>
+                <h3 className="font-semibold mb-3">{t('selectSize')}</h3>
                 <div className="flex flex-wrap gap-2">
                   {variants.length > 0 ? (
                     variants.map((variant) => (
@@ -313,23 +307,23 @@ export default function ProductDetail() {
                         }`}
                       >
                         {variant.size_name}
-                        {variant.stock_quantity <= 0 && ' (Habis)'}
+                        {variant.stock_quantity <= 0 && ` (${t('outOfStock')})`}
                       </button>
                     ))
                   ) : (
-                    <p className="text-gray-500 text-sm">Tidak ada ukuran tersedia</p>
+                    <p className="text-gray-500 text-sm">{t('noSizesAvailable')}</p>
                   )}
                 </div>
                 {selectedVariant && (
                   <p className="text-sm text-gray-500 mt-2">
-                    Stok tersedia: {selectedVariant.stock_quantity}
+                    {t('stockAvailable')}: {selectedVariant.stock_quantity}
                   </p>
                 )}
               </div>
 
               {/* Quantity */}
               <div>
-                <h3 className="font-semibold mb-3">Jumlah</h3>
+                <h3 className="font-semibold mb-3">{t('quantity')}</h3>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -372,7 +366,7 @@ export default function ProductDetail() {
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                 >
-                  {addingToCart ? 'Menambahkan...' : 'Tambah ke Keranjang'}
+                  {addingToCart ? t('adding') : t('addToCart')}
                 </button>
                 
                 {/* Wishlist Button */}
@@ -384,7 +378,7 @@ export default function ProductDetail() {
                       ? 'bg-red-50 border-red-500 text-red-500 hover:bg-red-100'
                       : 'border-gray-300 text-gray-700 hover:border-gray-500 hover:bg-gray-50'
                   } ${addingToWishlist ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  title={isWishlisted ? 'Hapus dari Wishlist' : 'Tambah ke Wishlist'}
+                  title={isWishlisted ? t('removeFromWishlist') : t('addToWishlist')}
                 >
                   {addingToWishlist ? (
                     <svg className="w-6 h-6 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -412,14 +406,14 @@ export default function ProductDetail() {
 
           {/* Product Description */}
           <div className="border-t p-6">
-            <h2 className="text-xl font-bold mb-4">Deskripsi Produk</h2>
+            <h2 className="text-xl font-bold mb-4">{t('productDescription')}</h2>
             {product.description ? (
               <div 
                 className="prose max-w-none text-gray-700"
                 dangerouslySetInnerHTML={{ __html: product.description.replace(/\n/g, '<br/>') }}
               />
             ) : (
-              <p className="text-gray-500">Tidak ada deskripsi tersedia</p>
+              <p className="text-gray-500">{t('noDescriptionAvailable')}</p>
             )}
           </div>
         </div>

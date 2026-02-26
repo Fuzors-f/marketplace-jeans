@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { useSelector } from 'react-redux';
 import apiClient from '../services/api';
 import { getImageUrl } from '../utils/imageUtils';
+import { useLanguage } from '../utils/i18n';
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
@@ -16,6 +17,7 @@ export default function Orders() {
 
   const { isAuthenticated } = useSelector((state) => state.auth);
   const navigate = useNavigate();
+  const { t, formatCurrency } = useLanguage();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -39,17 +41,17 @@ export default function Orders() {
         setTotalPages(response.data.pagination?.pages || 1);
       } else {
         setOrders([]);
-        setError(response.data.message || 'Gagal memuat pesanan');
+        setError(response.data.message || t('failedToLoadOrders'));
       }
     } catch (err) {
       console.error('Error fetching orders:', err);
       setOrders([]);
       if (err.response?.status === 401) {
-        setError('Sesi Anda telah berakhir. Silakan login kembali.');
+        setError(t('sessionExpired'));
       } else if (err.response?.data?.message) {
         setError(err.response.data.message);
       } else {
-        setError('Gagal memuat pesanan. Silakan coba lagi.');
+        setError(t('failedToLoadOrders'));
       }
     } finally {
       setLoading(false);
@@ -58,22 +60,22 @@ export default function Orders() {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      pending: { color: 'bg-yellow-100 text-yellow-800', label: 'Menunggu Konfirmasi' },
-      confirmed: { color: 'bg-blue-100 text-blue-800', label: 'Dikonfirmasi' },
-      processing: { color: 'bg-purple-100 text-purple-800', label: 'Diproses' },
-      shipped: { color: 'bg-indigo-100 text-indigo-800', label: 'Dikirim' },
-      delivered: { color: 'bg-green-100 text-green-800', label: 'Selesai' },
-      cancelled: { color: 'bg-red-100 text-red-800', label: 'Dibatalkan' }
+      pending: { color: 'bg-yellow-100 text-yellow-800', label: t('pending') },
+      confirmed: { color: 'bg-blue-100 text-blue-800', label: t('confirmed') },
+      processing: { color: 'bg-purple-100 text-purple-800', label: t('processing') },
+      shipped: { color: 'bg-indigo-100 text-indigo-800', label: t('shipped') },
+      delivered: { color: 'bg-green-100 text-green-800', label: t('delivered') },
+      cancelled: { color: 'bg-red-100 text-red-800', label: t('cancelled') }
     };
     return statusConfig[status] || { color: 'bg-gray-100 text-gray-800', label: status };
   };
 
   const getPaymentBadge = (status) => {
     const statusConfig = {
-      pending: { color: 'bg-yellow-100 text-yellow-800', label: 'Belum Bayar' },
-      paid: { color: 'bg-green-100 text-green-800', label: 'Lunas' },
-      failed: { color: 'bg-red-100 text-red-800', label: 'Gagal' },
-      refunded: { color: 'bg-gray-100 text-gray-800', label: 'Refund' }
+      pending: { color: 'bg-yellow-100 text-yellow-800', label: t('unpaid') },
+      paid: { color: 'bg-green-100 text-green-800', label: t('paid') },
+      failed: { color: 'bg-red-100 text-red-800', label: t('paymentFailed') },
+      refunded: { color: 'bg-gray-100 text-gray-800', label: t('refunded') }
     };
     return statusConfig[status] || { color: 'bg-gray-100 text-gray-800', label: status };
   };
@@ -85,14 +87,14 @@ export default function Orders() {
   return (
     <>
       <Helmet>
-        <title>Pesanan Saya - Marketplace Jeans</title>
+        <title>{t('myOrders')} - Marketplace Jeans</title>
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-5xl mx-auto px-4">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Pesanan Saya</h1>
-            <p className="text-gray-600">Lihat status dan riwayat pesanan Anda</p>
+            <h1 className="text-3xl font-bold mb-2">{t('myOrders')}</h1>
+            <p className="text-gray-600">{t('myOrdersSubtitle')}</p>
           </div>
 
           {error && (
@@ -101,7 +103,7 @@ export default function Orders() {
 
           {/* Filter */}
           <div className="mb-6 bg-white p-4 rounded shadow">
-            <label className="block text-sm font-semibold mb-2">Filter Status</label>
+            <label className="block text-sm font-semibold mb-2">{t('filterStatus')}</label>
             <select
               value={statusFilter}
               onChange={(e) => {
@@ -110,13 +112,13 @@ export default function Orders() {
               }}
               className="w-full md:w-64 px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
             >
-              <option value="all">Semua Status</option>
-              <option value="pending">Menunggu Konfirmasi</option>
-              <option value="confirmed">Dikonfirmasi</option>
-              <option value="processing">Diproses</option>
-              <option value="shipped">Dikirim</option>
-              <option value="delivered">Selesai</option>
-              <option value="cancelled">Dibatalkan</option>
+              <option value="all">{t('allStatus')}</option>
+              <option value="pending">{t('pending')}</option>
+              <option value="confirmed">{t('confirmed')}</option>
+              <option value="processing">{t('processing')}</option>
+              <option value="shipped">{t('shipped')}</option>
+              <option value="delivered">{t('delivered')}</option>
+              <option value="cancelled">{t('cancelled')}</option>
             </select>
           </div>
 
@@ -169,18 +171,18 @@ export default function Orders() {
                           <div className="flex-1">
                             <p className="font-semibold">{item.product_name}</p>
                             <p className="text-sm text-gray-600">
-                              {item.size_name && `Size: ${item.size_name} • `}
-                              {item.quantity}x @ Rp {parseFloat(item.price).toLocaleString('id-ID')}
+                              {item.size_name && `${t('size')}: ${item.size_name} • `}
+                              {item.quantity}x @ {formatCurrency(parseFloat(item.price))}
                             </p>
                           </div>
                           <p className="font-semibold">
-                            Rp {parseFloat(item.total).toLocaleString('id-ID')}
+                            {formatCurrency(parseFloat(item.total))}
                           </p>
                         </div>
                       ))}
                       {order.items?.length > 2 && (
                         <p className="text-sm text-gray-600">
-                          +{order.items.length - 2} produk lainnya
+                          +{order.items.length - 2} {t('moreProducts')}
                         </p>
                       )}
                     </div>
@@ -188,9 +190,9 @@ export default function Orders() {
                     {/* Footer */}
                     <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
                       <div>
-                        <p className="text-sm text-gray-600">Total Pembayaran</p>
+                        <p className="text-sm text-gray-600">{t('totalPayment')}</p>
                         <p className="text-xl font-bold text-red-600">
-                          Rp {parseFloat(order.total).toLocaleString('id-ID')}
+                          {formatCurrency(parseFloat(order.total))}
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -199,14 +201,14 @@ export default function Orders() {
                             to={`/orders/${order.id}/tracking`}
                             className="px-4 py-2 border border-black text-black rounded hover:bg-gray-100 text-sm font-semibold"
                           >
-                            Lacak Pesanan
+                            {t('trackOrderBtn')}
                           </Link>
                         )}
                         <Link
                           to={`/orders/${order.id}`}
                           className="px-4 py-2 bg-black text-white rounded hover:bg-gray-900 text-sm font-semibold"
                         >
-                          Detail Pesanan
+                          {t('viewDetails')}
                         </Link>
                       </div>
                     </div>
@@ -222,17 +224,17 @@ export default function Orders() {
                     disabled={currentPage === 1}
                     className="px-4 py-2 bg-gray-200 text-black rounded disabled:opacity-50"
                   >
-                    Sebelumnya
+                    {t('previous')}
                   </button>
                   <span className="px-4 py-2">
-                    Halaman {currentPage} dari {totalPages}
+                    {t('page')} {currentPage} / {totalPages}
                   </span>
                   <button
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
                     className="px-4 py-2 bg-gray-200 text-black rounded disabled:opacity-50"
                   >
-                    Selanjutnya
+                    {t('next')}
                   </button>
                 </div>
               )}
@@ -252,13 +254,13 @@ export default function Orders() {
                   d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
                 />
               </svg>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Belum Ada Pesanan</h3>
-              <p className="text-gray-600 mb-4">Anda belum memiliki pesanan. Yuk mulai belanja!</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('noOrders')}</h3>
+              <p className="text-gray-600 mb-4">{t('emptyOrders')}</p>
               <Link
                 to="/products"
                 className="inline-block bg-black text-white px-6 py-3 rounded hover:bg-gray-900 font-semibold"
               >
-                Mulai Belanja
+                {t('startShopping')}
               </Link>
             </div>
           )}

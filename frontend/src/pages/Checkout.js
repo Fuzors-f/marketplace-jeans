@@ -5,12 +5,14 @@ import { Helmet } from 'react-helmet-async';
 import apiClient from '../services/api';
 import { useAlert } from '../utils/AlertContext';
 import { useSettings } from '../utils/SettingsContext';
+import { useLanguage } from '../utils/i18n';
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useSelector((state) => state.auth);
   const { showError, showSuccess } = useAlert();
   const { midtransEnabled, getSetting } = useSettings();
+  const { t, formatCurrency } = useLanguage();
 
   // Cart state - fetch from API instead of Redux
   const [cartItems, setCartItems] = useState([]);
@@ -110,7 +112,7 @@ const Checkout = () => {
       }
     } catch (err) {
       console.error('Error fetching cart:', err);
-      showError('Gagal memuat keranjang');
+      showError(t('failedLoadCart'));
       navigate('/cart');
     } finally {
       setCartLoading(false);
@@ -368,32 +370,32 @@ const Checkout = () => {
     const { email, phone, full_name, address, city, province, postal_code } = guestForm;
     const errors = [];
     
-    if (!email) errors.push('Email harus diisi');
-    if (!phone) errors.push('Nomor telepon harus diisi');
-    if (!full_name) errors.push('Nama lengkap harus diisi');
-    if (!address) errors.push('Alamat lengkap harus diisi');
-    if (!city) errors.push('Kota harus dipilih');
-    if (!province) errors.push('Provinsi harus diisi');
-    if (!postal_code) errors.push('Kode pos harus diisi');
+    if (!email) errors.push(t('emailRequired'));
+    if (!phone) errors.push(t('phoneRequired'));
+    if (!full_name) errors.push(t('fullNameRequired'));
+    if (!address) errors.push(t('fullAddressRequired'));
+    if (!city) errors.push(t('cityRequired'));
+    if (!province) errors.push(t('provinceRequired'));
+    if (!postal_code) errors.push(t('postalCodeRequired'));
     
     if (email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
-        errors.push('Format email tidak valid');
+        errors.push(t('invalidEmailFormat'));
       }
     }
     
     if (phone) {
       const phoneRegex = /^[0-9+\-\s()]{8,20}$/;
       if (!phoneRegex.test(phone)) {
-        errors.push('Format nomor telepon tidak valid');
+        errors.push(t('invalidPhoneFormat'));
       }
     }
     
     if (errors.length > 0) {
       const errorMessage = errors.join('\n• ');
       setError('• ' + errorMessage);
-      showError('Data belum lengkap:\n• ' + errorMessage, 'Lengkapi Data');
+      showError(t('incompleteDataMsg') + ':\n• ' + errorMessage, t('incompleteData'));
       return false;
     }
     
@@ -404,16 +406,16 @@ const Checkout = () => {
     const { phone, address, city, province, postal_code } = userForm;
     const errors = [];
     
-    if (!phone) errors.push('Nomor telepon harus diisi');
-    if (!address) errors.push('Alamat lengkap harus diisi');
-    if (!city) errors.push('Kota harus dipilih');
-    if (!province) errors.push('Provinsi harus diisi');
-    if (!postal_code) errors.push('Kode pos harus diisi');
+    if (!phone) errors.push(t('phoneRequired'));
+    if (!address) errors.push(t('fullAddressRequired'));
+    if (!city) errors.push(t('cityRequired'));
+    if (!province) errors.push(t('provinceRequired'));
+    if (!postal_code) errors.push(t('postalCodeRequired'));
     
     if (errors.length > 0) {
       const errorMessage = errors.join('\n• ');
       setError('• ' + errorMessage);
-      showError('Data belum lengkap:\n• ' + errorMessage, 'Lengkapi Data');
+      showError(t('incompleteDataMsg') + ':\n• ' + errorMessage, t('incompleteData'));
       return false;
     }
     
@@ -423,7 +425,7 @@ const Checkout = () => {
   // Coupon handlers
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
-      setCouponError('Masukkan kode kupon');
+      setCouponError(t('enterCouponCode'));
       return;
     }
 
@@ -443,7 +445,7 @@ const Checkout = () => {
         setCouponCode('');
       }
     } catch (err) {
-      setCouponError(err.response?.data?.message || 'Kupon tidak valid');
+      setCouponError(err.response?.data?.message || t('couponInvalid'));
       setAppliedCoupon(null);
     } finally {
       setCouponLoading(false);
@@ -491,8 +493,8 @@ const Checkout = () => {
 
         // Guest + bank_transfer must upload proof
         if (paymentMethod === 'bank_transfer' && !paymentProofFile) {
-          setError('Silakan unggah bukti pembayaran transfer bank');
-          showError('Silakan unggah bukti pembayaran transfer bank');
+          setError(t('pleaseUploadProof'));
+          showError(t('pleaseUploadProof'));
           setLoading(false);
           return;
         }
@@ -540,8 +542,8 @@ const Checkout = () => {
           }
         }
 
-        setSuccessMessage('Order berhasil dibuat!');
-        showSuccess('Order berhasil dibuat! Anda akan diarahkan ke halaman tracking.', 'Berhasil');
+        setSuccessMessage(t('orderCreatedSuccess'));
+        showSuccess(t('orderCreatedRedirectTracking'), t('success'));
         setTimeout(() => {
           navigate(`/order/${unique_token}`);
         }, 2000);
@@ -598,16 +600,16 @@ const Checkout = () => {
           }
         }
         
-        setSuccessMessage('Order berhasil dibuat!');
-        showSuccess('Order berhasil dibuat! Anda akan diarahkan ke halaman pesanan.', 'Berhasil');
+        setSuccessMessage(t('orderCreatedSuccess'));
+        showSuccess(t('orderCreatedRedirectOrders'), t('success'));
         setTimeout(() => {
           navigate('/orders');
         }, 2000);
       }
     } catch (err) {
-      const errMsg = err.response?.data?.message || 'Gagal membuat order';
+      const errMsg = err.response?.data?.message || t('failedCreateOrder');
       setError(errMsg);
-      showError(errMsg, 'Gagal Checkout');
+      showError(errMsg, t('failedCheckout'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -619,7 +621,7 @@ const Checkout = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Memuat data checkout...</p>
+          <p className="text-gray-600">{t('loadingCheckout')}</p>
         </div>
       </div>
     );
@@ -629,12 +631,12 @@ const Checkout = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Keranjang kosong</p>
+          <p className="text-gray-600 mb-4">{t('cartEmpty')}</p>
           <button 
             onClick={() => navigate('/cart')}
             className="px-6 py-2 bg-black text-white rounded hover:bg-gray-800"
           >
-            Kembali ke Keranjang
+            {t('backToCart')}
           </button>
         </div>
       </div>
@@ -644,12 +646,12 @@ const Checkout = () => {
   return (
     <>
       <Helmet>
-        <title>Checkout - Marketplace Jeans</title>
+        <title>{t('checkoutPageTitle')}</title>
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="container mx-auto px-4">
-          <h1 className="text-3xl font-bold mb-8 uppercase tracking-wide">CHECKOUT</h1>
+          <h1 className="text-3xl font-bold mb-8 uppercase tracking-wide">{t('checkoutTitle')}</h1>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Checkout Form */}
@@ -668,7 +670,7 @@ const Checkout = () => {
               {/* Guest vs Login Toggle */}
               {!isAuthenticated && (
                 <div className="mb-8 p-4 bg-white rounded shadow">
-                  <p className="mb-4 font-semibold">Sudah memiliki akun?</p>
+                  <p className="mb-4 font-semibold">{t('haveAccount')}</p>
                   <div className="flex gap-4">
                     <button
                       onClick={() => setIsGuest(true)}
@@ -678,13 +680,13 @@ const Checkout = () => {
                           : 'bg-gray-200 text-black hover:bg-gray-300'
                       }`}
                     >
-                      Lanjutkan Sebagai Guest
+                      {t('continueAsGuest')}
                     </button>
                     <Link
                       to="/login?redirect=/checkout"
                       className="flex-1 py-2 rounded font-semibold text-center bg-gray-200 text-black hover:bg-gray-300 transition"
                     >
-                      Masuk & Checkout
+                      {t('loginAndCheckout')}
                     </Link>
                   </div>
                 </div>
@@ -693,13 +695,13 @@ const Checkout = () => {
               <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Shipping Information */}
                 <div className="bg-white p-6 rounded shadow">
-                  <h2 className="text-xl font-bold mb-4 uppercase">Informasi Pengiriman</h2>
+                  <h2 className="text-xl font-bold mb-4 uppercase">{t('shippingInfo')}</h2>
 
                   {isGuest && (
                     <>
                       <div className="mb-4">
                         <label className="block text-sm font-semibold mb-2">
-                          Email <span className="text-red-500">*</span>
+                          {t('email')} <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="email"
@@ -714,7 +716,7 @@ const Checkout = () => {
 
                       <div className="mb-4">
                         <label className="block text-sm font-semibold mb-2">
-                          Nama Lengkap <span className="text-red-500">*</span>
+                          {t('fullName')} <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -722,14 +724,14 @@ const Checkout = () => {
                           value={guestForm.full_name}
                           onChange={handleGuestChange}
                           required
-                          placeholder="Nama penerima"
+                          placeholder={t('recipientNamePlaceholder')}
                           className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                         />
                       </div>
 
                       <div className="mb-4">
                         <label className="block text-sm font-semibold mb-2">
-                          No. Telepon <span className="text-red-500">*</span>
+                          {t('phoneNumber')} <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="tel"
@@ -748,10 +750,10 @@ const Checkout = () => {
                     <>
                       <div className="mb-4 p-3 bg-gray-100 rounded">
                         <p className="text-sm">
-                          <span className="font-semibold">Nama:</span> {user?.name}
+                          <span className="font-semibold">{t('nameLabel')}:</span> {user?.name}
                         </p>
                         <p className="text-sm">
-                          <span className="font-semibold">Email:</span> {user?.email}
+                          <span className="font-semibold">{t('emailLabel')}:</span> {user?.email}
                         </p>
                       </div>
 
@@ -759,36 +761,36 @@ const Checkout = () => {
                       {loadingAddresses ? (
                         <div className="text-center py-4">
                           <div className="animate-spin h-6 w-6 border-2 border-gray-500 border-t-transparent rounded-full mx-auto"></div>
-                          <p className="text-sm text-gray-500 mt-2">Memuat alamat tersimpan...</p>
+                          <p className="text-sm text-gray-500 mt-2">{t('loadingSavedAddresses')}</p>
                         </div>
                       ) : savedAddresses.length === 0 ? (
                         // No saved addresses - show message and form to add new address
                         <div className="mb-4">
                           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
                             <p className="text-sm text-yellow-800">
-                              <strong>Belum ada alamat tersimpan.</strong><br/>
-                              Silakan isi alamat pengiriman di bawah. Alamat akan otomatis disimpan untuk order berikutnya.
+                              <strong>{t('noSavedAddresses')}.</strong><br/>
+                              {t('noSavedAddressHint')}
                             </p>
                           </div>
                           {/* Address Label */}
                           <div className="mb-4">
-                            <label className="block text-sm font-semibold mb-2">Label Alamat</label>
+                            <label className="block text-sm font-semibold mb-2">{t('addressLabel')}</label>
                             <select
                               value={addressLabel}
                               onChange={(e) => setAddressLabel(e.target.value)}
                               className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                             >
-                              <option value="Rumah">Rumah</option>
-                              <option value="Kantor">Kantor</option>
-                              <option value="Apartemen">Apartemen</option>
-                              <option value="Kos">Kos</option>
-                              <option value="Lainnya">Lainnya</option>
+                              <option value="Rumah">{t('addressLabelHome')}</option>
+                              <option value="Kantor">{t('addressLabelOffice')}</option>
+                              <option value="Apartemen">{t('addressLabelApartment')}</option>
+                              <option value="Kos">{t('addressLabelKos')}</option>
+                              <option value="Lainnya">{t('addressLabelOther')}</option>
                             </select>
                           </div>
                           {/* Phone Number */}
                           <div className="mb-4">
                             <label className="block text-sm font-semibold mb-2">
-                              No. Telepon Penerima <span className="text-red-500">*</span>
+                              {t('recipientPhone')} <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="tel"
@@ -803,7 +805,7 @@ const Checkout = () => {
                         </div>
                       ) : (
                         <div className="mb-4">
-                          <label className="block text-sm font-semibold mb-2">Pilih Alamat Pengiriman</label>
+                          <label className="block text-sm font-semibold mb-2">{t('selectShippingAddress')}</label>
                           <div className="space-y-2">
                             {savedAddresses.map((addr) => (
                               <label
@@ -824,9 +826,9 @@ const Checkout = () => {
                                   />
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
-                                      <span className="font-semibold">{addr.address_label || addr.label || 'Alamat'}</span>
+                                      <span className="font-semibold">{addr.address_label || addr.label || t('address')}</span>
                                       {addr.is_default && (
-                                        <span className="text-xs bg-black text-white px-2 py-0.5 rounded">Utama</span>
+                                        <span className="text-xs bg-black text-white px-2 py-0.5 rounded">{t('primaryAddress')}</span>
                                       )}
                                     </div>
                                     <p className="text-sm text-gray-600 mt-1">{addr.recipient_name}</p>
@@ -854,7 +856,7 @@ const Checkout = () => {
                                   onChange={() => handleAddressSelection('new')}
                                   className="accent-black"
                                 />
-                                <span className="font-semibold">+ Gunakan Alamat Baru</span>
+                                <span className="font-semibold">{t('useNewAddress')}</span>
                               </div>
                             </label>
                           </div>
@@ -866,25 +868,25 @@ const Checkout = () => {
                   {/* New Address Fields when using new address (for users with existing addresses) */}
                   {isAuthenticated && useNewAddress && savedAddresses.length > 0 && (
                     <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                      <h4 className="font-semibold mb-3">Detail Alamat Baru</h4>
+                      <h4 className="font-semibold mb-3">{t('newAddressDetails')}</h4>
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                          <label className="block text-sm font-semibold mb-2">Label Alamat</label>
+                          <label className="block text-sm font-semibold mb-2">{t('addressLabel')}</label>
                           <select
                             value={addressLabel}
                             onChange={(e) => setAddressLabel(e.target.value)}
                             className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                           >
-                            <option value="Rumah">Rumah</option>
-                            <option value="Kantor">Kantor</option>
-                            <option value="Apartemen">Apartemen</option>
-                            <option value="Kos">Kos</option>
-                            <option value="Lainnya">Lainnya</option>
+                            <option value="Rumah">{t('home')}</option>
+                            <option value="Kantor">{t('office')}</option>
+                            <option value="Apartemen">{t('apartment')}</option>
+                            <option value="Kos">{t('boarding')}</option>
+                            <option value="Lainnya">{t('other')}</option>
                           </select>
                         </div>
                         <div>
                           <label className="block text-sm font-semibold mb-2">
-                            No. Telepon <span className="text-red-500">*</span>
+                            {t('phoneNumber')} <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="tel"
@@ -904,7 +906,7 @@ const Checkout = () => {
                           onChange={(e) => setSaveNewAddress(e.target.checked)}
                           className="accent-black"
                         />
-                        <span className="text-sm">Simpan alamat untuk order berikutnya</span>
+                        <span className="text-sm">{t('saveAddressForNext')}</span>
                       </label>
                     </div>
                   )}
@@ -912,7 +914,7 @@ const Checkout = () => {
                   {isGuest && (
                     <div className="mb-4">
                       <label className="block text-sm font-semibold mb-2">
-                        Alamat Lengkap <span className="text-red-500">*</span>
+                        {t('fullAddress')} <span className="text-red-500">*</span>
                       </label>
                       <textarea
                         name="address"
@@ -920,7 +922,7 @@ const Checkout = () => {
                         onChange={handleGuestChange}
                         required
                         rows="3"
-                        placeholder="Nama jalan, nomor rumah, RT/RW, kelurahan, kecamatan"
+                        placeholder={t('addressPlaceholder')}
                         className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                       />
                     </div>
@@ -929,7 +931,7 @@ const Checkout = () => {
                   {!isGuest && (useNewAddress || savedAddresses.length === 0) && (
                     <div className="mb-4">
                       <label className="block text-sm font-semibold mb-2">
-                        Alamat Lengkap <span className="text-red-500">*</span>
+                        {t('fullAddress')} <span className="text-red-500">*</span>
                       </label>
                       <textarea
                         name="address"
@@ -937,7 +939,7 @@ const Checkout = () => {
                         onChange={handleUserChange}
                         required
                         rows="3"
-                        placeholder="Nama jalan, nomor rumah, RT/RW, kelurahan, kecamatan"
+                        placeholder={t('addressPlaceholder')}
                         className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                       />
                     </div>
@@ -947,7 +949,7 @@ const Checkout = () => {
                   {(isGuest || useNewAddress || savedAddresses.length === 0) && (
                     <div className="mb-4">
                       <label className="block text-sm font-semibold mb-2">
-                        Kota Tujuan <span className="text-red-500">*</span>
+                        {t('destinationCity')} <span className="text-red-500">*</span>
                       </label>
                       {!selectedCity ? (
                         <div className="relative">
@@ -955,7 +957,7 @@ const Checkout = () => {
                             type="text"
                             value={searchCity}
                             onChange={(e) => handleSearchCity(e.target.value)}
-                            placeholder="Cari kota..."
+                            placeholder={t('searchCity')}
                             className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                           />
                           {citySearchResults.length > 0 && (
@@ -993,7 +995,7 @@ const Checkout = () => {
                   {/* Show selected city for saved address */}
                   {!isGuest && !useNewAddress && selectedAddressId && savedAddresses.length > 0 && selectedCity && (
                     <div className="mb-4">
-                      <label className="block text-sm font-semibold mb-2">Kota Tujuan</label>
+                      <label className="block text-sm font-semibold mb-2">{t('destinationCity')}</label>
                       <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                         <p className="font-medium text-green-800">{selectedCity.name}</p>
                         <p className="text-sm text-green-600">{userForm.province}</p>
@@ -1005,7 +1007,7 @@ const Checkout = () => {
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
                         <label className="block text-sm font-semibold mb-2">
-                          Kode Pos <span className="text-red-500">*</span>
+                          {t('postalCode')} <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -1013,12 +1015,12 @@ const Checkout = () => {
                           value={isGuest ? guestForm.postal_code : userForm.postal_code}
                           onChange={isGuest ? handleGuestChange : handleUserChange}
                           required
-                          placeholder="12345"
+                          placeholder={t('postalCodePlaceholder')}
                           className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold mb-2">Provinsi</label>
+                        <label className="block text-sm font-semibold mb-2">{t('province')}</label>
                         <input
                           type="text"
                           value={isGuest ? guestForm.province : userForm.province}
@@ -1030,13 +1032,13 @@ const Checkout = () => {
                   )}
 
                   <div className="mt-4">
-                    <label className="block text-sm font-semibold mb-2">Catatan (Opsional)</label>
+                    <label className="block text-sm font-semibold mb-2">{t('notesOptional')}</label>
                     <textarea
                       name="notes"
                       value={isGuest ? guestForm.notes : userForm.notes}
                       onChange={isGuest ? handleGuestChange : handleUserChange}
                       rows="2"
-                      placeholder="Contoh: Tidak ada di rumah, silakan beri ke tetangga"
+                      placeholder={t('notesPlaceholder')}
                       className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                     />
                   </div>
@@ -1044,16 +1046,16 @@ const Checkout = () => {
 
                 {/* Shipping Selection */}
                 <div className="bg-white p-6 rounded shadow">
-                  <h2 className="text-xl font-bold mb-4 uppercase">Pilih Pengiriman</h2>
+                  <h2 className="text-xl font-bold mb-4 uppercase">{t('selectShipping')}</h2>
                   
                   {/* Shipping Options */}
                   {selectedCity ? (
                     <div>
-                      <label className="block text-sm font-semibold mb-2">Pilih Kurir:</label>
+                      <label className="block text-sm font-semibold mb-2">{t('selectCourier')}:</label>
                       {loadingShipping ? (
                         <div className="text-center py-4">
                           <div className="animate-spin h-6 w-6 border-2 border-gray-500 border-t-transparent rounded-full mx-auto"></div>
-                          <p className="text-sm text-gray-500 mt-2">Memuat opsi pengiriman...</p>
+                          <p className="text-sm text-gray-500 mt-2">{t('loadingShippingOptions')}</p>
                         </div>
                       ) : shippingOptions.length > 0 ? (
                         <div className="space-y-2">
@@ -1079,27 +1081,27 @@ const Checkout = () => {
                                   <p className="text-xs text-gray-500">{option.estimated_days_display}</p>
                                 </div>
                               </div>
-                              <span className="font-bold">Rp {(option.calculated_cost || option.cost).toLocaleString('id-ID')}</span>
+                              <span className="font-bold">{formatCurrency(option.calculated_cost || option.cost)}</span>
                             </label>
                           ))}
                         </div>
                       ) : (
                         <div className="text-center py-4 text-gray-500 bg-gray-50 rounded">
-                          <p>Tidak ada opsi pengiriman tersedia untuk rute ini.</p>
-                          <p className="text-xs mt-1">Silakan hubungi customer service.</p>
+                          <p>{t('noShippingForRoute')}</p>
+                          <p className="text-xs mt-1">{t('contactCustomerService')}</p>
                         </div>
                       )}
                     </div>
                   ) : (
                     <div className="text-center py-4 text-gray-500 bg-gray-50 rounded">
-                      <p>Pilih alamat pengiriman untuk melihat opsi pengiriman.</p>
+                      <p>{t('selectAddressForShipping')}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Payment Method */}
                 <div className="bg-white p-6 rounded shadow">
-                  <h2 className="text-xl font-bold mb-4 uppercase">Metode Pembayaran</h2>
+                  <h2 className="text-xl font-bold mb-4 uppercase">{t('paymentMethod')}</h2>
                   <div className="space-y-3">
                     {/* Midtrans Payment - Online Payment Gateway */}
                     {midtransEnabled && (
@@ -1113,8 +1115,8 @@ const Checkout = () => {
                           className="mr-3"
                         />
                         <div>
-                          <span className="font-semibold">Pembayaran Online (Midtrans)</span>
-                          <p className="text-xs text-gray-500">Credit Card, GoPay, OVO, DANA, VA Bank, QRIS</p>
+                          <span className="font-semibold">{t('onlinePayment')}</span>
+                          <p className="text-xs text-gray-500">{t('onlinePaymentDesc')}</p>
                         </div>
                       </label>
                     )}
@@ -1131,7 +1133,7 @@ const Checkout = () => {
                           className="mr-3"
                         />
                         <div>
-                          <span className="font-semibold">Transfer Bank Manual</span>
+                          <span className="font-semibold">{t('bankTransfer')}</span>
                           {getSetting('payment_bank_name') && (
                             <p className="text-xs text-gray-500">
                               {getSetting('payment_bank_name')} - {getSetting('payment_bank_account')} a/n {getSetting('payment_bank_holder')}
@@ -1153,8 +1155,8 @@ const Checkout = () => {
                         className="mr-3"
                       />
                       <div>
-                        <span className="font-semibold">Bayar di Tempat (COD)</span>
-                        <p className="text-xs text-gray-500">Bayar saat barang tiba</p>
+                        <span className="font-semibold">{t('cod')}</span>
+                        <p className="text-xs text-gray-500">{t('codDesc')}</p>
                       </div>
                     </label>
                     )}
@@ -1163,14 +1165,14 @@ const Checkout = () => {
                   {/* Bank Transfer Details Box */}
                   {paymentMethod === 'bank_transfer' && getSetting('payment_bank_name') && (
                     <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-blue-800 mb-2">Detail Rekening Transfer</h4>
+                      <h4 className="font-semibold text-blue-800 mb-2">{t('bankTransferDetails')}</h4>
                       <div className="space-y-1 text-sm">
-                        <p><span className="text-gray-600">Bank:</span> <span className="font-semibold">{getSetting('payment_bank_name')}</span></p>
-                        <p><span className="text-gray-600">No. Rekening:</span> <span className="font-mono font-bold text-lg">{getSetting('payment_bank_account')}</span></p>
-                        <p><span className="text-gray-600">Atas Nama:</span> <span className="font-semibold">{getSetting('payment_bank_holder')}</span></p>
+                        <p><span className="text-gray-600">{t('bankLabel')}:</span> <span className="font-semibold">{getSetting('payment_bank_name')}</span></p>
+                        <p><span className="text-gray-600">{t('accountNumber')}:</span> <span className="font-mono font-bold text-lg">{getSetting('payment_bank_account')}</span></p>
+                        <p><span className="text-gray-600">{t('accountName')}:</span> <span className="font-semibold">{getSetting('payment_bank_holder')}</span></p>
                       </div>
                       <p className="text-xs text-blue-600 mt-2">
-                        Transfer sesuai total pembayaran dan unggah bukti transfer di bawah.
+                        {t('transferInstructionUpload')}
                       </p>
                     </div>
                   )}
@@ -1179,14 +1181,14 @@ const Checkout = () => {
                   {paymentMethod === 'bank_transfer' && (
                     <div className="mt-4">
                       <label className="block text-sm font-semibold mb-2">
-                        Bukti Pembayaran {isGuest && <span className="text-red-500">*</span>}
+                        {t('paymentProof')} {isGuest && <span className="text-red-500">*</span>}
                       </label>
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition relative">
                         {paymentProofPreview ? (
                           <div className="space-y-2">
                             <img 
                               src={paymentProofPreview} 
-                              alt="Bukti pembayaran" 
+                              alt={t('paymentProof')} 
                               className="max-h-48 mx-auto rounded shadow"
                             />
                             <button
@@ -1197,7 +1199,7 @@ const Checkout = () => {
                               }}
                               className="text-red-500 text-sm hover:underline"
                             >
-                              Hapus foto
+                              {t('removePhoto')}
                             </button>
                           </div>
                         ) : (
@@ -1205,8 +1207,8 @@ const Checkout = () => {
                             <svg className="mx-auto h-10 w-10 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                               <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
-                            <p className="mt-2 text-sm text-gray-500">Klik untuk unggah bukti transfer</p>
-                            <p className="text-xs text-gray-400">JPG, PNG maks. 5MB</p>
+                            <p className="mt-2 text-sm text-gray-500">{t('clickToUploadProof')}</p>
+                            <p className="text-xs text-gray-400">{t('imageMaxSize')}</p>
                           </div>
                         )}
                         <input
@@ -1216,7 +1218,7 @@ const Checkout = () => {
                             const file = e.target.files[0];
                             if (file) {
                               if (file.size > 5 * 1024 * 1024) {
-                                showError('Ukuran file maksimal 5MB');
+                                showError(t('fileSizeMax5'));
                                 return;
                               }
                               setPaymentProofFile(file);
@@ -1227,7 +1229,7 @@ const Checkout = () => {
                         />
                       </div>
                       {isGuest && !paymentProofFile && (
-                        <p className="text-xs text-red-500 mt-1">* Wajib mengunggah bukti pembayaran untuk checkout tanpa login</p>
+                        <p className="text-xs text-red-500 mt-1">{t('proofRequiredGuest')}</p>
                       )}
                     </div>
                   )}
@@ -1238,7 +1240,7 @@ const Checkout = () => {
                   disabled={loading}
                   className="w-full bg-black text-white py-3 font-bold uppercase tracking-wider hover:bg-gray-900 disabled:opacity-50 transition"
                 >
-                  {loading ? 'Processing...' : 'Lanjutkan ke Pembayaran'}
+                  {loading ? t('processingPayment') : t('continueToPayment')}
                 </button>
               </form>
             </div>
@@ -1246,7 +1248,7 @@ const Checkout = () => {
             {/* Order Summary */}
             <div className="lg:col-span-1">
               <div className="bg-white p-6 rounded shadow sticky top-4">
-                <h2 className="text-xl font-bold mb-6 uppercase">Ringkasan Pesanan</h2>
+                <h2 className="text-xl font-bold mb-6 uppercase">{t('orderSummary')}</h2>
 
                 <div className="space-y-3 mb-6 pb-6 border-b">
                   {cartItems.map((item) => (
@@ -1256,13 +1258,13 @@ const Checkout = () => {
                         {item.size_name && <span className="text-gray-500 text-xs ml-1">({item.size_name})</span>}
                         {item.original_price && item.price < item.original_price && (
                           <div className="text-xs text-green-600">
-                            <span className="line-through text-gray-400">Rp {(item.original_price * item.quantity).toLocaleString('id-ID')}</span>
+                            <span className="line-through text-gray-400">{formatCurrency(item.original_price * item.quantity)}</span>
                             <span className="ml-1">-{Math.round((1 - item.price / item.original_price) * 100)}%</span>
                           </div>
                         )}
                       </div>
                       <span className="font-semibold">
-                        Rp {(item.price * item.quantity).toLocaleString('id-ID')}
+                        {formatCurrency(item.price * item.quantity)}
                       </span>
                     </div>
                   ))}
@@ -1270,7 +1272,7 @@ const Checkout = () => {
 
                 {/* Coupon Section */}
                 <div className="mb-6 pb-6 border-b">
-                  <h3 className="text-sm font-semibold mb-3">Punya Kupon?</h3>
+                  <h3 className="text-sm font-semibold mb-3">{t('haveCoupon')}</h3>
                   {appliedCoupon ? (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                       <div className="flex justify-between items-center">
@@ -1283,11 +1285,11 @@ const Checkout = () => {
                           onClick={handleRemoveCoupon}
                           className="text-red-500 text-sm hover:underline"
                         >
-                          Hapus
+                          {t('clear')}
                         </button>
                       </div>
                       <p className="text-sm text-green-700 mt-2 font-semibold">
-                        -Rp {appliedCoupon.discount_amount.toLocaleString('id-ID')}
+                        -{formatCurrency(appliedCoupon.discount_amount)}
                       </p>
                     </div>
                   ) : (
@@ -1297,7 +1299,7 @@ const Checkout = () => {
                           type="text"
                           value={couponCode}
                           onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                          placeholder="Masukkan kode"
+                          placeholder={t('enterCode')}
                           className="flex-1 px-3 py-2 border rounded text-sm uppercase focus:outline-none focus:ring-2 focus:ring-black"
                         />
                         <button
@@ -1306,7 +1308,7 @@ const Checkout = () => {
                           disabled={couponLoading}
                           className="px-4 py-2 bg-black text-white text-sm rounded hover:bg-gray-800 disabled:opacity-50"
                         >
-                          {couponLoading ? '...' : 'Pakai'}
+                          {couponLoading ? '...' : t('useCode')}
                         </button>
                       </div>
                       {couponError && (
@@ -1318,42 +1320,42 @@ const Checkout = () => {
 
                 <div className="space-y-3 mb-6 pb-6 border-b text-sm">
                   <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>Rp {subtotal.toLocaleString('id-ID')}</span>
+                    <span>{t('subtotal')}</span>
+                    <span>{formatCurrency(subtotal)}</span>
                   </div>
                   {appliedCoupon && (
                     <div className="flex justify-between text-green-600">
-                      <span>Diskon ({appliedCoupon.code})</span>
-                      <span>-Rp {couponDiscount.toLocaleString('id-ID')}</span>
+                      <span>{t('discount')} ({appliedCoupon.code})</span>
+                      <span>-{formatCurrency(couponDiscount)}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span>Pajak (11%)</span>
-                    <span>Rp {tax.toLocaleString('id-ID')}</span>
+                    <span>{t('taxRate')}</span>
+                    <span>{formatCurrency(tax)}</span>
                   </div>
                   <div className="flex justify-between">
                     <div>
-                      <span>Pengiriman</span>
+                      <span>{t('shipping')}</span>
                       {selectedShipping && (
                         <p className="text-xs text-gray-500">
                           {selectedShipping.courier} - {selectedShipping.service || 'Regular'}
                         </p>
                       )}
                     </div>
-                    <span>Rp {shippingCost.toLocaleString('id-ID')}</span>
+                    <span>{formatCurrency(shippingCost)}</span>
                   </div>
                 </div>
 
                 <div className="flex justify-between text-lg font-bold mb-6">
-                  <span>Total</span>
-                  <span className="text-red-600">Rp {total.toLocaleString('id-ID')}</span>
+                  <span>{t('total')}</span>
+                  <span className="text-red-600">{formatCurrency(total)}</span>
                 </div>
 
                 <Link
                   to="/cart"
                   className="block text-center text-blue-600 hover:underline text-sm font-semibold"
                 >
-                  Kembali ke Keranjang
+                  {t('backToCart')}
                 </Link>
               </div>
             </div>

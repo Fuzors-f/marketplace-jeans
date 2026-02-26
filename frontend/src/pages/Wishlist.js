@@ -5,11 +5,13 @@ import { Helmet } from 'react-helmet-async';
 import api from '../services/api';
 import { getImageUrl, handleImageError } from '../utils/imageUtils';
 import { useAlert } from '../utils/AlertContext';
+import { useLanguage } from '../utils/i18n';
 
 export default function Wishlist() {
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector((state) => state.auth);
   const { showSuccess, showError, showConfirm } = useAlert();
+  const { t, formatCurrency } = useLanguage();
   
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +35,7 @@ export default function Wishlist() {
     } catch (err) {
       console.error('Error fetching wishlist:', err);
       if (err.response?.status !== 401) {
-        showError('Gagal memuat wishlist');
+        showError(t('failedLoadWishlist'));
       }
     } finally {
       setLoading(false);
@@ -41,18 +43,18 @@ export default function Wishlist() {
   };
 
   const handleRemoveFromWishlist = async (productId) => {
-    showConfirm('Hapus produk dari wishlist?', async () => {
+    showConfirm(t('removeFromWishlist'), async () => {
       try {
         setRemoving(productId);
         await api.delete(`/wishlist/${productId}`);
         setWishlistItems(prev => prev.filter(item => item.product_id !== productId));
-        showSuccess('Produk dihapus dari wishlist');
+        showSuccess(t('removedFromWishlistSuccess'));
       } catch (err) {
-        showError('Gagal menghapus dari wishlist');
+        showError(t('failedRemoveWishlist'));
       } finally {
         setRemoving(null);
       }
-    }, { title: 'Konfirmasi' });
+    }, { title: t('confirm') });
   };
 
   const handleAddToCart = async (item) => {
@@ -64,7 +66,7 @@ export default function Wishlist() {
         const availableVariant = product.variants?.find(v => v.stock_quantity > 0);
         
         if (!availableVariant) {
-          showError('Produk tidak memiliki stok tersedia');
+          showError(t('noStockAvailable'));
           return;
         }
 
@@ -73,23 +75,15 @@ export default function Wishlist() {
           quantity: 1
         });
         
-        showSuccess('Produk ditambahkan ke keranjang!');
+        showSuccess(t('addedToCartFromWishlist'));
       }
     } catch (err) {
       if (err.response?.status === 401) {
         navigate('/login');
       } else {
-        showError(err.response?.data?.message || 'Gagal menambahkan ke keranjang');
+        showError(err.response?.data?.message || t('failedAddCart'));
       }
     }
-  };
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(value || 0);
   };
 
   if (loading) {
@@ -103,7 +97,7 @@ export default function Wishlist() {
   return (
     <>
       <Helmet>
-        <title>Wishlist - Marketplace Jeans</title>
+        <title>{t('wishlist')} - Marketplace Jeans</title>
       </Helmet>
       
       <div className="min-h-screen bg-gray-50 py-8">
@@ -111,9 +105,9 @@ export default function Wishlist() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-3xl font-bold">Wishlist Saya</h1>
+              <h1 className="text-3xl font-bold">{t('myWishlist')}</h1>
               <p className="text-gray-600 mt-1">
-                {wishlistItems.length} produk tersimpan
+                {wishlistItems.length} {t('products')}
               </p>
             </div>
             <Link
@@ -123,7 +117,7 @@ export default function Wishlist() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              Lanjut Belanja
+              {t('continueShopping')}
             </Link>
           </div>
 
@@ -134,15 +128,15 @@ export default function Wishlist() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold mb-2">Wishlist Kosong</h2>
+              <h2 className="text-xl font-semibold mb-2">{t('emptyWishlist')}</h2>
               <p className="text-gray-600 mb-6">
-                Anda belum menyimpan produk apapun ke wishlist
+                {t('emptyWishlistMessage')}
               </p>
               <Link
                 to="/products"
                 className="inline-block px-6 py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition"
               >
-                Mulai Belanja
+                {t('startShopping')}
               </Link>
             </div>
           ) : (
@@ -165,7 +159,7 @@ export default function Wishlist() {
                       onClick={() => handleRemoveFromWishlist(item.product_id)}
                       disabled={removing === item.product_id}
                       className="absolute top-3 right-3 w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-red-50 transition-colors group/btn"
-                      title="Hapus dari Wishlist"
+                      title={t('removeFromWishlist')}
                     >
                       {removing === item.product_id ? (
                         <svg className="w-5 h-5 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
@@ -182,7 +176,7 @@ export default function Wishlist() {
                     {/* Out of Stock Badge */}
                     {item.total_stock <= 0 && (
                       <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-center py-2 text-sm font-medium">
-                        Stok Habis
+                        {t('noStockAvailable')}
                       </div>
                     )}
                   </div>
@@ -211,7 +205,7 @@ export default function Wishlist() {
                           : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                       }`}
                     >
-                      {item.total_stock > 0 ? 'Tambah ke Keranjang' : 'Stok Habis'}
+                      {item.total_stock > 0 ? t('addToCart') : t('noStockAvailable')}
                     </button>
                   </div>
                 </div>

@@ -3,12 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../services/api';
 import { getImageUrl } from '../utils/imageUtils';
-
-// Helper function to safely format currency
-const formatCurrency = (value) => {
-  const num = parseFloat(value) || 0;
-  return num.toLocaleString('id-ID');
-};
+import { useLanguage } from '../utils/i18n';
 
 // Error Boundary Component
 class ErrorBoundary extends Component {
@@ -26,17 +21,18 @@ class ErrorBoundary extends Component {
   }
 
   render() {
+    const t = this.props.t || ((key) => key);
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-gray-50 py-8">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <h1 className="text-3xl font-bold mb-4">Terjadi Kesalahan</h1>
-            <p className="text-gray-600 mb-4">Gagal memuat halaman pesanan</p>
+            <h1 className="text-3xl font-bold mb-4">{t('errorOccurred')}</h1>
+            <p className="text-gray-600 mb-4">{t('failedLoadOrderPage')}</p>
             <Link
               to="/orders"
               className="inline-block bg-black text-white px-6 py-3 rounded hover:bg-gray-900"
             >
-              Kembali ke Daftar Pesanan
+              {t('backToOrderList')}
             </Link>
           </div>
         </div>
@@ -51,6 +47,7 @@ function OrderDetailContent() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { t, formatCurrency } = useLanguage();
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -63,16 +60,16 @@ function OrderDetailContent() {
         if (response.data.success && response.data.data) {
           setOrder(response.data.data);
         } else {
-          setError('Data pesanan tidak valid');
+          setError(t('invalidOrderData'));
         }
       } catch (err) {
         console.error('Error fetching order:', err);
         if (err.response?.status === 404) {
-          setError('Pesanan tidak ditemukan');
+          setError(t('orderNotFound'));
         } else if (err.response?.status === 401) {
-          setError('Silakan login untuk melihat pesanan');
+          setError(t('pleaseLoginToViewOrder'));
         } else {
-          setError(err.response?.data?.message || 'Gagal memuat data pesanan');
+          setError(err.response?.data?.message || t('failedLoadOrder'));
         }
       } finally {
         setLoading(false);
@@ -84,22 +81,22 @@ function OrderDetailContent() {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      pending: { color: 'bg-yellow-100 text-yellow-800', label: 'Menunggu Konfirmasi' },
-      confirmed: { color: 'bg-blue-100 text-blue-800', label: 'Dikonfirmasi' },
-      processing: { color: 'bg-purple-100 text-purple-800', label: 'Diproses' },
-      shipped: { color: 'bg-indigo-100 text-indigo-800', label: 'Dikirim' },
-      delivered: { color: 'bg-green-100 text-green-800', label: 'Selesai' },
-      cancelled: { color: 'bg-red-100 text-red-800', label: 'Dibatalkan' }
+      pending: { color: 'bg-yellow-100 text-yellow-800', label: t('waitingConfirmation') },
+      confirmed: { color: 'bg-blue-100 text-blue-800', label: t('confirmed') },
+      processing: { color: 'bg-purple-100 text-purple-800', label: t('processing') },
+      shipped: { color: 'bg-indigo-100 text-indigo-800', label: t('shipped') },
+      delivered: { color: 'bg-green-100 text-green-800', label: t('completed') },
+      cancelled: { color: 'bg-red-100 text-red-800', label: t('cancelled') }
     };
     return statusConfig[status] || { color: 'bg-gray-100 text-gray-800', label: status };
   };
 
   const getPaymentBadge = (status) => {
     const statusConfig = {
-      pending: { color: 'bg-yellow-100 text-yellow-800', label: 'Belum Bayar' },
-      paid: { color: 'bg-green-100 text-green-800', label: 'Lunas' },
-      failed: { color: 'bg-red-100 text-red-800', label: 'Gagal' },
-      refunded: { color: 'bg-gray-100 text-gray-800', label: 'Refund' }
+      pending: { color: 'bg-yellow-100 text-yellow-800', label: t('unpaid') },
+      paid: { color: 'bg-green-100 text-green-800', label: t('paid') },
+      failed: { color: 'bg-red-100 text-red-800', label: t('paymentFailed') },
+      refunded: { color: 'bg-gray-100 text-gray-800', label: t('refund') }
     };
     return statusConfig[status] || { color: 'bg-gray-100 text-gray-800', label: status };
   };
@@ -121,13 +118,13 @@ function OrderDetailContent() {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <h1 className="text-3xl font-bold mb-4">Pesanan Tidak Ditemukan</h1>
+          <h1 className="text-3xl font-bold mb-4">{t('orderNotFound')}</h1>
           <p className="text-gray-600 mb-4">{error}</p>
           <Link
             to="/orders"
             className="inline-block bg-black text-white px-6 py-3 rounded hover:bg-gray-900"
           >
-            Kembali ke Daftar Pesanan
+            {t('backToOrderList')}
           </Link>
         </div>
       </div>
@@ -150,9 +147,9 @@ function OrderDetailContent() {
           <div className="mb-6 flex flex-wrap justify-between items-center gap-4">
             <div>
               <Link to="/orders" className="text-blue-600 hover:underline mb-2 inline-block">
-                ← Kembali ke Daftar Pesanan
+                ← {t('backToOrderList')}
               </Link>
-              <h1 className="text-3xl font-bold">Order {order.order_number || `#${order.id}`}</h1>
+              <h1 className="text-3xl font-bold">{t('orderNumber')} {order.order_number || `#${order.id}`}</h1>
               <p className="text-gray-600">
                 {new Date(order.created_at).toLocaleDateString('id-ID', {
                   weekday: 'long',
@@ -177,7 +174,7 @@ function OrderDetailContent() {
           {/* Order Progress */}
           {order.status !== 'cancelled' && (
             <div className="bg-white rounded shadow p-6 mb-6">
-              <h2 className="font-bold mb-4">Status Pesanan</h2>
+              <h2 className="font-bold mb-4">{t('orderStatus')}</h2>
               <div className="flex justify-between items-center relative">
                 {/* Progress Line */}
                 <div className="absolute top-4 left-0 right-0 h-1 bg-gray-200">
@@ -188,7 +185,7 @@ function OrderDetailContent() {
                 </div>
 
                 {/* Steps */}
-                {['Menunggu', 'Dikonfirmasi', 'Diproses', 'Dikirim', 'Selesai'].map((label, idx) => (
+                {[t('pending'), t('confirmed'), t('processing'), t('shipped'), t('delivered')].map((label, idx) => (
                   <div key={idx} className="relative z-10 flex flex-col items-center">
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
@@ -203,9 +200,9 @@ function OrderDetailContent() {
 
               {order.tracking_number && (
                 <div className="mt-6 p-4 bg-blue-50 rounded">
-                  <p className="font-semibold">Nomor Resi: {order.tracking_number}</p>
+                  <p className="font-semibold">{t('trackingNumber')}: {order.tracking_number}</p>
                   <p className="text-sm text-gray-600">
-                    Pengiriman: {order.shipping_method}
+                    {t('shippingLabel')}: {order.shipping_method}
                   </p>
                 </div>
               )}
@@ -216,7 +213,7 @@ function OrderDetailContent() {
             {/* Order Items */}
             <div className="lg:col-span-2">
               <div className="bg-white rounded shadow p-6">
-                <h2 className="font-bold mb-4">Produk yang Dipesan</h2>
+                <h2 className="font-bold mb-4">{t('orderedProducts')}</h2>
                 <div className="space-y-4">
                   {order.items?.map((item, idx) => (
                     <div key={idx} className="flex gap-4 pb-4 border-b last:border-0">
@@ -236,15 +233,15 @@ function OrderDetailContent() {
                           {item.product_name}
                         </Link>
                         {item.size_name && (
-                          <p className="text-sm text-gray-600">Size: {item.size_name}</p>
+                          <p className="text-sm text-gray-600">{t('size')}: {item.size_name}</p>
                         )}
                         <p className="text-sm text-gray-600">
-                          {item.quantity}x @ Rp {formatCurrency(item.price)}
+                          {item.quantity}x @ {formatCurrency(item.price)}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-bold">
-                          Rp {formatCurrency(item.total)}
+                          {formatCurrency(item.total)}
                         </p>
                       </div>
                     </div>
@@ -257,44 +254,44 @@ function OrderDetailContent() {
             <div className="lg:col-span-1 space-y-6">
               {/* Payment Summary */}
               <div className="bg-white rounded shadow p-6">
-                <h2 className="font-bold mb-4">Ringkasan Pembayaran</h2>
+                <h2 className="font-bold mb-4">{t('paymentSummary')}</h2>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>Rp {formatCurrency(order.subtotal)}</span>
+                    <span>{t('subtotal')}</span>
+                    <span>{formatCurrency(order.subtotal)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Ongkos Kirim</span>
-                    <span>Rp {formatCurrency(order.shipping_cost)}</span>
+                    <span>{t('shippingCost')}</span>
+                    <span>{formatCurrency(order.shipping_cost)}</span>
                   </div>
                   {parseFloat(order.discount_amount || 0) > 0 && (
                     <div className="flex justify-between text-green-600">
-                      <span>Diskon</span>
-                      <span>-Rp {formatCurrency(order.discount_amount)}</span>
+                      <span>{t('discount')}</span>
+                      <span>-{formatCurrency(order.discount_amount)}</span>
                     </div>
                   )}
                   {parseFloat(order.tax || 0) > 0 && (
                     <div className="flex justify-between">
-                      <span>PPN (11%)</span>
-                      <span>Rp {formatCurrency(order.tax)}</span>
+                      <span>{t('ppn')}</span>
+                      <span>{formatCurrency(order.tax)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
-                    <span>Total</span>
+                    <span>{t('total')}</span>
                     <span className="text-red-600">
-                      Rp {formatCurrency(order.total)}
+                      {formatCurrency(order.total)}
                     </span>
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t">
-                  <p className="text-sm text-gray-600">Metode Pembayaran</p>
-                  <p className="font-semibold">{order.payment_method || 'Bank Transfer'}</p>
+                  <p className="text-sm text-gray-600">{t('paymentMethod')}</p>
+                  <p className="font-semibold">{order.payment_method || t('bankTransfer')}</p>
                 </div>
               </div>
 
               {/* Shipping Info */}
               <div className="bg-white rounded shadow p-6">
-                <h2 className="font-bold mb-4">Alamat Pengiriman</h2>
+                <h2 className="font-bold mb-4">{t('shippingAddress')}</h2>
                 <div className="text-sm">
                   <p className="font-semibold">{order.customer_name || '-'}</p>
                   <p>{order.customer_phone || '-'}</p>
@@ -310,7 +307,7 @@ function OrderDetailContent() {
               {/* Notes */}
               {order.notes && (
                 <div className="bg-white rounded shadow p-6">
-                  <h2 className="font-bold mb-4">Catatan</h2>
+                  <h2 className="font-bold mb-4">{t('notes')}</h2>
                   <p className="text-sm text-gray-600">{order.notes}</p>
                 </div>
               )}
@@ -324,14 +321,14 @@ function OrderDetailContent() {
                 to={`/orders/${order.id}/tracking`}
                 className="px-6 py-3 border-2 border-black text-black rounded hover:bg-gray-100 font-semibold"
               >
-                Lacak Pengiriman
+                {t('trackShipment')}
               </Link>
             )}
             <Link
               to="/products"
               className="px-6 py-3 bg-black text-white rounded hover:bg-gray-900 font-semibold"
             >
-              Belanja Lagi
+              {t('startShopping')}
             </Link>
           </div>
         </div>
@@ -342,8 +339,9 @@ function OrderDetailContent() {
 
 // Wrap the component with ErrorBoundary
 export default function OrderDetail() {
+  const { t } = useLanguage();
   return (
-    <ErrorBoundary>
+    <ErrorBoundary t={t}>
       <OrderDetailContent />
     </ErrorBoundary>
   );

@@ -171,7 +171,7 @@ const MainLayoutNew = () => {
               </svg>
             </button>
             
-            <h2 className="text-xl font-bold mb-4">Cari Produk</h2>
+            <h2 className="text-xl font-bold mb-4">{t('searchProduct')}</h2>
             
             <form onSubmit={handleSearchModalSubmit}>
               <div className="relative">
@@ -179,7 +179,7 @@ const MainLayoutNew = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Ketik nama produk, kategori, atau fitting..."
+                  placeholder={t('searchProductsLong')}
                   className="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-black text-lg"
                   autoFocus
                 />
@@ -195,7 +195,7 @@ const MainLayoutNew = () => {
             </form>
             
             <div className="mt-4 text-sm text-gray-500">
-              <p>Tekan <kbd className="px-2 py-1 bg-gray-100 rounded">Enter</kbd> untuk mencari atau <kbd className="px-2 py-1 bg-gray-100 rounded">Esc</kbd> untuk menutup</p>
+              <p>{t('searchHelp')}</p>
             </div>
           </div>
         </div>
@@ -287,7 +287,7 @@ const MainLayoutNew = () => {
                           className="text-black font-semibold hover:underline"
                           onClick={() => setOpenMegaMenu(null)}
                         >
-                          Lihat Semua Produk Wanita →
+                          {t('viewAllWomenProducts')}
                         </Link>
                       </div>
                     </div>
@@ -342,7 +342,7 @@ const MainLayoutNew = () => {
                           className="text-black font-semibold hover:underline"
                           onClick={() => setOpenMegaMenu(null)}
                         >
-                          Lihat Semua Produk Pria →
+                          {t('viewAllMenProducts')}
                         </Link>
                       </div>
                     </div>
@@ -775,7 +775,7 @@ const MainLayoutNew = () => {
           {/* Bottom Bar */}
           <div className="border-t border-gray-700 pt-6 sm:pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center text-xs sm:text-sm text-gray-400 gap-4">
-              <p className="text-center md:text-left">© 2025 {siteName}. All rights reserved.</p>
+              <p className="text-center md:text-left">© 2025 {siteName}. {t('allRightsReserved')}.</p>
               <div className="flex flex-wrap justify-center gap-x-4 gap-y-1">
                 <Link to="/pages/privacy" className="hover:text-white">
                   {t('privacyPolicy')}
