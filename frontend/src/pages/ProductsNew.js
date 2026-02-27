@@ -100,6 +100,7 @@ const Products = () => {
       size: searchParams.get('size') || undefined,
       min_price: searchParams.get('minPrice') || undefined,
       max_price: searchParams.get('maxPrice') || undefined,
+      gender: searchParams.get('gender') || undefined,
       discount: searchParams.get('discount') || undefined,
     };
 
@@ -247,17 +248,48 @@ const Products = () => {
                 <div className="mb-6 pb-6 border-b">
                   <h3 className="font-semibold mb-3 uppercase text-sm">{t('category').toUpperCase()}</h3>
                   <div className="space-y-2">
-                    {categories.map((cat) => (
-                      <label key={cat.id} className="flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={filters.category === String(cat.id)}
-                          onChange={(e) => handleFilterChange('category', e.target.checked ? String(cat.id) : '')}
-                          className="mr-2"
-                        />
-                        <span className="text-sm">{cat.name}</span>
-                      </label>
-                    ))}
+                    {categories
+                      .filter(cat => {
+                        // Filter by gender if selected
+                        if (filters.gender) {
+                          return cat.gender === filters.gender || cat.gender === 'both';
+                        }
+                        return true;
+                      })
+                      .filter(cat => !cat.parent_id) // Show parent categories first
+                      .map((cat) => (
+                        <div key={cat.id}>
+                          <label className="flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={filters.category === String(cat.id)}
+                              onChange={(e) => handleFilterChange('category', e.target.checked ? String(cat.id) : '')}
+                              className="mr-2"
+                            />
+                            <span className="text-sm font-medium">{cat.name}</span>
+                          </label>
+                          {/* Subcategories */}
+                          {categories
+                            .filter(sub => sub.parent_id === cat.id)
+                            .filter(sub => {
+                              if (filters.gender) {
+                                return sub.gender === filters.gender || sub.gender === 'both';
+                              }
+                              return true;
+                            })
+                            .map(sub => (
+                              <label key={sub.id} className="flex items-center cursor-pointer pl-5 mt-1">
+                                <input
+                                  type="checkbox"
+                                  checked={filters.category === String(sub.id)}
+                                  onChange={(e) => handleFilterChange('category', e.target.checked ? String(sub.id) : '')}
+                                  className="mr-2"
+                                />
+                                <span className="text-sm text-gray-600">{sub.name}</span>
+                              </label>
+                            ))}
+                        </div>
+                      ))}
                   </div>
                 </div>
 
@@ -404,20 +436,53 @@ const Products = () => {
                     {/* Category */}
                     <div>
                       <h3 className="font-semibold mb-3 text-sm uppercase">{t('category').toUpperCase()}</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {categories.map((cat) => (
-                          <button
-                            key={cat.id}
-                            onClick={() => handleFilterChange('category', filters.category === String(cat.id) ? '' : String(cat.id))}
-                            className={`px-3 py-2 text-sm border transition ${
-                              filters.category === String(cat.id)
-                                ? 'bg-black text-white border-black'
-                                : 'bg-white text-black border-gray-300'
-                            }`}
-                          >
-                            {cat.name}
-                          </button>
-                        ))}
+                      <div className="space-y-1">
+                        {categories
+                          .filter(cat => {
+                            if (filters.gender) {
+                              return cat.gender === filters.gender || cat.gender === 'both';
+                            }
+                            return true;
+                          })
+                          .filter(cat => !cat.parent_id)
+                          .map((cat) => (
+                            <div key={cat.id}>
+                              <button
+                                onClick={() => handleFilterChange('category', filters.category === String(cat.id) ? '' : String(cat.id))}
+                                className={`w-full text-left px-3 py-2 text-sm border transition mb-1 ${
+                                  filters.category === String(cat.id)
+                                    ? 'bg-black text-white border-black'
+                                    : 'bg-white text-black border-gray-300'
+                                }`}
+                              >
+                                {cat.name}
+                              </button>
+                              {/* Subcategories */}
+                              <div className="flex flex-wrap gap-1 pl-3 mb-2">
+                                {categories
+                                  .filter(sub => sub.parent_id === cat.id)
+                                  .filter(sub => {
+                                    if (filters.gender) {
+                                      return sub.gender === filters.gender || sub.gender === 'both';
+                                    }
+                                    return true;
+                                  })
+                                  .map(sub => (
+                                    <button
+                                      key={sub.id}
+                                      onClick={() => handleFilterChange('category', filters.category === String(sub.id) ? '' : String(sub.id))}
+                                      className={`px-2 py-1 text-xs border transition ${
+                                        filters.category === String(sub.id)
+                                          ? 'bg-black text-white border-black'
+                                          : 'bg-gray-50 text-gray-700 border-gray-200'
+                                      }`}
+                                    >
+                                      {sub.name}
+                                    </button>
+                                  ))}
+                              </div>
+                            </div>
+                          ))}
                       </div>
                     </div>
 

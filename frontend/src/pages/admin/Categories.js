@@ -19,6 +19,7 @@ export default function AdminCategories() {
     description: '',
     image_url: '',
     parent_id: null,
+    gender: 'both',
     is_active: true
   });
 
@@ -99,6 +100,7 @@ export default function AdminCategories() {
       description: '',
       image_url: '',
       parent_id: null,
+      gender: 'both',
       is_active: true
     });
     setEditingId(null);
@@ -111,12 +113,32 @@ export default function AdminCategories() {
     {
       key: 'name',
       label: 'Nama',
-      render: (value) => <span className="font-medium">{value}</span>
+      render: (value, item) => (
+        <div>
+          <span className="font-medium">{value}</span>
+          {item.parent_name && (
+            <span className="block text-xs text-gray-500">Sub dari: {item.parent_name}</span>
+          )}
+        </div>
+      )
     },
     {
       key: 'slug',
       label: 'Slug',
       render: (value) => <span className="text-gray-600 text-sm">{value}</span>
+    },
+    {
+      key: 'gender',
+      label: 'Gender',
+      render: (value) => {
+        const colors = { pria: 'bg-blue-100 text-blue-800', wanita: 'bg-pink-100 text-pink-800', both: 'bg-purple-100 text-purple-800' };
+        const labels = { pria: 'Pria', wanita: 'Wanita', both: 'Keduanya' };
+        return (
+          <span className={`px-2 py-1 rounded text-xs font-medium ${colors[value] || colors.both}`}>
+            {labels[value] || 'Keduanya'}
+          </span>
+        );
+      }
     },
     {
       key: 'is_active',
@@ -160,11 +182,25 @@ export default function AdminCategories() {
       <div className="flex-1 min-w-0">
         <h3 className="font-medium truncate">{category.name}</h3>
         <p className="text-sm text-gray-500 truncate">{category.slug}</p>
-        <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${
-          category.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}>
-          {category.is_active ? 'Aktif' : 'Nonaktif'}
-        </span>
+        <div className="flex flex-wrap items-center gap-1 mt-1">
+          {(() => {
+            const colors = { pria: 'bg-blue-100 text-blue-800', wanita: 'bg-pink-100 text-pink-800', both: 'bg-purple-100 text-purple-800' };
+            const labels = { pria: 'Pria', wanita: 'Wanita', both: 'Keduanya' };
+            return (
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[category.gender] || colors.both}`}>
+                {labels[category.gender] || 'Keduanya'}
+              </span>
+            );
+          })()}
+          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+            category.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+            {category.is_active ? 'Aktif' : 'Nonaktif'}
+          </span>
+          {category.parent_name && (
+            <span className="text-xs text-gray-500">Sub: {category.parent_name}</span>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-1 ml-3">
         <button
@@ -233,6 +269,36 @@ export default function AdminCategories() {
               placeholder="url-friendly-name"
               required
             />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin *</label>
+              <select
+                name="gender"
+                value={formData.gender || 'both'}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option value="pria">Pria</option>
+                <option value="wanita">Wanita</option>
+                <option value="both">Keduanya (Pria & Wanita)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Kategori Induk (Opsional)</label>
+              <select
+                name="parent_id"
+                value={formData.parent_id || ''}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option value="">-- Tidak ada (Kategori Utama) --</option>
+                {categories.filter(c => !c.parent_id && c.id !== editingId).map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Pilih jika ini sub-kategori dari kategori lain</p>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">URL Gambar</label>

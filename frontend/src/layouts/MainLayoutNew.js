@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchCart } from '../redux/slices/cartSlice';
 import { logout } from '../redux/slices/authSlice';
 import { useLanguage, LanguageSwitcher } from '../utils/i18n';
 import { useSettings } from '../utils/SettingsContext';
+import apiClient from '../services/api';
 
 const MainLayoutNew = () => {
   const dispatch = useDispatch();
@@ -21,6 +22,7 @@ const MainLayoutNew = () => {
   const [mobileSubmenu, setMobileSubmenu] = useState(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [menuCategories, setMenuCategories] = useState([]);
 
   // Get settings
   const siteName = getSetting('site_name', 'JEANS');
@@ -31,6 +33,51 @@ const MainLayoutNew = () => {
   const facebookUrl = getSetting('social_facebook', 'https://facebook.com');
   const instagramUrl = getSetting('social_instagram', 'https://instagram.com');
   const youtubeUrl = getSetting('social_youtube', 'https://youtube.com');
+
+  // Fetch categories for mega menu
+  useEffect(() => {
+    const fetchMenuCategories = async () => {
+      try {
+        const response = await apiClient.get('/categories');
+        setMenuCategories(response.data.data || []);
+      } catch (error) {
+        console.error('Error fetching menu categories:', error);
+      }
+    };
+    fetchMenuCategories();
+  }, []);
+
+  // Build mega menus dynamically from categories
+  const megaMenus = useMemo(() => {
+    const buildMenu = (gender) => {
+      // Get parent categories for this gender
+      const parentCats = menuCategories.filter(c => 
+        !c.parent_id && c.is_active && (c.gender === gender || c.gender === 'both')
+      );
+      
+      // Get children for each parent
+      const sections = parentCats.map(parent => {
+        const children = menuCategories.filter(c => 
+          c.parent_id === parent.id && c.is_active && (c.gender === gender || c.gender === 'both')
+        );
+        return {
+          id: parent.id,
+          title: parent.name.toUpperCase(),
+          slug: parent.slug,
+          items: children.length > 0 
+            ? children.map(c => ({ id: c.id, name: c.name, slug: c.slug }))
+            : [{ id: parent.id, name: parent.name, slug: parent.slug }]
+        };
+      });
+      
+      return sections;
+    };
+    
+    return {
+      wanita: buildMenu('wanita'),
+      pria: buildMenu('pria')
+    };
+  }, [menuCategories]);
 
   useEffect(() => {
     dispatch(fetchCart());
@@ -88,45 +135,6 @@ const MainLayoutNew = () => {
   const cartItemCount = Array.isArray(items) 
     ? items.reduce((total, item) => total + (item.quantity || 1), 0) 
     : 0;
-
-  const megaMenus = {
-    pria: [
-      {
-        title: 'BOTTOMS',
-        items: ['Celana Jeans', 'Celana Chino', 'Celana Cargo', 'Shorts']
-      },
-      {
-        title: 'TOPS',
-        items: ['Kemeja', 'T-Shirt', 'Polo Shirt', 'Hoodie']
-      },
-      {
-        title: 'JACKETS',
-        items: ['Denim Jacket', 'Bomber Jacket', 'Varsity Jacket']
-      },
-      {
-        title: 'BY FIT',
-        items: ['Slim Fit', 'Regular Fit', 'Baggy Fit', 'Tapered Fit']
-      }
-    ],
-    wanita: [
-      {
-        title: 'BOTTOMS',
-        items: ['Celana Jeans', 'Celana Kulot', 'Celana Jogger', 'Shorts']
-      },
-      {
-        title: 'TOPS',
-        items: ['Blouse', 'T-Shirt', 'Crop Top', 'Cardigan']
-      },
-      {
-        title: 'JACKETS',
-        items: ['Denim Jacket', 'Blazer', 'Bomber Jacket']
-      },
-      {
-        title: 'BY FIT',
-        items: ['Skinny Fit', 'Mom Fit', 'Boyfriend Fit', 'Barrel Fit']
-      }
-    ]
-  };
 
   // Handle search modal submit
   const handleSearchModalSubmit = (e) => {
@@ -258,36 +266,46 @@ const MainLayoutNew = () => {
                 {/* Mega Menu */}
                 {openMegaMenu === 'wanita' && (
                   <div className="absolute left-0 right-0 top-full mt-0 bg-white shadow-xl border-t-2 border-black z-50">
-                    <div className="container mx-auto px-4 py-8">
-                      <div className="grid grid-cols-4 gap-8">
-                        {megaMenus.wanita.map((section) => (
-                          <div key={section.title}>
-                            <h3 className="font-bold mb-4 text-sm uppercase tracking-wider">
-                              {section.title}
-                            </h3>
-                            <ul className="space-y-2">
-                              {section.items.map((item) => (
-                                <li key={item}>
-                                  <Link
-                                    to={`/products?gender=wanita&category=${item.toLowerCase().replace(' ', '-')}`}
-                                    className="text-gray-600 hover:text-black hover:underline text-sm"
-                                    onClick={() => setOpenMegaMenu(null)}
-                                  >
-                                    {item}
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="container mx-auto px-6 py-8">
+                      {megaMenus.wanita.length > 0 ? (
+                        <div className="flex flex-wrap gap-x-10 gap-y-6">
+                          {megaMenus.wanita.map((section) => (
+                            <div key={section.id} className="min-w-[160px]">
+                              <h3 className="font-bold mb-3 text-sm uppercase tracking-wider border-b border-gray-200 pb-2">
+                                <Link
+                                  to={`/products?gender=wanita&category=${section.slug}`}
+                                  className="hover:underline"
+                                  onClick={() => setOpenMegaMenu(null)}
+                                >
+                                  {section.title}
+                                </Link>
+                              </h3>
+                              <ul className="space-y-1.5">
+                                {section.items.map((item) => (
+                                  <li key={item.id}>
+                                    <Link
+                                      to={`/products?gender=wanita&category=${item.id}`}
+                                      className="text-gray-600 hover:text-black hover:underline text-sm transition-colors"
+                                      onClick={() => setOpenMegaMenu(null)}
+                                    >
+                                      {item.name}
+                                    </Link>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-sm">{t('noCategories')}</p>
+                      )}
                       <div className="mt-6 pt-4 border-t">
                         <Link
                           to="/products?gender=wanita"
-                          className="text-black font-semibold hover:underline"
+                          className="inline-flex items-center gap-1 text-black font-semibold hover:underline text-sm"
                           onClick={() => setOpenMegaMenu(null)}
                         >
-                          {t('viewAllWomenProducts')}
+                          {t('viewAllWomenProducts')} →
                         </Link>
                       </div>
                     </div>
@@ -313,36 +331,46 @@ const MainLayoutNew = () => {
                 {/* Mega Menu */}
                 {openMegaMenu === 'pria' && (
                   <div className="absolute left-0 right-0 top-full mt-0 bg-white shadow-xl border-t-2 border-black z-50">
-                    <div className="container mx-auto px-4 py-8">
-                      <div className="grid grid-cols-4 gap-8">
-                        {megaMenus.pria.map((section) => (
-                          <div key={section.title}>
-                            <h3 className="font-bold mb-4 text-sm uppercase tracking-wider">
-                              {section.title}
-                            </h3>
-                            <ul className="space-y-2">
-                              {section.items.map((item) => (
-                                <li key={item}>
-                                  <Link
-                                    to={`/products?gender=pria&category=${item.toLowerCase().replace(' ', '-')}`}
-                                    className="text-gray-600 hover:text-black hover:underline text-sm"
-                                    onClick={() => setOpenMegaMenu(null)}
-                                  >
-                                    {item}
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="container mx-auto px-6 py-8">
+                      {megaMenus.pria.length > 0 ? (
+                        <div className="flex flex-wrap gap-x-10 gap-y-6">
+                          {megaMenus.pria.map((section) => (
+                            <div key={section.id} className="min-w-[160px]">
+                              <h3 className="font-bold mb-3 text-sm uppercase tracking-wider border-b border-gray-200 pb-2">
+                                <Link
+                                  to={`/products?gender=pria&category=${section.slug}`}
+                                  className="hover:underline"
+                                  onClick={() => setOpenMegaMenu(null)}
+                                >
+                                  {section.title}
+                                </Link>
+                              </h3>
+                              <ul className="space-y-1.5">
+                                {section.items.map((item) => (
+                                  <li key={item.id}>
+                                    <Link
+                                      to={`/products?gender=pria&category=${item.id}`}
+                                      className="text-gray-600 hover:text-black hover:underline text-sm transition-colors"
+                                      onClick={() => setOpenMegaMenu(null)}
+                                    >
+                                      {item.name}
+                                    </Link>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-sm">{t('noCategories')}</p>
+                      )}
                       <div className="mt-6 pt-4 border-t">
                         <Link
                           to="/products?gender=pria"
-                          className="text-black font-semibold hover:underline"
+                          className="inline-flex items-center gap-1 text-black font-semibold hover:underline text-sm"
                           onClick={() => setOpenMegaMenu(null)}
                         >
-                          {t('viewAllMenProducts')}
+                          {t('viewAllMenProducts')} →
                         </Link>
                       </div>
                     </div>
@@ -487,110 +515,115 @@ const MainLayoutNew = () => {
         {/* Mobile Menu - Full Screen Overlay */}
         {isMenuOpen && (
           <div className="lg:hidden fixed inset-0 top-[120px] bg-white z-40 overflow-y-auto">
-            <div className="container mx-auto px-4 py-4">
-              <nav className="space-y-0">
+            <div className="px-4 py-2">
+              <nav>
                 {/* WANITA with submenu */}
-                <div className="border-b">
+                <div className="border-b border-gray-100">
                   <button
                     onClick={() => setMobileSubmenu(mobileSubmenu === 'wanita' ? null : 'wanita')}
-                    className="flex items-center justify-between w-full py-4 font-semibold uppercase tracking-wide"
+                    className="flex items-center justify-between w-full py-3.5 font-semibold uppercase tracking-wide text-sm"
                   >
                     <span>{t('women').toUpperCase()}</span>
-                    <svg className={`w-5 h-5 transition-transform ${mobileSubmenu === 'wanita' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-4 h-4 transition-transform duration-200 ${mobileSubmenu === 'wanita' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-                  {mobileSubmenu === 'wanita' && (
-                    <div className="pb-4 pl-4 space-y-4">
+                  <div className={`overflow-hidden transition-all duration-300 ${mobileSubmenu === 'wanita' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                    <div className="pb-3 grid grid-cols-2 gap-x-4 gap-y-3">
                       {megaMenus.wanita.map((section) => (
-                        <div key={section.title}>
-                          <h4 className="font-medium text-sm text-gray-500 uppercase mb-2">{section.title}</h4>
-                          <div className="space-y-2">
+                        <div key={section.id}>
+                          <h4 className="font-semibold text-xs text-gray-400 uppercase tracking-wider mb-1.5">{section.title}</h4>
+                          <div className="space-y-1">
                             {section.items.map((item) => (
                               <Link
-                                key={item}
-                                to={`/products?gender=wanita&category=${item.toLowerCase().replace(' ', '-')}`}
-                                className="block py-1.5 text-gray-700 hover:text-black text-sm"
+                                key={item.id}
+                                to={`/products?gender=wanita&category=${item.id}`}
+                                className="block py-1 text-gray-700 hover:text-black text-sm"
                                 onClick={() => setIsMenuOpen(false)}
                               >
-                                {item}
+                                {item.name}
                               </Link>
                             ))}
                           </div>
                         </div>
                       ))}
-                      <Link
-                        to="/products?gender=wanita"
-                        className="block py-2 text-black font-medium text-sm underline"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        {t('viewAll')} {t('women')} →
-                      </Link>
                     </div>
-                  )}
+                    <Link
+                      to="/products?gender=wanita"
+                      className="block pb-3 text-black font-medium text-xs underline"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {t('viewAll')} {t('women')} →
+                    </Link>
+                  </div>
                 </div>
 
                 {/* PRIA with submenu */}
-                <div className="border-b">
+                <div className="border-b border-gray-100">
                   <button
                     onClick={() => setMobileSubmenu(mobileSubmenu === 'pria' ? null : 'pria')}
-                    className="flex items-center justify-between w-full py-4 font-semibold uppercase tracking-wide"
+                    className="flex items-center justify-between w-full py-3.5 font-semibold uppercase tracking-wide text-sm"
                   >
                     <span>{t('men').toUpperCase()}</span>
-                    <svg className={`w-5 h-5 transition-transform ${mobileSubmenu === 'pria' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-4 h-4 transition-transform duration-200 ${mobileSubmenu === 'pria' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-                  {mobileSubmenu === 'pria' && (
-                    <div className="pb-4 pl-4 space-y-4">
+                  <div className={`overflow-hidden transition-all duration-300 ${mobileSubmenu === 'pria' ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                    <div className="pb-3 grid grid-cols-2 gap-x-4 gap-y-3">
                       {megaMenus.pria.map((section) => (
-                        <div key={section.title}>
-                          <h4 className="font-medium text-sm text-gray-500 uppercase mb-2">{section.title}</h4>
-                          <div className="space-y-2">
+                        <div key={section.id}>
+                          <h4 className="font-semibold text-xs text-gray-400 uppercase tracking-wider mb-1.5">{section.title}</h4>
+                          <div className="space-y-1">
                             {section.items.map((item) => (
                               <Link
-                                key={item}
-                                to={`/products?gender=pria&category=${item.toLowerCase().replace(' ', '-')}`}
-                                className="block py-1.5 text-gray-700 hover:text-black text-sm"
+                                key={item.id}
+                                to={`/products?gender=pria&category=${item.id}`}
+                                className="block py-1 text-gray-700 hover:text-black text-sm"
                                 onClick={() => setIsMenuOpen(false)}
                               >
-                                {item}
+                                {item.name}
                               </Link>
                             ))}
                           </div>
                         </div>
                       ))}
-                      <Link
-                        to="/products?gender=pria"
-                        className="block py-2 text-black font-medium text-sm underline"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        {t('viewAll')} {t('men')} →
-                      </Link>
                     </div>
-                  )}
+                    <Link
+                      to="/products?gender=pria"
+                      className="block pb-3 text-black font-medium text-xs underline"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {t('viewAll')} {t('men')} →
+                    </Link>
+                  </div>
                 </div>
 
                 <Link
                   to="/products?new=true"
-                  className="block py-4 font-semibold uppercase tracking-wide border-b"
+                  className="block py-3.5 font-semibold uppercase tracking-wide text-sm border-b border-gray-100"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {t('newCollection').toUpperCase()}
                 </Link>
                 <Link
                   to="/products?discount=true"
-                  className="block py-4 font-semibold uppercase tracking-wide text-red-600 border-b"
+                  className="block py-3.5 font-semibold uppercase tracking-wide text-sm text-red-600 border-b border-gray-100"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {t('discount').toUpperCase()}
                 </Link>
 
+                {/* Language Switcher - Mobile */}
+                <div className="py-3 border-b border-gray-100">
+                  <LanguageSwitcher />
+                </div>
+
                 {/* Mobile-only links */}
-                <div className="pt-4 space-y-3">
+                <div className="pt-3 space-y-1">
                   <Link
                     to="/wishlist"
-                    className="flex items-center gap-3 py-2 text-gray-600"
+                    className="flex items-center gap-3 py-2.5 text-gray-600 text-sm"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -602,7 +635,7 @@ const MainLayoutNew = () => {
                     <>
                       <Link
                         to="/profile"
-                        className="flex items-center gap-3 py-2 text-gray-600"
+                        className="flex items-center gap-3 py-2.5 text-gray-600 text-sm"
                         onClick={() => setIsMenuOpen(false)}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -612,7 +645,7 @@ const MainLayoutNew = () => {
                       </Link>
                       <Link
                         to="/orders"
-                        className="flex items-center gap-3 py-2 text-gray-600"
+                        className="flex items-center gap-3 py-2.5 text-gray-600 text-sm"
                         onClick={() => setIsMenuOpen(false)}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -622,7 +655,7 @@ const MainLayoutNew = () => {
                       </Link>
                       <button
                         onClick={() => { handleLogout(); setIsMenuOpen(false); }}
-                        className="flex items-center gap-3 py-2 text-red-600 w-full"
+                        className="flex items-center gap-3 py-2.5 text-red-600 w-full text-sm"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -633,7 +666,7 @@ const MainLayoutNew = () => {
                   ) : (
                     <Link
                       to="/login"
-                      className="flex items-center gap-3 py-2 text-gray-600"
+                      className="flex items-center gap-3 py-2.5 text-gray-600 text-sm"
                       onClick={() => setIsMenuOpen(false)}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

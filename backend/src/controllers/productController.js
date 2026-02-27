@@ -1,11 +1,25 @@
 const { query, transaction } = require('../config/database');
 const { logActivity } = require('../middleware/activityLogger');
 
+// Check if gender column exists (cached)
+let _hasGenderCol = undefined;
+const hasGenderColumn = async () => {
+  if (_hasGenderCol !== undefined) return _hasGenderCol;
+  try {
+    await query('SELECT gender FROM products LIMIT 1');
+    _hasGenderCol = true;
+  } catch (e) {
+    _hasGenderCol = false;
+  }
+  return _hasGenderCol;
+};
+
 // @desc    Get all products with filters
 // @route   GET /api/products
 // @access  Public
 exports.getProducts = async (req, res) => {
   try {
+    const hasGender = await hasGenderColumn();
     const {
       category,
       fitting,
@@ -13,6 +27,7 @@ exports.getProducts = async (req, res) => {
       min_price,
       max_price,
       search,
+      gender,
       sort = 'created_at',
       order = 'DESC',
       page = 1,
@@ -68,6 +83,11 @@ exports.getProducts = async (req, res) => {
       params.push(`%${search}%`, `%${search}%`);
     }
 
+    if (gender && hasGender) {
+      whereConditions.push('(p.gender = ? OR p.gender = ?)');
+      params.push(gender, 'both');
+    }
+
     // Filter only discounted products
     if (req.query.discount === 'true') {
       whereConditions.push(`(
@@ -101,6 +121,7 @@ exports.getProducts = async (req, res) => {
         p.id, p.name, p.slug, p.description, p.short_description,
         p.base_price, p.master_cost_price, p.sku, p.weight, p.is_active, p.is_featured,
         p.category_id, p.fitting_id,
+        ${hasGender ? 'p.gender,' : ''}
         p.discount_percentage,
         p.discount_start_date,
         p.discount_end_date,
@@ -229,7 +250,7 @@ exports.getProduct = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const {
-      name, slug, category_id, fitting_id, description, short_description,
+      name, slug, category_id, fitting_id, gender, description, short_description,
       base_price, master_cost_price, sku, weight, is_featured,
       meta_title, meta_description, meta_keywords, variants
     } = req.body;
@@ -262,18 +283,30 @@ exports.createProduct = async (req, res) => {
       }
     }
 
+    const hasGender = await hasGenderColumn();
+
     const result = await transaction(async (conn) => {
       // Insert product
+      const insertCols = [
+        'name', 'slug', 'category_id', 'fitting_id',
+        ...(hasGender ? ['gender'] : []),
+        'description', 'short_description',
+        'base_price', 'master_cost_price', 'sku', 'weight', 'is_featured',
+        'meta_title', 'meta_description', 'meta_keywords'
+      ];
+      const insertVals = [
+        name, slug, category_id || null, fitting_id || null,
+        ...(hasGender ? [gender || 'both'] : []),
+        description || null, short_description || null,
+        base_price, master_cost_price || null, sku || null,
+        weight || 0, is_featured || false, meta_title || name,
+        meta_description || short_description, meta_keywords || null
+      ];
+      const placeholders = insertCols.map(() => '?').join(', ');
+
       const [productResult] = await conn.execute(
-        `INSERT INTO products 
-        (name, slug, category_id, fitting_id, description, short_description, 
-         base_price, master_cost_price, sku, weight, is_featured,
-         meta_title, meta_description, meta_keywords)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [name, slug, category_id || null, fitting_id || null, description || null,
-         short_description || null, base_price, master_cost_price || null, sku || null,
-         weight || 0, is_featured || false, meta_title || name,
-         meta_description || short_description, meta_keywords || null]
+        `INSERT INTO products (${insertCols.join(', ')}) VALUES (${placeholders})`,
+        insertVals
       );
 
       const productId = productResult.insertId;
@@ -349,9 +382,13 @@ exports.updateProduct = async (req, res) => {
       }
     }
 
+    const hasGender = await hasGenderColumn();
+
     // SKU is not included in allowedFields - it should not be updated after creation
     const allowedFields = [
-      'name', 'slug', 'category_id', 'fitting_id', 'description', 'short_description',
+      'name', 'slug', 'category_id', 'fitting_id',
+      ...(hasGender ? ['gender'] : []),
+      'description', 'short_description',
       'base_price', 'master_cost_price', 'weight', 'is_active', 'is_featured',
       'meta_title', 'meta_description', 'meta_keywords',
       'discount_percentage', 'discount_start_date', 'discount_end_date'

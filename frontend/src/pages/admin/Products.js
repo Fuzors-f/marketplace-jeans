@@ -42,6 +42,7 @@ const AdminProducts = () => {
     slug: '',
     category_id: '',
     fitting_id: '',
+    gender: 'both',
     description: '',
     short_description: '',
     base_price: '',
@@ -95,7 +96,7 @@ const AdminProducts = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await apiClient.get('/categories');
+      const response = await apiClient.get('/categories?include_inactive=true');
       setCategories(response.data.data || []);
     } catch (err) {
       console.error('Error fetching categories:', err);
@@ -215,6 +216,13 @@ const AdminProducts = () => {
       if (name === 'name' && !editingProduct) {
         updated.slug = generateSlug(value);
       }
+      // When gender changes, reset category if it doesn't match
+      if (name === 'gender') {
+        const selectedCat = categories.find(c => c.id === parseInt(prev.category_id));
+        if (selectedCat && selectedCat.gender !== 'both' && selectedCat.gender !== value && value !== 'both') {
+          updated.category_id = '';
+        }
+      }
       return updated;
     });
   };
@@ -295,7 +303,8 @@ const AdminProducts = () => {
         master_cost_price: formData.master_cost_price ? parseFloat(formData.master_cost_price) : null,
         weight: formData.weight ? parseFloat(formData.weight) : 0,
         category_id: formData.category_id || null,
-        fitting_id: formData.fitting_id || null
+        fitting_id: formData.fitting_id || null,
+        gender: formData.gender || 'both'
       };
 
       // Remove SKU from payload when editing - SKU cannot be changed after creation
@@ -424,6 +433,7 @@ const AdminProducts = () => {
       slug: product.slug,
       category_id: product.category_id || '',
       fitting_id: product.fitting_id || '',
+      gender: product.gender || 'both',
       description: product.description || '',
       short_description: product.short_description || '',
       base_price: product.base_price,
@@ -472,6 +482,7 @@ const AdminProducts = () => {
       slug: '',
       category_id: '',
       fitting_id: '',
+      gender: 'both',
       description: '',
       short_description: '',
       base_price: '',
@@ -555,6 +566,19 @@ const AdminProducts = () => {
                     />
                   </div>
                   <div>
+                    <label className="block text-sm font-semibold mb-2">Jenis Kelamin <span className="text-red-500">*</span></label>
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
+                    >
+                      <option value="pria">Pria</option>
+                      <option value="wanita">Wanita</option>
+                      <option value="both">Keduanya (Pria & Wanita)</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-sm font-semibold mb-2">Kategori <span className="text-red-500">*</span></label>
                     <select
                       name="category_id"
@@ -564,10 +588,18 @@ const AdminProducts = () => {
                       className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
                     >
                       <option value="">Pilih Kategori</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
+                      {categories
+                        .filter(cat => !formData.gender || formData.gender === 'both' || cat.gender === formData.gender || cat.gender === 'both')
+                        .map(cat => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.parent_id ? '  ↳ ' : ''}{cat.name}
+                            {cat.gender !== 'both' ? ` (${cat.gender === 'pria' ? 'Pria' : 'Wanita'})` : ''}
+                          </option>
+                        ))}
                     </select>
+                    {formData.gender && formData.gender !== 'both' && (
+                      <p className="text-xs text-gray-500 mt-1">Menampilkan kategori untuk: {formData.gender === 'pria' ? 'Pria' : 'Wanita'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-2">Fitting</label>
@@ -1032,6 +1064,13 @@ const AdminProducts = () => {
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                         <span className="text-sm">{product.category_name || '-'}</span>
+                        {product.gender && product.gender !== 'both' && (
+                          <span className={`ml-1 px-1.5 py-0.5 rounded text-xs font-medium ${
+                            product.gender === 'pria' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'
+                          }`}>
+                            {product.gender === 'pria' ? '♂' : '♀'}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                         <span className="text-sm">{product.fitting_name || '-'}</span>

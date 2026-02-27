@@ -500,6 +500,7 @@ const translations = {
     helpCenter: 'Pusat Bantuan',
     viewAllWomenProducts: 'Lihat Semua Produk Wanita →',
     viewAllMenProducts: 'Lihat Semua Produk Pria →',
+    noCategories: 'Belum ada kategori',
     
     // Language
     language: 'Bahasa',
@@ -1108,6 +1109,7 @@ const translations = {
     helpCenter: 'Help Center',
     viewAllWomenProducts: 'View All Women\'s Products →',
     viewAllMenProducts: 'View All Men\'s Products →',
+    noCategories: 'No categories available',
     
     // Language
     language: 'Language',
