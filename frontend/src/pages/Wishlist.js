@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Helmet } from 'react-helmet-async';
 import api from '../services/api';
 import { getImageUrl, handleImageError } from '../utils/imageUtils';
 import { useAlert } from '../utils/AlertContext';
 import { useLanguage } from '../utils/i18n';
+import { fetchCart } from '../redux/slices/cartSlice';
 
 export default function Wishlist() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { isAuthenticated } = useSelector((state) => state.auth);
   const { showSuccess, showError, showConfirm } = useAlert();
   const { t, formatCurrency } = useLanguage();
@@ -74,6 +76,9 @@ export default function Wishlist() {
           product_variant_id: availableVariant.id,
           quantity: 1
         });
+        
+        // Refresh Redux cart state so the header icon updates
+        dispatch(fetchCart());
         
         showSuccess(t('addedToCartFromWishlist'));
       }

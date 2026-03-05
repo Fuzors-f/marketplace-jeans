@@ -1,6 +1,7 @@
-import React, { useEffect, useState, Component } from 'react';
+import React, { useEffect, useState, useCallback, Component } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
+import { FaQrcode, FaDownload } from 'react-icons/fa';
 import apiClient from '../services/api';
 import { getImageUrl } from '../utils/imageUtils';
 import { useLanguage } from '../utils/i18n';
@@ -47,6 +48,8 @@ function OrderDetailContent() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [qrData, setQrData] = useState(null);
+  const [qrLoading, setQrLoading] = useState(false);
   const { t, formatCurrency } = useLanguage();
 
   useEffect(() => {
@@ -78,6 +81,37 @@ function OrderDetailContent() {
     
     fetchOrder();
   }, [orderId]);
+
+  const fetchQRCode = useCallback(async () => {
+    if (!orderId) return;
+    try {
+      setQrLoading(true);
+      const response = await apiClient.get(`/orders/${orderId}/qrcode-data`);
+      if (response.data.success) {
+        setQrData(response.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching QR code:', err);
+    } finally {
+      setQrLoading(false);
+    }
+  }, [orderId]);
+
+  useEffect(() => {
+    if (order) {
+      fetchQRCode();
+    }
+  }, [order, fetchQRCode]);
+
+  const handleDownloadQR = () => {
+    if (!qrData?.qr_code) return;
+    const link = document.createElement('a');
+    link.href = qrData.qr_code;
+    link.download = `invoice-qr-${qrData.order_number || orderId}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const getStatusBadge = (status) => {
     const statusConfig = {
@@ -311,6 +345,46 @@ function OrderDetailContent() {
                   <p className="text-sm text-gray-600">{order.notes}</p>
                 </div>
               )}
+
+              {/* QR Code Invoice */}
+              <div className="bg-white rounded shadow p-6">
+                <h2 className="font-bold mb-4 flex items-center gap-2">
+                  <FaQrcode className="text-gray-700" />
+                  QR Code Invoice
+                </h2>
+                {qrLoading ? (
+                  <div className="flex justify-center py-6">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+                  </div>
+                ) : qrData ? (
+                  <div className="flex flex-col items-center">
+                    <div className="bg-white border-2 border-gray-200 rounded-lg p-3 mb-3">
+                      <img
+                        src={qrData.qr_code}
+                        alt={`QR Code - ${qrData.order_number}`}
+                        className="w-48 h-48"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mb-1 text-center">
+                      {t('orderNumber')}: {qrData.order_number}
+                    </p>
+                    <p className="text-xs text-gray-400 mb-3 text-center">
+                      Scan untuk melihat detail & status invoice
+                    </p>
+                    <button
+                      onClick={handleDownloadQR}
+                      className="flex items-center gap-2 px-4 py-2 bg-black text-white text-sm rounded-lg hover:bg-gray-800 transition"
+                    >
+                      <FaDownload className="text-xs" />
+                      Download QR
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    QR Code tidak tersedia
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
