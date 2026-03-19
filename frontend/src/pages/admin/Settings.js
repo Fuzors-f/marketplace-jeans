@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Settings, Globe, Mail, CreditCard, Share2, Building, 
-  Save, RefreshCw, Upload, Image, 
+  Save, RefreshCw, Upload, Image, Shield,
   Facebook, Instagram, Twitter, Youtube, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { settingsAPI } from '../../services/api';
@@ -16,6 +16,7 @@ const settingGroups = [
   { id: 'email', label: 'Email SMTP', icon: Mail },
   { id: 'payment', label: 'Payment Gateway', icon: CreditCard },
   { id: 'social', label: 'Media Sosial', icon: Share2 },
+  { id: 'legal', label: 'EULA & Cookie', icon: Shield },
 ];
 
 export default function AdminSettings() {
@@ -515,10 +516,43 @@ export default function AdminSettings() {
         return renderPaymentSettings();
       case 'social':
         return renderSocialSettings();
+      case 'legal':
+        return renderLegalSettings();
       default:
         return renderSiteSettings();
     }
   };
+
+  const renderLegalSettings = () => (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold flex items-center gap-2">
+        <Shield size={20} />
+        EULA & Cookie
+      </h3>
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+        <p className="text-sm text-yellow-700">
+          Konten di bawah ini akan ditampilkan sebagai popup Cookie Consent dan EULA (End User License Agreement) 
+          di halaman depan website. Cookie consent akan muncul saat pengunjung pertama kali mengakses situs.
+        </p>
+      </div>
+      
+      {/* Cookie Notice */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="font-medium mb-3">Teks Pemberitahuan Cookie</h4>
+        {renderSettingInput('cookie_notice_id', 'Teks Cookie (Indonesia)', 'textarea', 'Kami menggunakan cookie untuk meningkatkan pengalaman Anda...', 'Teks yang muncul pada banner cookie di bagian bawah halaman')}
+        {renderSettingInput('cookie_notice_en', 'Teks Cookie (English)', 'textarea', 'We use cookies to improve your experience...', 'Cookie banner text in English')}
+      </div>
+
+      {/* EULA */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="font-medium mb-3">EULA / Syarat & Ketentuan</h4>
+        {renderSettingInput('eula_title_id', 'Judul EULA (Indonesia)', 'text', 'Syarat & Ketentuan')}
+        {renderSettingInput('eula_title_en', 'EULA Title (English)', 'text', 'Terms & Conditions')}
+        {renderSettingInput('eula_content_id', 'Konten EULA (Indonesia)', 'textarea', 'Masukkan syarat & ketentuan dalam Bahasa Indonesia... (HTML didukung)', 'Mendukung format HTML untuk pembentukan teks')}
+        {renderSettingInput('eula_content_en', 'EULA Content (English)', 'textarea', 'Enter terms & conditions in English... (HTML supported)', 'Supports HTML formatting')}
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (

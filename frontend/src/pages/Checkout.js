@@ -437,7 +437,9 @@ const Checkout = () => {
         code: couponCode.toUpperCase(),
         subtotal: subtotal,
         user_id: user?.id || null,
-        guest_email: isGuest ? guestForm.email : null
+        guest_email: isGuest ? guestForm.email : null,
+        item_count: cartItems.length,
+        total_qty: cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0)
       });
 
       if (response.data.success) {

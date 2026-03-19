@@ -37,10 +37,14 @@ const AdminCoupons = () => {
     discount_value: '',
     max_discount: '',
     min_purchase: '',
+    min_items: '',
+    min_item_qty: '',
     start_date: '',
     end_date: '',
     usage_limit: '',
     usage_limit_per_user: '1',
+    coupon_type: 'manual',
+    requirements_text: '',
     is_active: true
   });
 
@@ -84,10 +88,14 @@ const AdminCoupons = () => {
       discount_value: '',
       max_discount: '',
       min_purchase: '',
+      min_items: '',
+      min_item_qty: '',
       start_date: '',
       end_date: '',
       usage_limit: '',
       usage_limit_per_user: '1',
+      coupon_type: 'manual',
+      requirements_text: '',
       is_active: true
     });
     setEditingCoupon(null);
@@ -104,10 +112,14 @@ const AdminCoupons = () => {
         discount_value: coupon.discount_value || '',
         max_discount: coupon.max_discount || '',
         min_purchase: coupon.min_purchase || '',
+        min_items: coupon.min_items || '',
+        min_item_qty: coupon.min_item_qty || '',
         start_date: coupon.start_date ? coupon.start_date.slice(0, 16) : '',
         end_date: coupon.end_date ? coupon.end_date.slice(0, 16) : '',
         usage_limit: coupon.usage_limit || '',
         usage_limit_per_user: coupon.usage_limit_per_user || '1',
+        coupon_type: coupon.coupon_type || 'manual',
+        requirements_text: coupon.requirements_text || '',
         is_active: coupon.is_active !== false
       });
     } else {
@@ -124,10 +136,14 @@ const AdminCoupons = () => {
         discount_value: parseFloat(formData.discount_value) || 0,
         max_discount: formData.max_discount ? parseFloat(formData.max_discount) : null,
         min_purchase: parseFloat(formData.min_purchase) || 0,
+        min_items: formData.min_items ? parseInt(formData.min_items) : null,
+        min_item_qty: formData.min_item_qty ? parseInt(formData.min_item_qty) : null,
         usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
         usage_limit_per_user: parseInt(formData.usage_limit_per_user) || 1,
         start_date: formData.start_date || null,
-        end_date: formData.end_date || null
+        end_date: formData.end_date || null,
+        coupon_type: formData.coupon_type || 'manual',
+        requirements_text: formData.requirements_text || null
       };
 
       if (editingCoupon) {
@@ -250,9 +266,16 @@ const AdminCoupons = () => {
     },
     {
       key: 'min_purchase',
-      label: 'Min. Pembelian',
+      label: 'Syarat',
       sortable: true,
-      render: (value) => value > 0 ? formatCurrency(value) : '-'
+      render: (value, coupon) => (
+        <div className="text-sm">
+          {value > 0 && <div>Min. {formatCurrency(value)}</div>}
+          {coupon.min_items && <div>Min. {coupon.min_items} jenis</div>}
+          {coupon.min_item_qty && <div>Min. {coupon.min_item_qty} qty</div>}
+          {!value && !coupon.min_items && !coupon.min_item_qty && '-'}
+        </div>
+      )
     },
     {
       key: 'usage_count',
@@ -523,7 +546,7 @@ const AdminCoupons = () => {
               {/* Requirements */}
               <div className="border-t pt-4">
                 <h3 className="font-semibold mb-3">Syarat Penggunaan</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Min. Pembelian (Rp)</label>
                     <input
@@ -536,7 +559,80 @@ const AdminCoupons = () => {
                     />
                     <p className="text-xs text-gray-500 mt-1">0 = tanpa minimum</p>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Min. Jenis Item</label>
+                    <input
+                      type="number"
+                      value={formData.min_items}
+                      onChange={(e) => setFormData({ ...formData, min_items: e.target.value })}
+                      placeholder="2"
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      min="0"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Min. produk berbeda di keranjang</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Min. Total Qty Item</label>
+                    <input
+                      type="number"
+                      value={formData.min_item_qty}
+                      onChange={(e) => setFormData({ ...formData, min_item_qty: e.target.value })}
+                      placeholder="3"
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      min="0"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Min. total jumlah item di keranjang</p>
+                  </div>
                 </div>
+
+                {/* Coupon Type */}
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Tipe Kupon</label>
+                    <select
+                      value={formData.coupon_type}
+                      onChange={(e) => setFormData({ ...formData, coupon_type: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="manual">Manual (Input Kode)</option>
+                      <option value="automatic">Otomatis (Aktif saat syarat terpenuhi)</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formData.coupon_type === 'automatic' 
+                        ? 'Kupon otomatis diterapkan saat syarat belanja terpenuhi' 
+                        : 'Customer harus memasukkan kode kupon'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Keterangan Syarat (Opsional)</label>
+                    <input
+                      type="text"
+                      value={formData.requirements_text}
+                      onChange={(e) => setFormData({ ...formData, requirements_text: e.target.value })}
+                      placeholder="Contoh: Beli 3 item jeans untuk diskon 20%"
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Ditampilkan ke customer sebagai info syarat</p>
+                  </div>
+                </div>
+
+                {/* Requirements Summary */}
+                {(formData.min_purchase > 0 || formData.min_items || formData.min_item_qty) && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm font-medium text-blue-800 mb-1">Ringkasan Syarat Kupon:</p>
+                    <ul className="text-sm text-blue-700 list-disc list-inside space-y-0.5">
+                      {formData.min_purchase > 0 && (
+                        <li>Minimum pembelian: Rp {parseInt(formData.min_purchase).toLocaleString('id-ID')}</li>
+                      )}
+                      {formData.min_items && (
+                        <li>Minimum {formData.min_items} jenis produk berbeda di keranjang</li>
+                      )}
+                      {formData.min_item_qty && (
+                        <li>Minimum {formData.min_item_qty} total item di keranjang</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               {/* Validity Period */}
@@ -679,6 +775,30 @@ const AdminCoupons = () => {
                     {selectedCoupon.min_purchase > 0 ? formatCurrency(selectedCoupon.min_purchase) : '-'}
                   </span>
                 </div>
+                {selectedCoupon.min_items && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Min. Jenis Item</span>
+                    <span className="font-medium">{selectedCoupon.min_items} produk</span>
+                  </div>
+                )}
+                {selectedCoupon.min_item_qty && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Min. Total Qty</span>
+                    <span className="font-medium">{selectedCoupon.min_item_qty} item</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Tipe Kupon</span>
+                  <span className="font-medium">
+                    {selectedCoupon.coupon_type === 'automatic' ? '🤖 Otomatis' : '✏️ Manual'}
+                  </span>
+                </div>
+                {selectedCoupon.requirements_text && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Keterangan Syarat</span>
+                    <span className="font-medium text-right max-w-[200px]">{selectedCoupon.requirements_text}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-500">Periode</span>
                   <span className="font-medium">

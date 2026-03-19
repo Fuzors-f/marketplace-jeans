@@ -206,6 +206,22 @@ exports.validateCoupon = async (req, res) => {
       });
     }
 
+    // Check minimum items (different products in cart)
+    if (coupon.min_items && req.body.item_count != null && req.body.item_count < coupon.min_items) {
+      return res.status(400).json({
+        success: false,
+        message: `Minimum ${coupon.min_items} jenis item di keranjang untuk menggunakan kupon ini`
+      });
+    }
+
+    // Check minimum item quantity (total quantity)
+    if (coupon.min_item_qty && req.body.total_qty != null && req.body.total_qty < coupon.min_item_qty) {
+      return res.status(400).json({
+        success: false,
+        message: `Minimum ${coupon.min_item_qty} total item di keranjang untuk menggunakan kupon ini`
+      });
+    }
+
     // Calculate discount
     let discountAmount = 0;
     if (coupon.discount_type === 'percentage') {
@@ -232,7 +248,11 @@ exports.validateCoupon = async (req, res) => {
         discount_value: coupon.discount_value,
         max_discount: coupon.max_discount,
         discount_amount: discountAmount,
-        min_purchase: coupon.min_purchase
+        min_purchase: coupon.min_purchase,
+        min_items: coupon.min_items,
+        min_item_qty: coupon.min_item_qty,
+        coupon_type: coupon.coupon_type,
+        requirements_text: coupon.requirements_text
       }
     });
   } catch (error) {
@@ -258,12 +278,16 @@ exports.createCoupon = async (req, res) => {
       discount_value,
       max_discount,
       min_purchase = 0,
+      min_items,
+      min_item_qty,
       start_date,
       end_date,
       usage_limit,
       usage_limit_per_user = 1,
       applicable_products,
       applicable_categories,
+      coupon_type = 'manual',
+      requirements_text,
       is_active = true
     } = req.body;
 
@@ -299,9 +323,10 @@ exports.createCoupon = async (req, res) => {
     const result = await query(
       `INSERT INTO coupons 
        (code, name, description, discount_type, discount_value, max_discount, min_purchase,
+        min_items, min_item_qty,
         start_date, end_date, usage_limit, usage_limit_per_user, 
-        applicable_products, applicable_categories, is_active, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        applicable_products, applicable_categories, coupon_type, requirements_text, is_active, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         code.toUpperCase(),
         name,
@@ -310,12 +335,16 @@ exports.createCoupon = async (req, res) => {
         discount_value,
         max_discount || null,
         min_purchase,
+        min_items || null,
+        min_item_qty || null,
         start_date || null,
         end_date || null,
         usage_limit || null,
         usage_limit_per_user,
         applicable_products ? JSON.stringify(applicable_products) : null,
         applicable_categories ? JSON.stringify(applicable_categories) : null,
+        coupon_type,
+        requirements_text || null,
         is_active,
         req.user?.id || null
       ]
@@ -350,12 +379,16 @@ exports.updateCoupon = async (req, res) => {
       discount_value,
       max_discount,
       min_purchase,
+      min_items,
+      min_item_qty,
       start_date,
       end_date,
       usage_limit,
       usage_limit_per_user,
       applicable_products,
       applicable_categories,
+      coupon_type,
+      requirements_text,
       is_active
     } = req.body;
 
@@ -393,6 +426,8 @@ exports.updateCoupon = async (req, res) => {
     if (discount_value !== undefined) { updates.push('discount_value = ?'); values.push(discount_value); }
     if (max_discount !== undefined) { updates.push('max_discount = ?'); values.push(max_discount || null); }
     if (min_purchase !== undefined) { updates.push('min_purchase = ?'); values.push(min_purchase); }
+    if (min_items !== undefined) { updates.push('min_items = ?'); values.push(min_items || null); }
+    if (min_item_qty !== undefined) { updates.push('min_item_qty = ?'); values.push(min_item_qty || null); }
     if (start_date !== undefined) { updates.push('start_date = ?'); values.push(start_date || null); }
     if (end_date !== undefined) { updates.push('end_date = ?'); values.push(end_date || null); }
     if (usage_limit !== undefined) { updates.push('usage_limit = ?'); values.push(usage_limit || null); }
@@ -405,6 +440,8 @@ exports.updateCoupon = async (req, res) => {
       updates.push('applicable_categories = ?'); 
       values.push(applicable_categories ? JSON.stringify(applicable_categories) : null); 
     }
+    if (coupon_type !== undefined) { updates.push('coupon_type = ?'); values.push(coupon_type); }
+    if (requirements_text !== undefined) { updates.push('requirements_text = ?'); values.push(requirements_text || null); }
     if (is_active !== undefined) { updates.push('is_active = ?'); values.push(is_active); }
 
     if (updates.length === 0) {
@@ -556,6 +593,7 @@ exports.getPublicCoupons = async (req, res) => {
   try {
     const coupons = await query(
       `SELECT code, name, description, discount_type, discount_value, max_discount, min_purchase,
+              min_items, min_item_qty, coupon_type, requirements_text,
               start_date, end_date
        FROM coupons
        WHERE is_active = true

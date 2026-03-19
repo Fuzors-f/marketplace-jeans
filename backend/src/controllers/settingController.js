@@ -46,6 +46,14 @@ const defaultSettings = [
   { key: 'social_twitter', value: '', type: 'text', description: 'Twitter URL', is_public: true, group: 'social' },
   { key: 'social_tiktok', value: '', type: 'text', description: 'TikTok URL', is_public: true, group: 'social' },
   { key: 'social_youtube', value: '', type: 'text', description: 'YouTube URL', is_public: true, group: 'social' },
+
+  // EULA & Cookie settings
+  { key: 'cookie_notice_id', value: 'Kami menggunakan cookie untuk meningkatkan pengalaman Anda di situs kami. Dengan melanjutkan menjelajah, Anda menyetujui penggunaan cookie kami.', type: 'textarea', description: 'Cookie notice text (Indonesian)', is_public: true, group: 'legal' },
+  { key: 'cookie_notice_en', value: 'We use cookies to improve your experience on our site. By continuing to browse, you agree to our use of cookies.', type: 'textarea', description: 'Cookie notice text (English)', is_public: true, group: 'legal' },
+  { key: 'eula_title_id', value: 'Syarat & Ketentuan', type: 'text', description: 'EULA title (Indonesian)', is_public: true, group: 'legal' },
+  { key: 'eula_title_en', value: 'Terms & Conditions', type: 'text', description: 'EULA title (English)', is_public: true, group: 'legal' },
+  { key: 'eula_content_id', value: '', type: 'textarea', description: 'EULA content (Indonesian)', is_public: true, group: 'legal' },
+  { key: 'eula_content_en', value: '', type: 'textarea', description: 'EULA content (English)', is_public: true, group: 'legal' },
 ];
 
 // @desc    Get all settings

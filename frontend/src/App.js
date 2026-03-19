@@ -9,6 +9,7 @@ import AdminLayout from './layouts/AdminLayout';
 
 // Components
 import ScrollToTop from './components/ScrollToTop';
+import CookieConsent from './components/CookieConsent';
 
 // Public Pages
 import Home from './pages/Home';
@@ -60,6 +61,9 @@ import AdminBlogs from './pages/admin/Blogs';
 import BlogList from './pages/BlogList';
 import BlogDetail from './pages/BlogDetail';
 
+// Static Pages
+import StaticPage from './pages/StaticPage';
+
 // Components
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
@@ -79,6 +83,7 @@ function App() {
   return (
     <>
       <ScrollToTop />
+      <CookieConsent />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<MainLayoutNew />}>
@@ -94,6 +99,7 @@ function App() {
         <Route path="orders/:orderId/success" element={<OrderSuccess />} />
           <Route path="blog" element={<BlogList />} />
           <Route path="blog/:slug" element={<BlogDetail />} />
+          <Route path="pages/:slug" element={<StaticPage />} />
         
         {/* Private Routes */}
         <Route path="profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
