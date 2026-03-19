@@ -1,0 +1,411 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  FaShoppingCart, FaFileExcel, FaCalendarAlt, FaFilter, FaSpinner,
+  FaMoneyBillWave, FaSearch, FaClock, FaCheckCircle, FaCogs,
+  FaChevronLeft, FaChevronRight, FaEye, FaTimes
+} from 'react-icons/fa';
+import api from '../../services/api';
+
+const statusLabels = {
+  pending: { label: 'Menunggu', color: 'bg-yellow-100 text-yellow-800' },
+  confirmed: { label: 'Dikonfirmasi', color: 'bg-blue-100 text-blue-800' },
+  processing: { label: 'Diproses', color: 'bg-indigo-100 text-indigo-800' },
+  shipped: { label: 'Dikirim', color: 'bg-purple-100 text-purple-800' },
+  delivered: { label: 'Diterima', color: 'bg-green-100 text-green-800' },
+  cancelled: { label: 'Dibatalkan', color: 'bg-red-100 text-red-800' },
+};
+
+const paymentLabels = {
+  pending: { label: 'Belum Bayar', color: 'bg-orange-100 text-orange-800' },
+  paid: { label: 'Lunas', color: 'bg-green-100 text-green-800' },
+  failed: { label: 'Gagal', color: 'bg-red-100 text-red-800' },
+  refunded: { label: 'Refund', color: 'bg-gray-100 text-gray-800' },
+};
+
+export default function IncomingOrdersReport() {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState({ summary: {}, orders: [], daily: [], pagination: {} });
+  const [filters, setFilters] = useState({
+    start_date: new Date(new Date().setDate(1)).toISOString().split('T')[0],
+    end_date: new Date().toISOString().split('T')[0],
+    status: '',
+    payment_status: '',
+    payment_method: '',
+    warehouse_id: '',
+    search: '',
+    page: 1,
+    limit: 25
+  });
+  const [warehouses, setWarehouses] = useState([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [detailOrder, setDetailOrder] = useState(null);
+  const [detailItems, setDetailItems] = useState([]);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  useEffect(() => {
+    api.get('/warehouses').then(res => {
+      if (res.data.success) setWarehouses(res.data.data);
+    }).catch(() => {});
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = Object.fromEntries(
+        Object.entries(filters).filter(([, v]) => v !== '' && v !== null)
+      );
+      const res = await api.get('/reports/orders-incoming', { params });
+      if (res.data.success) setData(res.data.data);
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleExport = async () => {
+    try {
+      const params = Object.fromEntries(
+        Object.entries(filters).filter(([k, v]) => v !== '' && v !== null && k !== 'page' && k !== 'limit')
+      );
+      const res = await api.get('/reports/orders-incoming/export', { params, responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `orderan-masuk-${filters.start_date}-${filters.end_date}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Gagal export: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const showDetail = async (order) => {
+    setDetailOrder(order);
+    setLoadingDetail(true);
+    try {
+      const res = await api.get(`/orders/${order.id}`);
+      if (res.data.success) {
+        setDetailItems(res.data.data.items || []);
+      }
+    } catch {
+      setDetailItems([]);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const formatCurrency = (v) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v || 0);
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+  const { summary, orders, daily, pagination } = data;
+
+  return (
+    <div className="p-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <FaShoppingCart className="text-blue-600" /> Laporan Orderan Masuk
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">Semua pesanan yang masuk ke sistem</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg hover:bg-gray-50 text-sm">
+            <FaFilter /> Filter
+          </button>
+          <button onClick={handleExport} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm">
+            <FaFileExcel /> Export Excel
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      {showFilters && (
+        <div className="bg-white rounded-lg shadow p-4 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Dari Tanggal</label>
+              <input type="date" value={filters.start_date} onChange={e => setFilters(p => ({ ...p, start_date: e.target.value, page: 1 }))}
+                className="w-full px-2 py-1.5 border rounded text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Sampai Tanggal</label>
+              <input type="date" value={filters.end_date} onChange={e => setFilters(p => ({ ...p, end_date: e.target.value, page: 1 }))}
+                className="w-full px-2 py-1.5 border rounded text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Status Order</label>
+              <select value={filters.status} onChange={e => setFilters(p => ({ ...p, status: e.target.value, page: 1 }))}
+                className="w-full px-2 py-1.5 border rounded text-sm">
+                <option value="">Semua</option>
+                <option value="pending">Menunggu</option>
+                <option value="confirmed">Dikonfirmasi</option>
+                <option value="processing">Diproses</option>
+                <option value="shipped">Dikirim</option>
+                <option value="delivered">Diterima</option>
+                <option value="cancelled">Dibatalkan</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Status Bayar</label>
+              <select value={filters.payment_status} onChange={e => setFilters(p => ({ ...p, payment_status: e.target.value, page: 1 }))}
+                className="w-full px-2 py-1.5 border rounded text-sm">
+                <option value="">Semua</option>
+                <option value="pending">Belum Bayar</option>
+                <option value="paid">Lunas</option>
+                <option value="failed">Gagal</option>
+                <option value="refunded">Refund</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Metode Bayar</label>
+              <select value={filters.payment_method} onChange={e => setFilters(p => ({ ...p, payment_method: e.target.value, page: 1 }))}
+                className="w-full px-2 py-1.5 border rounded text-sm">
+                <option value="">Semua</option>
+                <option value="bank_transfer">Transfer Bank</option>
+                <option value="cod">COD</option>
+                <option value="cash">Cash</option>
+                <option value="midtrans">Midtrans</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Gudang</label>
+              <select value={filters.warehouse_id} onChange={e => setFilters(p => ({ ...p, warehouse_id: e.target.value, page: 1 }))}
+                className="w-full px-2 py-1.5 border rounded text-sm">
+                <option value="">Semua</option>
+                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 mt-3">
+            <div className="flex-1 relative">
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={12} />
+              <input type="text" placeholder="Cari no order, nama customer, email..."
+                value={filters.search} onChange={e => setFilters(p => ({ ...p, search: e.target.value, page: 1 }))}
+                className="w-full pl-8 pr-3 py-1.5 border rounded text-sm" />
+            </div>
+            <button onClick={() => setFilters(p => ({ ...p, status: '', payment_status: '', payment_method: '', warehouse_id: '', search: '', page: 1 }))}
+              className="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap">
+              Reset Filter
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <FaShoppingCart className="text-blue-500" size={14} />
+            <span className="text-xs text-gray-500">Total Order</span>
+          </div>
+          <p className="text-xl font-bold text-gray-800">{summary.total_orders || 0}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <FaMoneyBillWave className="text-green-500" size={14} />
+            <span className="text-xs text-gray-500">Total Revenue</span>
+          </div>
+          <p className="text-lg font-bold text-gray-800">{formatCurrency(summary.total_revenue)}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <FaClock className="text-yellow-500" size={14} />
+            <span className="text-xs text-gray-500">Pending</span>
+          </div>
+          <p className="text-xl font-bold text-yellow-600">{summary.pending_count || 0}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <FaCheckCircle className="text-blue-500" size={14} />
+            <span className="text-xs text-gray-500">Dikonfirmasi</span>
+          </div>
+          <p className="text-xl font-bold text-blue-600">{summary.confirmed_count || 0}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <FaCogs className="text-indigo-500" size={14} />
+            <span className="text-xs text-gray-500">Diproses</span>
+          </div>
+          <p className="text-xl font-bold text-indigo-600">{summary.processing_count || 0}</p>
+        </div>
+      </div>
+
+      {/* Orders Table */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="px-4 py-3 border-b flex items-center justify-between">
+          <h3 className="font-semibold text-gray-700">Daftar Pesanan</h3>
+          <span className="text-xs text-gray-500">{pagination.total || 0} pesanan</span>
+        </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <FaSpinner className="animate-spin text-blue-500 text-2xl" />
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <FaShoppingCart className="mx-auto text-4xl mb-2" />
+            <p>Tidak ada pesanan ditemukan</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">No Order</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                  <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Bayar</th>
+                  <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Item</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                  <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {orders.map(order => {
+                  const s = statusLabels[order.status] || { label: order.status, color: 'bg-gray-100 text-gray-800' };
+                  const p = paymentLabels[order.payment_status] || { label: order.payment_status, color: 'bg-gray-100 text-gray-800' };
+                  return (
+                    <tr key={order.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-sm font-medium text-blue-600">{order.order_number}</td>
+                      <td className="px-3 py-2 text-sm text-gray-600">{formatDate(order.created_at)}</td>
+                      <td className="px-3 py-2">
+                        <div className="text-sm font-medium text-gray-800">{order.customer_name}</div>
+                        <div className="text-xs text-gray-500">{order.customer_phone}</div>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${s.color}`}>{s.label}</span>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${p.color}`}>{p.label}</span>
+                      </td>
+                      <td className="px-3 py-2 text-center text-sm">{order.total_qty || 0} pcs</td>
+                      <td className="px-3 py-2 text-right text-sm font-semibold">{formatCurrency(order.total_amount)}</td>
+                      <td className="px-3 py-2 text-center">
+                        <button onClick={() => showDetail(order)} className="text-blue-500 hover:text-blue-700" title="Detail">
+                          <FaEye size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {pagination.pages > 1 && (
+          <div className="px-4 py-3 border-t flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              Halaman {pagination.page} dari {pagination.pages}
+            </span>
+            <div className="flex gap-1">
+              <button disabled={pagination.page <= 1} onClick={() => setFilters(p => ({ ...p, page: p.page - 1 }))}
+                className="px-2 py-1 border rounded text-sm disabled:opacity-40 hover:bg-gray-50">
+                <FaChevronLeft size={12} />
+              </button>
+              <button disabled={pagination.page >= pagination.pages} onClick={() => setFilters(p => ({ ...p, page: p.page + 1 }))}
+                className="px-2 py-1 border rounded text-sm disabled:opacity-40 hover:bg-gray-50">
+                <FaChevronRight size={12} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Daily Breakdown */}
+      {daily.length > 0 && (
+        <div className="bg-white rounded-lg shadow mt-6 overflow-hidden">
+          <div className="px-4 py-3 border-b">
+            <h3 className="font-semibold text-gray-700 flex items-center gap-2">
+              <FaCalendarAlt className="text-gray-400" /> Breakdown Harian
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Jumlah Order</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {daily.map((d, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 text-sm font-medium">
+                      {new Date(d.date).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-2 text-center">
+                      <span className="inline-flex px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">{d.orders}</span>
+                    </td>
+                    <td className="px-4 py-2 text-right text-sm font-semibold">{formatCurrency(d.revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {detailOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h3 className="font-bold text-lg">Detail Pesanan {detailOrder.order_number}</h3>
+              <button onClick={() => setDetailOrder(null)} className="text-gray-400 hover:text-gray-600"><FaTimes /></button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-gray-500">Customer:</span> <span className="font-medium">{detailOrder.customer_name}</span></div>
+                <div><span className="text-gray-500">Telepon:</span> <span className="font-medium">{detailOrder.customer_phone}</span></div>
+                <div><span className="text-gray-500">Status:</span> <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusLabels[detailOrder.status]?.color}`}>{statusLabels[detailOrder.status]?.label}</span></div>
+                <div><span className="text-gray-500">Bayar:</span> <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${paymentLabels[detailOrder.payment_status]?.color}`}>{paymentLabels[detailOrder.payment_status]?.label}</span></div>
+                <div><span className="text-gray-500">Metode:</span> <span className="font-medium">{detailOrder.payment_method}</span></div>
+                <div><span className="text-gray-500">Kurir:</span> <span className="font-medium">{detailOrder.courier || '-'}</span></div>
+                <div><span className="text-gray-500">Gudang:</span> <span className="font-medium">{detailOrder.warehouse_name || '-'}</span></div>
+                <div><span className="text-gray-500">Tanggal:</span> <span className="font-medium">{formatDate(detailOrder.created_at)}</span></div>
+              </div>
+              {detailOrder.notes && (
+                <div className="bg-yellow-50 rounded p-2 text-sm"><span className="text-gray-500">Catatan:</span> {detailOrder.notes}</div>
+              )}
+              <div className="border-t pt-3">
+                <h4 className="font-semibold text-sm mb-2">Item Pesanan</h4>
+                {loadingDetail ? (
+                  <div className="text-center py-4"><FaSpinner className="animate-spin text-blue-500 mx-auto" /></div>
+                ) : detailItems.length > 0 ? (
+                  <div className="space-y-2">
+                    {detailItems.map((item, i) => (
+                      <div key={i} className="flex justify-between items-center bg-gray-50 rounded p-2 text-sm">
+                        <div>
+                          <span className="font-medium">{item.product_name}</span>
+                          <span className="text-gray-500 ml-1">({item.size_name})</span>
+                          <span className="text-gray-400 ml-1">x{item.quantity}</span>
+                        </div>
+                        <span className="font-semibold">{formatCurrency(item.subtotal)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="text-gray-400 text-sm">Tidak ada item</p>}
+              </div>
+              <div className="border-t pt-3 space-y-1 text-sm">
+                <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{formatCurrency(detailOrder.subtotal)}</span></div>
+                {(detailOrder.discount_amount > 0 || detailOrder.coupon_discount > 0) && (
+                  <div className="flex justify-between text-red-600"><span>Diskon</span><span>-{formatCurrency((detailOrder.discount_amount || 0) + (detailOrder.coupon_discount || 0))}</span></div>
+                )}
+                <div className="flex justify-between"><span className="text-gray-500">Ongkir</span><span>{formatCurrency(detailOrder.shipping_cost)}</span></div>
+                <div className="flex justify-between font-bold text-base border-t pt-1"><span>Total</span><span>{formatCurrency(detailOrder.total_amount)}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

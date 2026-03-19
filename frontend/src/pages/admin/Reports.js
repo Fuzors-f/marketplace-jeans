@@ -41,6 +41,7 @@ export default function AdminReports() {
   });
   const [warehouses, setWarehouses] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [marginMethod, setMarginMethod] = useState('latest');
 
   useEffect(() => {
     fetchMasterData();
@@ -72,6 +73,7 @@ export default function AdminReports() {
           const salesRes = await api.get('/reports/sales', { params: filters });
           if (salesRes.data.success) {
             setSalesData(salesRes.data.data);
+            if (salesRes.data.data.margin_method) setMarginMethod(salesRes.data.data.margin_method);
           } else {
             setError('Gagal memuat laporan penjualan');
           }
@@ -80,6 +82,7 @@ export default function AdminReports() {
           const productRes = await api.get('/reports/products', { params: filters });
           if (productRes.data.success) {
             setProductData(productRes.data.data);
+            if (productRes.data.margin_method) setMarginMethod(productRes.data.margin_method);
           } else {
             setError('Gagal memuat laporan produk');
           }
@@ -384,6 +387,9 @@ export default function AdminReports() {
                       <div className="flex items-center gap-2 mb-2">
                         <FaBoxes className="text-orange-600" />
                         <span className="text-sm text-orange-800">Total HPP</span>
+                        <span className="text-xs bg-orange-200 text-orange-700 px-1.5 py-0.5 rounded">
+                          {marginMethod === 'average' ? 'Rata-rata' : 'Terakhir'}
+                        </span>
                       </div>
                       <p className="text-lg font-bold text-orange-900">
                         {formatCurrency(salesData.summary?.total_hpp)}

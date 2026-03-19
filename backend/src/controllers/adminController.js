@@ -331,9 +331,9 @@ exports.updateOrderStatus = async (req, res) => {
 
             await conn.execute(
               `INSERT INTO inventory_movements 
-              (product_variant_id, type, quantity, reference_type, reference_id, notes, created_by)
-              VALUES (?, 'in', ?, 'order_cancelled', ?, 'Stok dikembalikan karena pesanan dibatalkan', ?)`,
-              [item.product_variant_id, item.quantity, id, req.user.id]
+              (product_variant_id, type, quantity, cost_price, reference_type, reference_id, notes, created_by)
+              VALUES (?, 'in', ?, (SELECT cost_price FROM product_variants WHERE id = ?), 'order_cancelled', ?, 'Stok dikembalikan karena pesanan dibatalkan', ?)`,
+              [item.product_variant_id, item.quantity, item.product_variant_id, id, req.user.id]
             );
           }
         }
@@ -681,9 +681,9 @@ exports.createManualOrder = async (req, res) => {
           // Log inventory movement
           await conn.execute(
             `INSERT INTO inventory_movements 
-            (product_variant_id, type, quantity, reference_type, reference_id, notes, created_by)
-            VALUES (?, 'out', ?, 'order', ?, 'Manual order', ?)`,
-            [productVariantId, item.quantity, newOrderId, req.user.id]
+            (product_variant_id, type, quantity, cost_price, reference_type, reference_id, notes, created_by)
+            VALUES (?, 'out', ?, (SELECT cost_price FROM product_variants WHERE id = ?), 'order', ?, 'Manual order', ?)`,
+            [productVariantId, item.quantity, productVariantId, newOrderId, req.user.id]
           );
         }
 

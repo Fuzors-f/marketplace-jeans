@@ -128,9 +128,9 @@ exports.createVariantStock = async (req, res) => {
     if (stock_quantity > 0) {
       await connection.query(
         `INSERT INTO inventory_movements 
-        (product_variant_id, type, quantity, reference_type, notes, created_by)
-        VALUES (?, 'in', ?, 'initial_stock', 'Stok awal dari pembuatan varian', ?)`,
-        [product_variant_id, stock_quantity, created_by]
+        (product_variant_id, type, quantity, cost_price, reference_type, notes, created_by)
+        VALUES (?, 'in', ?, ?, 'initial_stock', 'Stok awal dari pembuatan varian', ?)`,
+        [product_variant_id, stock_quantity, cost_price || 0, created_by]
       );
     }
     
@@ -199,9 +199,9 @@ exports.addOpeningStock = async (req, res) => {
       // Record inventory movement
       await connection.query(
         `INSERT INTO inventory_movements 
-        (product_variant_id, type, quantity, reference_type, notes, created_by)
-        VALUES (?, 'in', ?, 'initial_stock', 'Stok awal', ?)`,
-        [variant_id, quantity, created_by]
+        (product_variant_id, type, quantity, cost_price, reference_type, notes, created_by)
+        VALUES (?, 'in', ?, ?, 'initial_stock', 'Stok awal', ?)`,
+        [variant_id, quantity, cost_price || 0, created_by]
       );
       
     } else {
@@ -249,9 +249,9 @@ exports.addOpeningStock = async (req, res) => {
       // Record inventory movement
       await connection.query(
         `INSERT INTO inventory_movements 
-        (product_variant_id, type, quantity, reference_type, notes, created_by)
-        VALUES (?, 'in', ?, 'initial_stock', 'Stok awal', ?)`,
-        [variantId, quantity, created_by]
+        (product_variant_id, type, quantity, cost_price, reference_type, notes, created_by)
+        VALUES (?, 'in', ?, ?, 'initial_stock', 'Stok awal', ?)`,
+        [variantId, quantity, cost_price || 0, created_by]
       );
     }
     
@@ -344,9 +344,9 @@ exports.adjustStock = async (req, res) => {
     // Record inventory movement
     await connection.query(
       `INSERT INTO inventory_movements 
-      (product_variant_id, type, quantity, reference_type, notes, created_by)
-      VALUES (?, ?, ?, 'adjustment', ?, ?)`,
-      [variantData.id, quantityChange > 0 ? 'in' : 'out', Math.abs(quantityChange), notes || 'Adjustment manual', created_by]
+      (product_variant_id, type, quantity, cost_price, reference_type, notes, created_by)
+      VALUES (?, ?, ?, ?, 'adjustment', ?, ?)`,
+      [variantData.id, quantityChange > 0 ? 'in' : 'out', Math.abs(quantityChange), newCostPrice, notes || 'Adjustment manual', created_by]
     );
     
     await connection.commit();

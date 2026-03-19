@@ -86,6 +86,8 @@ const AdminLayout = () => {
       children: [
         { path: '/admin/reports', icon: FaChartBar, label: 'Dashboard Laporan', resource: 'reports' },
         { path: '/admin/reports/sales', icon: FaMoneyBillWave, label: 'Laporan Penjualan', resource: 'reports' },
+        { path: '/admin/reports/orders-incoming', icon: FaClipboardList, label: 'Orderan Masuk', resource: 'reports' },
+        { path: '/admin/reports/orders-shipped', icon: FaTruck, label: 'Orderan Terkirim', resource: 'reports' },
         { path: '/admin/activity-logs', icon: FaHistory, label: 'Activity Logs', resource: 'activity_logs' },
       ]
     },

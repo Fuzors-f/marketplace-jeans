@@ -5,7 +5,11 @@ const {
   getProductReport,
   getInventoryReport,
   exportSalesReport,
-  exportInventoryReport
+  exportInventoryReport,
+  getIncomingOrdersReport,
+  getShippedOrdersReport,
+  exportIncomingOrders,
+  exportShippedOrders
 } = require('../controllers/reportController');
 const {
   getInventoryMovementReport,
@@ -29,5 +33,11 @@ router.get('/inventory/export', protect, authorize('admin', 'admin_stok'), expor
 router.get('/inventory-movement', protect, authorize('admin', 'admin_stok'), getInventoryMovementReport);
 router.get('/inventory-movement/summary', protect, authorize('admin', 'admin_stok'), getInventoryMovementSummary);
 router.get('/inventory-movement/export', protect, authorize('admin', 'admin_stok'), exportInventoryMovement);
+
+// Order reports
+router.get('/orders-incoming', protect, authorize('admin'), getIncomingOrdersReport);
+router.get('/orders-incoming/export', protect, authorize('admin'), exportIncomingOrders);
+router.get('/orders-shipped', protect, authorize('admin'), getShippedOrdersReport);
+router.get('/orders-shipped/export', protect, authorize('admin'), exportShippedOrders);
 
 module.exports = router;

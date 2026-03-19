@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Settings, Globe, Mail, CreditCard, Share2, Building, 
-  Save, RefreshCw, Upload, Image, Shield,
+  Save, RefreshCw, Upload, Image, Shield, BarChart3,
   Facebook, Instagram, Twitter, Youtube, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { settingsAPI } from '../../services/api';
@@ -17,6 +17,7 @@ const settingGroups = [
   { id: 'payment', label: 'Payment Gateway', icon: CreditCard },
   { id: 'social', label: 'Media Sosial', icon: Share2 },
   { id: 'legal', label: 'EULA & Cookie', icon: Shield },
+  { id: 'report', label: 'Pengaturan Laporan', icon: BarChart3 },
 ];
 
 export default function AdminSettings() {
@@ -518,10 +519,56 @@ export default function AdminSettings() {
         return renderSocialSettings();
       case 'legal':
         return renderLegalSettings();
+      case 'report':
+        return renderReportSettings();
       default:
         return renderSiteSettings();
     }
   };
+
+  const renderReportSettings = () => (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold flex items-center gap-2">
+        <BarChart3 size={20} />
+        Pengaturan Laporan
+      </h3>
+
+      {/* Margin Calculation Method */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="font-medium mb-3">Metode Perhitungan HPP (Margin)</h4>
+        <p className="text-sm text-gray-500 mb-4">
+          Pilih metode perhitungan Harga Pokok Penjualan (HPP) untuk kalkulasi margin pada laporan.
+        </p>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Metode HPP</label>
+          <select
+            value={settings['margin_calculation_method'] || 'latest'}
+            onChange={(e) => handleChange('margin_calculation_method', e.target.value)}
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="latest">HPP Terakhir (Latest Cost)</option>
+            <option value="average">Rata-rata HPP (Average Cost)</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div className="bg-white rounded-lg border p-3">
+            <h5 className="font-medium text-sm text-blue-700 mb-1">HPP Terakhir (Latest Cost)</h5>
+            <p className="text-xs text-gray-600">
+              Mengambil harga beli/HPP dari transaksi stok masuk terakhir untuk setiap varian produk. 
+              Cocok jika harga beli sering berubah dan Anda ingin margin mencerminkan harga pembelian terkini.
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border p-3">
+            <h5 className="font-medium text-sm text-green-700 mb-1">Rata-rata HPP (Average Cost)</h5>
+            <p className="text-xs text-gray-600">
+              Menghitung rata-rata tertimbang dari semua harga beli stok masuk. 
+              Cocok untuk mendapatkan gambaran biaya yang lebih stabil dan merata.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderLegalSettings = () => (
     <div className="space-y-6">

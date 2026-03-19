@@ -54,6 +54,9 @@ const defaultSettings = [
   { key: 'eula_title_en', value: 'Terms & Conditions', type: 'text', description: 'EULA title (English)', is_public: true, group: 'legal' },
   { key: 'eula_content_id', value: '', type: 'textarea', description: 'EULA content (Indonesian)', is_public: true, group: 'legal' },
   { key: 'eula_content_en', value: '', type: 'textarea', description: 'EULA content (English)', is_public: true, group: 'legal' },
+
+  // Report settings
+  { key: 'margin_calculation_method', value: 'latest', type: 'select', description: 'Metode perhitungan HPP untuk margin (latest = HPP terakhir, average = rata-rata HPP)', is_public: false, group: 'report' },
 ];
 
 // @desc    Get all settings

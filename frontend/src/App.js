@@ -52,6 +52,8 @@ import AdminExchangeRates from './pages/admin/ExchangeRates';
 import AdminActivityLogs from './pages/admin/ActivityLogs';
 import AdminSalesReport from './pages/admin/SalesReport';
 import AdminInventoryMovementReport from './pages/admin/InventoryMovementReport';
+import AdminIncomingOrdersReport from './pages/admin/IncomingOrdersReport';
+import AdminShippedOrdersReport from './pages/admin/ShippedOrdersReport';
 import AdminProductImport from './pages/admin/ProductImport';
 import AdminContentSettings from './pages/admin/ContentSettings';
 import AdminCoupons from './pages/admin/Coupons';
@@ -128,6 +130,8 @@ function App() {
         <Route path="reports" element={<AdminReports />} />
         <Route path="reports/sales" element={<AdminSalesReport />} />
         <Route path="reports/inventory-movement" element={<AdminInventoryMovementReport />} />
+        <Route path="reports/orders-incoming" element={<AdminIncomingOrdersReport />} />
+        <Route path="reports/orders-shipped" element={<AdminShippedOrdersReport />} />
         <Route path="activity-logs" element={<AdminActivityLogs />} />
         <Route path="products/import" element={<AdminProductImport />} />
         <Route path="content" element={<AdminContentSettings />} />

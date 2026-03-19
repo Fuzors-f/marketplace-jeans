@@ -331,9 +331,9 @@ exports.createProduct = async (req, res) => {
 
             await conn.execute(
               `INSERT INTO inventory_movements 
-              (product_variant_id, type, quantity, reference_type, notes, created_by)
-              VALUES (?, 'in', ?, 'initial_stock', 'Initial stock', ?)`,
-              [variantResult[0].id, variant.stock_quantity, req.user.id]
+              (product_variant_id, type, quantity, cost_price, reference_type, notes, created_by)
+              VALUES (?, 'in', ?, ?, 'initial_stock', 'Initial stock', ?)`,
+              [variantResult[0].id, variant.stock_quantity, variant.cost_price || 0, req.user.id]
             );
           }
         }
@@ -607,9 +607,9 @@ exports.addProductVariant = async (req, res) => {
       if (stock_quantity > 0) {
         await conn.execute(
           `INSERT INTO inventory_movements 
-          (product_variant_id, type, quantity, reference_type, notes, created_by)
-          VALUES (?, 'in', ?, 'initial_stock', 'Initial stock for new variant', ?)`,
-          [variantResult.insertId, stock_quantity, req.user.id]
+          (product_variant_id, type, quantity, cost_price, reference_type, notes, created_by)
+          VALUES (?, 'in', ?, ?, 'initial_stock', 'Initial stock for new variant', ?)`,
+          [variantResult.insertId, stock_quantity, cost_price || 0, req.user.id]
         );
       }
 
@@ -675,9 +675,9 @@ exports.updateProductVariant = async (req, res) => {
           // Log inventory movement
           await query(
             `INSERT INTO inventory_movements 
-            (product_variant_id, type, quantity, reference_type, notes, created_by)
-            VALUES (?, ?, ?, 'adjustment', 'Manual stock adjustment', ?)`,
-            [variantId, stockDiff > 0 ? 'in' : 'out', Math.abs(stockDiff), req.user.id]
+            (product_variant_id, type, quantity, cost_price, reference_type, notes, created_by)
+            VALUES (?, ?, ?, (SELECT cost_price FROM product_variants WHERE id = ?), 'adjustment', 'Manual stock adjustment', ?)`,
+            [variantId, stockDiff > 0 ? 'in' : 'out', Math.abs(stockDiff), variantId, req.user.id]
           );
         }
       }
