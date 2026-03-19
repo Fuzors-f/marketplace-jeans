@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import api from '../services/api';
+import { fetchCart as fetchCartRedux } from '../redux/slices/cartSlice';
 import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../utils/imageUtils';
 import { useAlert } from '../utils/AlertContext';
 import { useLanguage } from '../utils/i18n';
 
 export default function Cart() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { showError, showConfirm } = useAlert();
   const { t, formatCurrency } = useLanguage();
   const [cart, setCart] = useState({ items: [], total: 0 });
@@ -24,6 +27,7 @@ export default function Cart() {
       const response = await api.get('/cart');
       if (response.data.success) {
         setCart(response.data.data);
+        dispatch(fetchCartRedux());
       }
     } catch (err) {
       console.error('Error fetching cart:', err);
@@ -67,6 +71,7 @@ export default function Cart() {
         setLoading(true);
         await api.delete('/cart');
         setCart({ items: [], total: 0 });
+        dispatch(fetchCartRedux());
       } catch (err) {
         showError(t('failedClearCart'));
       } finally {
@@ -130,7 +135,19 @@ export default function Cart() {
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg">{item.product_name}</h3>
                     <p className="text-sm text-gray-600">{t('sizeLabel')}: {item.size_name}</p>
-                    <p className="font-bold text-lg mt-1">{formatCurrency(item.price)}</p>
+                    <div className="mt-1">
+                      {item.discount_price && item.original_price && item.discount_price < item.original_price ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-lg text-red-600">{formatCurrency(item.price)}</span>
+                          <span className="text-sm text-gray-400 line-through">{formatCurrency(item.original_price)}</span>
+                          {item.discount_percentage && (
+                            <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium">-{item.discount_percentage}%</span>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="font-bold text-lg">{formatCurrency(item.price)}</p>
+                      )}
+                    </div>
                     
                     {/* Quantity Controls */}
                     <div className="flex items-center gap-3 mt-2">
@@ -160,6 +177,9 @@ export default function Cart() {
                   {/* Item Total & Remove */}
                   <div className="text-right">
                     <p className="font-bold">{formatCurrency(item.price * item.quantity)}</p>
+                    {item.discount_price && item.original_price && item.discount_price < item.original_price && (
+                      <p className="text-xs text-green-600">{t('youSave') || 'Hemat'} {formatCurrency((item.original_price - item.price) * item.quantity)}</p>
+                    )}
                     <button
                       onClick={() => handleRemoveItem(item.id)}
                       disabled={updating === item.id}

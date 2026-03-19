@@ -87,6 +87,18 @@ export default function ProfileSettings() {
     setMessage({ type: '', text: '' });
 
     // Validation
+    if (!passwordForm.current_password) {
+      setMessage({ type: 'error', text: t('currentPasswordRequired') || 'Password saat ini wajib diisi' });
+      setLoading(false);
+      return;
+    }
+
+    if (!passwordForm.new_password) {
+      setMessage({ type: 'error', text: t('newPasswordRequired') || 'Password baru wajib diisi' });
+      setLoading(false);
+      return;
+    }
+
     if (passwordForm.new_password !== passwordForm.confirm_password) {
       setMessage({ type: 'error', text: t('newPasswordMismatch') });
       setLoading(false);

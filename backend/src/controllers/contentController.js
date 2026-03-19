@@ -116,6 +116,39 @@ exports.getContentByKey = async (req, res) => {
   }
 };
 
+// @desc    Get footer links grouped by column (public)
+// @route   GET /api/content/footer-links
+// @access  Public
+exports.getFooterLinks = async (req, res) => {
+  try {
+    const { lang } = req.query;
+    
+    const results = await query(`
+      SELECT section_key, footer_label, footer_column, title_id, title_en, sort_order
+      FROM content_settings
+      WHERE is_active = true AND show_in_footer = true
+      ORDER BY footer_column ASC, sort_order ASC
+    `);
+
+    // Group by column
+    const grouped = {};
+    results.forEach(item => {
+      const col = item.footer_column || 1;
+      if (!grouped[col]) grouped[col] = [];
+      grouped[col].push({
+        key: item.section_key,
+        label: item.footer_label || (lang === 'en' ? (item.title_en || item.title_id) : item.title_id),
+        link: `/pages/${item.section_key}`
+      });
+    });
+
+    res.json({ success: true, data: grouped });
+  } catch (error) {
+    console.error('Error fetching footer links:', error);
+    res.status(500).json({ success: false, message: 'Error fetching footer links' });
+  }
+};
+
 // @desc    Get all content settings (Admin)
 // @route   GET /api/content/admin/all
 // @access  Private/Admin
@@ -160,7 +193,8 @@ exports.updateContent = async (req, res) => {
       content_id, content_en,
       button_text_id, button_text_en,
       button_url, image_url, extra_data,
-      is_active, sort_order
+      is_active, sort_order,
+      show_in_footer, footer_column, footer_label
     } = req.body;
 
     // Check if exists
@@ -188,6 +222,9 @@ exports.updateContent = async (req, res) => {
         extra_data = COALESCE(?, extra_data),
         is_active = COALESCE(?, is_active),
         sort_order = COALESCE(?, sort_order),
+        show_in_footer = COALESCE(?, show_in_footer),
+        footer_column = COALESCE(?, footer_column),
+        footer_label = COALESCE(?, footer_label),
         updated_by = ?,
         updated_at = NOW()
       WHERE id = ?
@@ -202,6 +239,7 @@ exports.updateContent = async (req, res) => {
       button_url ?? null, image_url ?? null,
       extra_data ? JSON.stringify(extra_data) : null,
       is_active ?? null, sort_order ?? null,
+      show_in_footer ?? null, footer_column ?? null, footer_label ?? null,
       req.user.id,
       id
     ]);
@@ -249,7 +287,8 @@ exports.createContent = async (req, res) => {
       content_id, content_en,
       button_text_id, button_text_en,
       button_url, image_url, extra_data,
-      is_active, sort_order
+      is_active, sort_order,
+      show_in_footer, footer_column, footer_label
     } = req.body;
 
     if (!section_key || !section_name) {
@@ -276,8 +315,10 @@ exports.createContent = async (req, res) => {
         content_id, content_en,
         button_text_id, button_text_en,
         button_url, image_url, extra_data,
-        is_active, sort_order, updated_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        is_active, sort_order,
+        show_in_footer, footer_column, footer_label,
+        updated_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const result = await query(sql, [
@@ -290,6 +331,7 @@ exports.createContent = async (req, res) => {
       extra_data ? JSON.stringify(extra_data) : null,
       is_active !== undefined ? is_active : true,
       sort_order || 0,
+      show_in_footer || 0, footer_column || 0, footer_label || null,
       req.user.id
     ]);
 

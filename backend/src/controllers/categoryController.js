@@ -63,7 +63,7 @@ exports.getCategories = async (req, res) => {
 
 exports.createCategory = async (req, res) => {
   try {
-    const { name, slug, description, parent_id, image_url, is_active, gender } = req.body;
+    const { name, slug, description, parent_id, image_url, is_active, gender, sort_order } = req.body;
     const hasGender = await hasGenderColumn('categories');
     
     // Validation
@@ -76,11 +76,11 @@ exports.createCategory = async (req, res) => {
     
     let insertSql, insertParams;
     if (hasGender) {
-      insertSql = 'INSERT INTO categories (name, slug, description, parent_id, image_url, is_active, gender) VALUES (?, ?, ?, ?, ?, ?, ?)';
-      insertParams = [name, slug, description || null, parent_id || null, image_url || null, is_active !== undefined ? is_active : true, gender || 'both'];
+      insertSql = 'INSERT INTO categories (name, slug, description, parent_id, image_url, is_active, gender, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+      insertParams = [name, slug, description || null, parent_id || null, image_url || null, is_active !== undefined ? is_active : true, gender || 'both', sort_order || 0];
     } else {
-      insertSql = 'INSERT INTO categories (name, slug, description, parent_id, image_url, is_active) VALUES (?, ?, ?, ?, ?, ?)';
-      insertParams = [name, slug, description || null, parent_id || null, image_url || null, is_active !== undefined ? is_active : true];
+      insertSql = 'INSERT INTO categories (name, slug, description, parent_id, image_url, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)';
+      insertParams = [name, slug, description || null, parent_id || null, image_url || null, is_active !== undefined ? is_active : true, sort_order || 0];
     }
     
     const result = await query(insertSql, insertParams);

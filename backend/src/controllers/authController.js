@@ -263,17 +263,17 @@ exports.updateProfile = async (req, res) => {
     const updates = [];
     const values = [];
 
-    if (full_name) {
+    if (full_name !== undefined && full_name !== null) {
       updates.push('full_name = ?');
       values.push(full_name);
     }
 
-    if (phone) {
+    if (phone !== undefined && phone !== null) {
       updates.push('phone = ?');
       values.push(phone);
     }
 
-    if (email) {
+    if (email !== undefined && email !== null && email !== '') {
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
@@ -364,9 +364,9 @@ exports.changePassword = async (req, res) => {
     const isMatch = await bcrypt.compare(current_password, users[0].password);
 
     if (!isMatch) {
-      return res.status(401).json({
+      return res.status(400).json({
         success: false,
-        message: 'Current password is incorrect'
+        message: 'Password saat ini salah'
       });
     }
 

@@ -55,6 +55,7 @@ import AdminInventoryMovementReport from './pages/admin/InventoryMovementReport'
 import AdminIncomingOrdersReport from './pages/admin/IncomingOrdersReport';
 import AdminShippedOrdersReport from './pages/admin/ShippedOrdersReport';
 import AdminProductImport from './pages/admin/ProductImport';
+import AdminStockAdjustmentImport from './pages/admin/StockAdjustmentImport';
 import AdminContentSettings from './pages/admin/ContentSettings';
 import AdminCoupons from './pages/admin/Coupons';
 import AdminBlogs from './pages/admin/Blogs';
@@ -134,6 +135,7 @@ function App() {
         <Route path="reports/orders-shipped" element={<AdminShippedOrdersReport />} />
         <Route path="activity-logs" element={<AdminActivityLogs />} />
         <Route path="products/import" element={<AdminProductImport />} />
+        <Route path="inventory/adjustment-import" element={<AdminStockAdjustmentImport />} />
         <Route path="content" element={<AdminContentSettings />} />
         <Route path="coupons" element={<AdminCoupons />} />
         <Route path="blogs" element={<AdminBlogs />} />

@@ -93,7 +93,7 @@ const Products = () => {
     // Build query params for API directly from URL params
     const params = {
       page: searchParams.get('page') || 1,
-      limit: 24,
+      limit: 12,
       search: searchParams.get('search') || undefined,
       category: searchParams.get('category') || undefined,
       fitting: searchParams.get('fitting') || undefined,
@@ -257,39 +257,50 @@ const Products = () => {
                         return true;
                       })
                       .filter(cat => !cat.parent_id) // Show parent categories first
-                      .map((cat) => (
+                      .map((cat) => {
+                        const subcats = categories
+                          .filter(sub => sub.parent_id === cat.id)
+                          .filter(sub => {
+                            if (filters.gender) {
+                              return sub.gender === filters.gender || sub.gender === 'both';
+                            }
+                            return true;
+                          });
+                        const isParentSelected = filters.category === String(cat.id);
+                        const isSubSelected = subcats.some(sub => filters.category === String(sub.id));
+                        const isExpanded = isParentSelected || isSubSelected;
+                        return (
                         <div key={cat.id}>
                           <label className="flex items-center cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={filters.category === String(cat.id)}
+                              checked={isParentSelected || isSubSelected}
                               onChange={(e) => handleFilterChange('category', e.target.checked ? String(cat.id) : '')}
                               className="mr-2"
                             />
-                            <span className="text-sm font-medium">{cat.name}</span>
+                            <span className={`text-sm font-medium ${isExpanded ? 'text-black font-bold' : ''}`}>{cat.name}</span>
+                            {subcats.length > 0 && (
+                              <span className="ml-auto text-xs text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+                            )}
                           </label>
-                          {/* Subcategories */}
-                          {categories
-                            .filter(sub => sub.parent_id === cat.id)
-                            .filter(sub => {
-                              if (filters.gender) {
-                                return sub.gender === filters.gender || sub.gender === 'both';
-                              }
-                              return true;
-                            })
-                            .map(sub => (
-                              <label key={sub.id} className="flex items-center cursor-pointer pl-5 mt-1">
-                                <input
-                                  type="checkbox"
-                                  checked={filters.category === String(sub.id)}
-                                  onChange={(e) => handleFilterChange('category', e.target.checked ? String(sub.id) : '')}
-                                  className="mr-2"
-                                />
-                                <span className="text-sm text-gray-600">{sub.name}</span>
-                              </label>
-                            ))}
+                          {/* Subcategories - show when parent or any subcategory is selected */}
+                          {isExpanded && subcats.length > 0 && (
+                            <div className="ml-5 mt-1 pl-2 border-l-2 border-gray-200 space-y-1">
+                              {subcats.map(sub => (
+                                <label key={sub.id} className="flex items-center cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={filters.category === String(sub.id)}
+                                    onChange={(e) => handleFilterChange('category', e.target.checked ? String(sub.id) : String(cat.id))}
+                                    className="mr-2"
+                                  />
+                                  <span className={`text-sm ${filters.category === String(sub.id) ? 'text-black font-semibold' : 'text-gray-600'}`}>{sub.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      ))}
+                      )})}
                   </div>
                 </div>
 
@@ -445,32 +456,40 @@ const Products = () => {
                             return true;
                           })
                           .filter(cat => !cat.parent_id)
-                          .map((cat) => (
+                          .map((cat) => {
+                            const subcats = categories
+                              .filter(sub => sub.parent_id === cat.id)
+                              .filter(sub => {
+                                if (filters.gender) {
+                                  return sub.gender === filters.gender || sub.gender === 'both';
+                                }
+                                return true;
+                              });
+                            const isParentSelected = filters.category === String(cat.id);
+                            const isSubSelected = subcats.some(sub => filters.category === String(sub.id));
+                            const isExpanded = isParentSelected || isSubSelected;
+                            return (
                             <div key={cat.id}>
                               <button
                                 onClick={() => handleFilterChange('category', filters.category === String(cat.id) ? '' : String(cat.id))}
                                 className={`w-full text-left px-3 py-2 text-sm border transition mb-1 ${
-                                  filters.category === String(cat.id)
+                                  isExpanded
                                     ? 'bg-black text-white border-black'
                                     : 'bg-white text-black border-gray-300'
                                 }`}
                               >
                                 {cat.name}
+                                {subcats.length > 0 && (
+                                  <span className="float-right">{isExpanded ? '▼' : '▶'}</span>
+                                )}
                               </button>
-                              {/* Subcategories */}
-                              <div className="flex flex-wrap gap-1 pl-3 mb-2">
-                                {categories
-                                  .filter(sub => sub.parent_id === cat.id)
-                                  .filter(sub => {
-                                    if (filters.gender) {
-                                      return sub.gender === filters.gender || sub.gender === 'both';
-                                    }
-                                    return true;
-                                  })
-                                  .map(sub => (
+                              {/* Subcategories - show when parent or any sub is selected */}
+                              {isExpanded && subcats.length > 0 && (
+                                <div className="flex flex-wrap gap-1 pl-3 mb-2">
+                                  {subcats.map(sub => (
                                     <button
                                       key={sub.id}
-                                      onClick={() => handleFilterChange('category', filters.category === String(sub.id) ? '' : String(sub.id))}
+                                      onClick={() => handleFilterChange('category', filters.category === String(sub.id) ? String(cat.id) : String(sub.id))}
                                       className={`px-2 py-1 text-xs border transition ${
                                         filters.category === String(sub.id)
                                           ? 'bg-black text-white border-black'
@@ -480,9 +499,10 @@ const Products = () => {
                                       {sub.name}
                                     </button>
                                   ))}
-                              </div>
+                                </div>
+                              )}
                             </div>
-                          ))}
+                          )})}
                       </div>
                     </div>
 

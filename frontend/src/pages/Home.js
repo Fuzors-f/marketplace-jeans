@@ -19,7 +19,7 @@ const Home = () => {
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
-    dispatch(fetchProducts({ limit: 12, is_featured: true }));
+    dispatch(fetchProducts({ limit: 4, is_featured: true, sort: 'created_at', order: 'DESC' }));
     fetchHomeData();
     fetchCategories();
   }, [dispatch]);
@@ -92,9 +92,9 @@ const Home = () => {
     'https://images.unsplash.com/photo-1523779105320-d1cd346ff52b?w=400&h=600&fit=crop'
   ];
 
-  // Map categories from API to display format
+  // Map categories from API to display format (max 4, ordered by sort_order from backend)
   const categoryCards = categories.length > 0 
-    ? categories.map((cat, index) => ({
+    ? categories.filter(c => !c.parent_id).slice(0, 4).map((cat, index) => ({
         id: cat.id,
         name: cat.name.toUpperCase(),
         subtitle: cat.description || t('viewFullCollection'),

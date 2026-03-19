@@ -78,7 +78,7 @@ export default function Wishlist() {
         });
         
         // Refresh Redux cart state so the header icon updates
-        dispatch(fetchCart());
+        await dispatch(fetchCart());
         
         showSuccess(t('addedToCartFromWishlist'));
       }

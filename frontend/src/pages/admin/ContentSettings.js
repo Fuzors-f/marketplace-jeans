@@ -33,7 +33,10 @@ const ContentSettings = () => {
     button_url: '',
     image_url: '',
     is_active: true,
-    sort_order: 0
+    sort_order: 0,
+    show_in_footer: false,
+    footer_column: 0,
+    footer_label: ''
   });
 
   useEffect(() => {
@@ -70,7 +73,10 @@ const ContentSettings = () => {
       button_url: content.button_url || '',
       image_url: content.image_url || '',
       is_active: content.is_active,
-      sort_order: content.sort_order || 0
+      sort_order: content.sort_order || 0,
+      show_in_footer: !!content.show_in_footer,
+      footer_column: content.footer_column || 0,
+      footer_label: content.footer_label || ''
     });
     setEditingId(content.id);
     setFormError('');
@@ -92,7 +98,10 @@ const ContentSettings = () => {
       button_url: '',
       image_url: '',
       is_active: true,
-      sort_order: contents.length + 1
+      sort_order: contents.length + 1,
+      show_in_footer: false,
+      footer_column: 0,
+      footer_label: ''
     });
     setEditingId(null);
     setFormError('');
@@ -225,6 +234,7 @@ const ContentSettings = () => {
                     <th className="px-4 py-3 text-left text-sm font-semibold">Section</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Judul (ID)</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Title (EN)</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold">Footer</th>
                     <th className="px-4 py-3 text-center text-sm font-semibold">Status</th>
                     <th className="px-4 py-3 text-center text-sm font-semibold">Urutan</th>
                     <th className="px-4 py-3 text-center text-sm font-semibold">Aksi</th>
@@ -247,6 +257,15 @@ const ContentSettings = () => {
                         <div className="max-w-xs truncate">{content.title_en || '-'}</div>
                         {content.subtitle_en && (
                           <div className="text-xs text-gray-500 truncate">{content.subtitle_en}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {content.show_in_footer ? (
+                          <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            Kolom {content.footer_column}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -495,6 +514,53 @@ const ContentSettings = () => {
                       <span className="font-medium">Aktif</span>
                     </label>
                   </div>
+                </div>
+
+                {/* Footer Settings */}
+                <div className="border rounded-lg p-4 bg-gray-50">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <FaLink className="text-gray-500" />
+                    Pengaturan Footer
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex items-center">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.show_in_footer}
+                          onChange={(e) => setFormData(prev => ({ ...prev, show_in_footer: e.target.checked }))}
+                          className="w-5 h-5 text-blue-600 rounded"
+                        />
+                        <span className="font-medium">Tampilkan di Footer</span>
+                      </label>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Kolom Footer</label>
+                      <select
+                        value={formData.footer_column}
+                        onChange={(e) => setFormData(prev => ({ ...prev, footer_column: parseInt(e.target.value) || 0 }))}
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!formData.show_in_footer}
+                      >
+                        <option value={0}>-- Pilih Kolom --</option>
+                        <option value={1}>1 - Bantuan</option>
+                        <option value={2}>2 - Perusahaan</option>
+                        <option value={3}>3 - Tautan Langsung</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Label Footer</label>
+                      <input
+                        type="text"
+                        value={formData.footer_label}
+                        onChange={(e) => setFormData(prev => ({ ...prev, footer_label: e.target.value }))}
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Kosongkan untuk pakai judul"
+                        disabled={!formData.show_in_footer}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Halaman yang ditandai akan muncul sebagai link di footer website. Label footer opsional, jika kosong akan menggunakan judul halaman.</p>
                 </div>
               </div>
 

@@ -23,6 +23,7 @@ const MainLayoutNew = () => {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [menuCategories, setMenuCategories] = useState([]);
+  const [footerLinks, setFooterLinks] = useState({});
 
   // Get settings
   const siteName = getSetting('site_name', 'JEANS');
@@ -45,6 +46,13 @@ const MainLayoutNew = () => {
       }
     };
     fetchMenuCategories();
+  }, []);
+
+  // Fetch footer links
+  useEffect(() => {
+    apiClient.get('/content/footer-links').then(res => {
+      if (res.data.success) setFooterLinks(res.data.data);
+    }).catch(() => {});
   }, []);
 
   // Build mega menus dynamically from categories
@@ -709,31 +717,11 @@ const MainLayoutNew = () => {
             <div>
               <h3 className="font-bold mb-3 sm:mb-4 uppercase tracking-wider text-sm sm:text-base">{t('help').toUpperCase()}</h3>
               <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-300">
-                <li>
-                  <Link to="/pages/contact" className="hover:text-white hover:underline">
-                    {t('contactUs')}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/pages/faq" className="hover:text-white hover:underline">
-                    {t('faq')}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/pages/returns" className="hover:text-white hover:underline">
-                    {t('returns')}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/pages/store-locator" className="hover:text-white hover:underline">
-                    {t('findStore')}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/pages/track-order" className="hover:text-white hover:underline">
-                    {t('trackOrder')}
-                  </Link>
-                </li>
+                {(footerLinks[1] || []).map(item => (
+                  <li key={item.key}>
+                    <Link to={item.link} className="hover:text-white hover:underline">{item.label}</Link>
+                  </li>
+                ))}
               </ul>
             </div>
 
@@ -741,21 +729,11 @@ const MainLayoutNew = () => {
             <div>
               <h3 className="font-bold mb-3 sm:mb-4 uppercase tracking-wider text-sm sm:text-base">{t('company').toUpperCase()}</h3>
               <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-300">
-                <li>
-                  <Link to="/pages/about" className="hover:text-white hover:underline">
-                    {t('aboutUs')}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/pages/privacy" className="hover:text-white hover:underline">
-                    {t('privacyPolicy')}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/pages/terms" className="hover:text-white hover:underline">
-                    {t('termsConditions')}
-                  </Link>
-                </li>
+                {(footerLinks[2] || []).map(item => (
+                  <li key={item.key}>
+                    <Link to={item.link} className="hover:text-white hover:underline">{item.label}</Link>
+                  </li>
+                ))}
               </ul>
             </div>
 
@@ -763,21 +741,11 @@ const MainLayoutNew = () => {
             <div>
               <h3 className="font-bold mb-3 sm:mb-4 uppercase tracking-wider text-sm sm:text-base">{t('quickLinks').toUpperCase()}</h3>
               <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-300">
-                <li>
-                  <Link to="/pages/membership" className="hover:text-white hover:underline">
-                    {t('memberProgram')}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/pages/store-locator" className="hover:text-white hover:underline">
-                    {t('findStore')}
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/pages/jean-fit-guide" className="hover:text-white hover:underline">
-                    {t('jeansGuide')}
-                  </Link>
-                </li>
+                {(footerLinks[3] || []).map(item => (
+                  <li key={item.key}>
+                    <Link to={item.link} className="hover:text-white hover:underline">{item.label}</Link>
+                  </li>
+                ))}
                 <li>
                   <Link to="/blog" className="hover:text-white hover:underline">
                     Blog

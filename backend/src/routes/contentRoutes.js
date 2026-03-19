@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getAllContent,
   getContentByKey,
+  getFooterLinks,
   getAdminContent,
   updateContent,
   createContent,
@@ -12,12 +13,15 @@ const { protect, authorize } = require('../middleware/auth');
 
 // Public routes
 router.get('/', getAllContent);
-router.get('/:sectionKey', getContentByKey);
+router.get('/footer-links', getFooterLinks);
 
 // Admin routes
 router.get('/admin/all', protect, authorize('admin'), getAdminContent);
 router.post('/', protect, authorize('admin'), createContent);
 router.put('/:id', protect, authorize('admin'), updateContent);
 router.delete('/:id', protect, authorize('admin'), deleteContent);
+
+// Dynamic content page (must be LAST - catches all /:sectionKey)
+router.get('/:sectionKey', getContentByKey);
 
 module.exports = router;

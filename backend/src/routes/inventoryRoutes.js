@@ -10,6 +10,11 @@ const {
   getInventoryValueReport,
   getStockLevels
 } = require('../controllers/inventoryController');
+const {
+  downloadAdjustmentTemplate,
+  importStockAdjustment,
+  uploadMiddleware
+} = require('../controllers/stockAdjustmentImportController');
 const { protect, authorize } = require('../middleware/auth');
 
 // Overview and reporting
@@ -23,6 +28,10 @@ router.get('/low-stock', protect, authorize('admin', 'admin_stok'), getLowStockA
 
 // Stock operations
 router.post('/adjust', protect, authorize('admin', 'admin_stok'), createAdjustment);
+
+// Stock adjustment import
+router.get('/adjustment-import/template', protect, authorize('admin', 'admin_stok'), downloadAdjustmentTemplate);
+router.post('/adjustment-import', protect, authorize('admin', 'admin_stok'), uploadMiddleware, importStockAdjustment);
 
 // Variant-based inventory
 router.get('/variants', protect, getVariantInventory);

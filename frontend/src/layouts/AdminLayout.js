@@ -77,6 +77,7 @@ const AdminLayout = () => {
         { path: '/admin/inventory', icon: FaBoxes, label: 'Stok Produk', resource: 'inventory' },
         { path: '/admin/warehouses', icon: FaWarehouse, label: 'Gudang', resource: 'warehouses' },
         { path: '/admin/reports/inventory-movement', icon: FaArrowsAltH, label: 'Pergerakan Stok', resource: 'reports' },
+        { path: '/admin/inventory/adjustment-import', icon: FaFileImport, label: 'Import Adjustment', resource: 'inventory' },
       ]
     },
     { 

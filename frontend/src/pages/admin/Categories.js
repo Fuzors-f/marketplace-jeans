@@ -20,7 +20,8 @@ export default function AdminCategories() {
     image_url: '',
     parent_id: null,
     gender: 'both',
-    is_active: true
+    is_active: true,
+    sort_order: 0
   });
 
   useEffect(() => {
@@ -101,7 +102,8 @@ export default function AdminCategories() {
       image_url: '',
       parent_id: null,
       gender: 'both',
-      is_active: true
+      is_active: true,
+      sort_order: 0
     });
     setEditingId(null);
     setFormError('');
@@ -139,6 +141,11 @@ export default function AdminCategories() {
           </span>
         );
       }
+    },
+    {
+      key: 'sort_order',
+      label: 'Urutan',
+      render: (value) => <span className="text-gray-600 text-sm font-mono">{value || 0}</span>
     },
     {
       key: 'is_active',
@@ -309,6 +316,18 @@ export default function AdminCategories() {
               onChange={handleInputChange}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Urutan Tampil</label>
+            <input
+              type="number"
+              name="sort_order"
+              value={formData.sort_order || 0}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              min="0"
+            />
+            <p className="text-xs text-gray-500 mt-1">Urutan tampil di halaman depan (angka kecil = tampil duluan)</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>

@@ -48,8 +48,9 @@ exports.getProducts = async (req, res) => {
     if (category) {
       // Check if category is an ID (number) or a name/slug (string)
       if (!isNaN(category)) {
-        whereConditions.push('p.category_id = ?');
-        params.push(category);
+        // Include subcategories: match the category itself OR any child categories
+        whereConditions.push('(p.category_id = ? OR p.category_id IN (SELECT id FROM categories WHERE parent_id = ?))');
+        params.push(category, category);
       } else {
         // Search by category name or slug (case-insensitive, partial match)
         whereConditions.push('(c.name LIKE ? OR c.slug LIKE ?)');
