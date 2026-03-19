@@ -148,7 +148,7 @@ export const authAPI = {
 
 export const userAPI = {
   getProfile: () => apiClient.get('/users/profile'),
-  updateProfile: (data) => apiClient.put('/users/profile', data),
+  updateProfile: (data) => apiClient.put('/auth/profile', data),
   updatePassword: (data) => apiClient.put('/users/password', data),
   changePassword: (data) => apiClient.put('/auth/change-password', data),
   uploadProfilePicture: (formData) => apiClient.post('/auth/profile-picture', formData),
@@ -233,6 +233,23 @@ export const couponAPI = {
   create: (data) => apiClient.post('/coupons', data),
   update: (id, data) => apiClient.put(`/coupons/${id}`, data),
   delete: (id) => apiClient.delete(`/coupons/${id}`)
+};
+
+// =====================================
+// BLOG API
+// =====================================
+export const blogAPI = {
+  // Public
+  getPublished: (params) => apiClient.get('/blogs', { params }),
+  getBySlug: (slug) => apiClient.get(`/blogs/${slug}`),
+  getCategories: () => apiClient.get('/blogs/categories'),
+  getFeatured: (params) => apiClient.get('/blogs/featured', { params }),
+  // Admin
+  getAll: (params) => apiClient.get('/blogs/admin/all', { params }),
+  create: (data) => apiClient.post('/blogs', data),
+  update: (id, data) => apiClient.put(`/blogs/${id}`, data),
+  delete: (id) => apiClient.delete(`/blogs/${id}`),
+  uploadImage: (formData) => apiClient.post('/blogs/upload-image', formData)
 };
 
 export default apiClient;

@@ -54,6 +54,11 @@ import AdminInventoryMovementReport from './pages/admin/InventoryMovementReport'
 import AdminProductImport from './pages/admin/ProductImport';
 import AdminContentSettings from './pages/admin/ContentSettings';
 import AdminCoupons from './pages/admin/Coupons';
+import AdminBlogs from './pages/admin/Blogs';
+
+// Blog Pages
+import BlogList from './pages/BlogList';
+import BlogDetail from './pages/BlogDetail';
 
 // Components
 import PrivateRoute from './components/PrivateRoute';
@@ -87,6 +92,8 @@ function App() {
           <Route path="orders/track/:trackingNumber" element={<OrderTracking />} />
         <Route path="order/:token" element={<OrderPage />} />
         <Route path="orders/:orderId/success" element={<OrderSuccess />} />
+          <Route path="blog" element={<BlogList />} />
+          <Route path="blog/:slug" element={<BlogDetail />} />
         
         {/* Private Routes */}
         <Route path="profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
@@ -119,6 +126,7 @@ function App() {
         <Route path="products/import" element={<AdminProductImport />} />
         <Route path="content" element={<AdminContentSettings />} />
         <Route path="coupons" element={<AdminCoupons />} />
+        <Route path="blogs" element={<AdminBlogs />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="roles" element={<AdminRoles />} />
         <Route path="exchange-rates" element={<AdminExchangeRates />} />

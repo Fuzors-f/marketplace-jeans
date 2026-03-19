@@ -257,7 +257,7 @@ exports.getMe = async (req, res) => {
 // @access  Private
 exports.updateProfile = async (req, res) => {
   try {
-    const { full_name, phone } = req.body;
+    const { full_name, phone, email } = req.body;
     const userId = req.user.id;
 
     const updates = [];
@@ -271,6 +271,32 @@ exports.updateProfile = async (req, res) => {
     if (phone) {
       updates.push('phone = ?');
       values.push(phone);
+    }
+
+    if (email) {
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Format email tidak valid'
+        });
+      }
+
+      // Check if email is already used by another user
+      const existingUsers = await query(
+        'SELECT id FROM users WHERE email = ? AND id != ?',
+        [email, userId]
+      );
+      if (existingUsers.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email sudah digunakan oleh pengguna lain'
+        });
+      }
+
+      updates.push('email = ?');
+      values.push(email);
     }
 
     if (updates.length === 0) {

@@ -391,6 +391,13 @@ const MainLayoutNew = () => {
               >
                 {t('discount').toUpperCase()}
               </Link>
+
+              <Link
+                to="/blog"
+                className="font-semibold hover:underline uppercase tracking-wide"
+              >
+                BLOG
+              </Link>
             </nav>
 
             {/* Right Icons */}
@@ -613,6 +620,13 @@ const MainLayoutNew = () => {
                 >
                   {t('discount').toUpperCase()}
                 </Link>
+                <Link
+                  to="/blog"
+                  className="block py-3.5 font-semibold uppercase tracking-wide text-sm border-b border-gray-100"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  BLOG
+                </Link>
 
                 {/* Language Switcher - Mobile */}
                 <div className="py-3 border-b border-gray-100">
@@ -762,6 +776,11 @@ const MainLayoutNew = () => {
                 <li>
                   <Link to="/pages/jean-fit-guide" className="hover:text-white hover:underline">
                     {t('jeansGuide')}
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/blog" className="hover:text-white hover:underline">
+                    Blog
                   </Link>
                 </li>
               </ul>
