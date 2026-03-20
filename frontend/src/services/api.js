@@ -252,4 +252,17 @@ export const blogAPI = {
   uploadImage: (formData) => apiClient.post('/blogs/upload-image', formData)
 };
 
+// =====================================
+// RETURNS API
+// =====================================
+
+export const returnAPI = {
+  getAll: (params) => apiClient.get('/returns', { params }),
+  getById: (id) => apiClient.get(`/returns/${id}`),
+  searchOrders: (q) => apiClient.get('/returns/orders/search', { params: { q } }),
+  getOrderItems: (orderId) => apiClient.get(`/returns/order/${orderId}/items`),
+  create: (data) => apiClient.post('/returns', data),
+  cancel: (id) => apiClient.put(`/returns/${id}/cancel`)
+};
+
 export default apiClient;

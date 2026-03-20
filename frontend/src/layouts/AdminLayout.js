@@ -7,7 +7,8 @@ import {
   FaChevronDown, FaChevronRight, FaTable, FaClipboardList, FaBoxes, FaCity, FaTruck,
   FaBars, FaTimes, FaExchangeAlt, FaHistory, FaFileImport, FaMoneyBillWave, FaArrowsAltH, FaGlobe,
   FaTicketAlt,
-  FaNewspaper
+  FaNewspaper,
+  FaUndo
 } from 'react-icons/fa';
 import { logout } from '../redux/slices/authSlice';
 import { usePermissions } from '../utils/PermissionContext';
@@ -68,6 +69,7 @@ const AdminLayout = () => {
     },
     { path: '/admin/orders', icon: FaShoppingBag, label: 'Pesanan', resource: 'orders' },
     { path: '/admin/coupons', icon: FaTicketAlt, label: 'Kupon Diskon', resource: 'coupons' },
+    { path: '/admin/returns', icon: FaUndo, label: 'Retur Barang', resource: 'orders' },
     { path: '/admin/blogs', icon: FaNewspaper, label: 'Blog', resource: 'content' },
     { 
       key: 'inventory',

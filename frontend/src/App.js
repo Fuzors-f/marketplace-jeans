@@ -59,6 +59,7 @@ import AdminStockAdjustmentImport from './pages/admin/StockAdjustmentImport';
 import AdminContentSettings from './pages/admin/ContentSettings';
 import AdminCoupons from './pages/admin/Coupons';
 import AdminBlogs from './pages/admin/Blogs';
+import AdminReturns from './pages/admin/Returns';
 
 // Blog Pages
 import BlogList from './pages/BlogList';
@@ -139,6 +140,7 @@ function App() {
         <Route path="content" element={<AdminContentSettings />} />
         <Route path="coupons" element={<AdminCoupons />} />
         <Route path="blogs" element={<AdminBlogs />} />
+        <Route path="returns" element={<AdminReturns />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="roles" element={<AdminRoles />} />
         <Route path="exchange-rates" element={<AdminExchangeRates />} />
