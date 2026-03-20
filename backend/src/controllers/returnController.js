@@ -1,14 +1,21 @@
 const { query, transaction } = require('../config/database');
 const { logActivity } = require('../middleware/activityLogger');
 
-// Generate return number
-const generateReturnNumber = () => {
+// Generate unique return number with collision check
+const generateReturnNumber = async () => {
   const date = new Date();
   const dateStr = date.getFullYear().toString() +
     (date.getMonth() + 1).toString().padStart(2, '0') +
     date.getDate().toString().padStart(2, '0');
-  const random = Math.floor(1000 + Math.random() * 9000);
-  return `RTN-${dateStr}-${random}`;
+  
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const random = Math.floor(1000 + Math.random() * 9000);
+    const returnNumber = `RTN-${dateStr}-${random}`;
+    const existing = await query('SELECT id FROM returns WHERE return_number = ?', [returnNumber]);
+    if (!existing.length) return returnNumber;
+  }
+  // Fallback with timestamp
+  return `RTN-${dateStr}-${Date.now().toString().slice(-6)}`;
 };
 
 // @desc    Get all returns
@@ -237,7 +244,7 @@ const createReturn = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Gudang tidak ditemukan atau tidak aktif' });
     }
 
-    const returnNumber = generateReturnNumber();
+    const returnNumber = await generateReturnNumber();
 
     await transaction(async (conn) => {
       // Create return record
@@ -350,6 +357,15 @@ const cancelReturn = async (req, res) => {
     await transaction(async (conn) => {
       // Reverse stock for each item
       for (const item of returnItems) {
+        // Check current stock before reducing
+        const [currentVariant] = await conn.execute(
+          'SELECT stock_quantity FROM product_variants WHERE id = ?',
+          [item.product_variant_id]
+        );
+        if (currentVariant.length && currentVariant[0].stock_quantity < item.quantity) {
+          throw new Error(`Stok variant #${item.product_variant_id} tidak cukup untuk pembatalan (tersisa: ${currentVariant[0].stock_quantity}, dibutuhkan: ${item.quantity})`);
+        }
+
         await conn.execute(
           'UPDATE product_variants SET stock_quantity = stock_quantity - ? WHERE id = ?',
           [item.quantity, item.product_variant_id]

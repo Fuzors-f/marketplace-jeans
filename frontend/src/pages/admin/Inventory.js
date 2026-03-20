@@ -978,6 +978,27 @@ export default function AdminInventory() {
               </div>
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2">Catatan/Alasan</label>
+                <select
+                  value={['Barang masuk dari supplier', 'Retur dari customer', 'Hasil stock opname', 'Barang rusak/cacat', 'Barang hilang', 'Koreksi data stok', 'Transfer antar gudang', 'Sample/display'].includes(adjustmentForm.notes) ? adjustmentForm.notes : 'custom'}
+                  onChange={(e) => {
+                    if (e.target.value !== 'custom') {
+                      setAdjustmentForm({ ...adjustmentForm, notes: e.target.value });
+                    } else {
+                      setAdjustmentForm({ ...adjustmentForm, notes: '' });
+                    }
+                  }}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 mb-2"
+                >
+                  <option value="custom">-- Tulis manual --</option>
+                  <option value="Barang masuk dari supplier">Barang masuk dari supplier</option>
+                  <option value="Retur dari customer">Retur dari customer</option>
+                  <option value="Hasil stock opname">Hasil stock opname</option>
+                  <option value="Barang rusak/cacat">Barang rusak/cacat</option>
+                  <option value="Barang hilang">Barang hilang</option>
+                  <option value="Koreksi data stok">Koreksi data stok</option>
+                  <option value="Transfer antar gudang">Transfer antar gudang</option>
+                  <option value="Sample/display">Sample/display</option>
+                </select>
                 <textarea
                   value={adjustmentForm.notes}
                   onChange={(e) => setAdjustmentForm({ ...adjustmentForm, notes: e.target.value })}

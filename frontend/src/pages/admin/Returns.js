@@ -121,7 +121,7 @@ const AdminReturns = () => {
           size_name: item.size_name,
           max_qty: item.returnable_quantity,
           quantity: item.returnable_quantity,
-          reason: 'Retur barang',
+          reason: 'Barang cacat/rusak',
           selected: true
         }));
       setReturnItems(prefilledItems);
@@ -577,13 +577,34 @@ const AdminReturns = () => {
                               </div>
                             </div>
                             {item.selected && (
-                              <input
-                                type="text"
-                                placeholder="Alasan retur..."
-                                value={item.reason}
-                                onChange={(e) => updateItemReason(idx, e.target.value)}
-                                className="mt-2 w-full px-3 py-1.5 border rounded text-sm focus:ring-2 focus:ring-blue-500"
-                              />
+                              <div className="mt-2 flex flex-col sm:flex-row gap-2">
+                                <select
+                                  value={['Barang cacat/rusak', 'Ukuran tidak sesuai', 'Warna tidak sesuai', 'Salah kirim produk', 'Barang tidak sesuai deskripsi', 'Customer berubah pikiran'].includes(item.reason) ? item.reason : 'custom'}
+                                  onChange={(e) => {
+                                    if (e.target.value !== 'custom') {
+                                      updateItemReason(idx, e.target.value);
+                                    } else {
+                                      updateItemReason(idx, '');
+                                    }
+                                  }}
+                                  className="sm:w-48 px-2 py-1.5 border rounded text-sm focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value="custom">Tulis manual</option>
+                                  <option value="Barang cacat/rusak">Barang cacat/rusak</option>
+                                  <option value="Ukuran tidak sesuai">Ukuran tidak sesuai</option>
+                                  <option value="Warna tidak sesuai">Warna tidak sesuai</option>
+                                  <option value="Salah kirim produk">Salah kirim produk</option>
+                                  <option value="Barang tidak sesuai deskripsi">Tidak sesuai deskripsi</option>
+                                  <option value="Customer berubah pikiran">Customer berubah pikiran</option>
+                                </select>
+                                <input
+                                  type="text"
+                                  placeholder="Alasan retur..."
+                                  value={item.reason}
+                                  onChange={(e) => updateItemReason(idx, e.target.value)}
+                                  className="flex-1 px-3 py-1.5 border rounded text-sm focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
                             )}
                           </div>
                         </div>
@@ -598,6 +619,24 @@ const AdminReturns = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Keterangan
                 </label>
+                <select
+                  value={['Retur barang cacat/rusak', 'Retur ukuran tidak sesuai', 'Retur salah kirim', 'Retur customer berubah pikiran', 'Retur barang tidak sesuai deskripsi'].includes(returnNotes) ? returnNotes : 'custom'}
+                  onChange={(e) => {
+                    if (e.target.value !== 'custom') {
+                      setReturnNotes(e.target.value);
+                    } else {
+                      setReturnNotes('');
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-2"
+                >
+                  <option value="custom">-- Tulis manual --</option>
+                  <option value="Retur barang cacat/rusak">Retur barang cacat/rusak</option>
+                  <option value="Retur ukuran tidak sesuai">Retur ukuran tidak sesuai</option>
+                  <option value="Retur salah kirim">Retur salah kirim</option>
+                  <option value="Retur customer berubah pikiran">Retur customer berubah pikiran</option>
+                  <option value="Retur barang tidak sesuai deskripsi">Retur barang tidak sesuai deskripsi</option>
+                </select>
                 <textarea
                   value={returnNotes}
                   onChange={(e) => setReturnNotes(e.target.value)}
