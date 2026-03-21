@@ -1459,8 +1459,7 @@ export const LanguageSwitcher = ({ className = '' }) => {
       className={`flex items-center gap-2 px-3 py-1.5 border rounded hover:bg-gray-100 transition-colors ${className}`}
       title={t('switchLanguage')}
     >
-      <span className="text-lg">{language === 'id' ? '🇮🇩' : '🇺🇸'}</span>
-      <span className="text-sm font-medium">{language === 'id' ? 'ID' : 'EN'}</span>
+      <span className="text-sm font-medium">{language === 'id' ? 'Indonesia' : 'English'}</span>
     </button>
   );
 };

@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../services/api';
+import { clearCart } from '../redux/slices/cartSlice';
 import { useAlert } from '../utils/AlertContext';
 import { useSettings } from '../utils/SettingsContext';
 import { useLanguage } from '../utils/i18n';
 
 const Checkout = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { user, isAuthenticated } = useSelector((state) => state.auth);
   const { showError, showSuccess } = useAlert();
   const { midtransEnabled, getSetting } = useSettings();
@@ -546,6 +548,7 @@ const Checkout = () => {
 
         setSuccessMessage(t('orderCreatedSuccess'));
         showSuccess(t('orderCreatedRedirectTracking'), t('success'));
+        dispatch(clearCart());
         setTimeout(() => {
           navigate(`/order/${unique_token}`);
         }, 2000);
@@ -604,6 +607,7 @@ const Checkout = () => {
         
         setSuccessMessage(t('orderCreatedSuccess'));
         showSuccess(t('orderCreatedRedirectOrders'), t('success'));
+        dispatch(clearCart());
         setTimeout(() => {
           navigate('/orders');
         }, 2000);

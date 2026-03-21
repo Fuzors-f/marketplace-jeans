@@ -313,7 +313,7 @@ const MainLayoutNew = () => {
                           className="inline-flex items-center gap-1 text-black font-semibold hover:underline text-sm"
                           onClick={() => setOpenMegaMenu(null)}
                         >
-                          {t('viewAllWomenProducts')} →
+                          {t('viewAllWomenProducts')}
                         </Link>
                       </div>
                     </div>
@@ -378,7 +378,7 @@ const MainLayoutNew = () => {
                           className="inline-flex items-center gap-1 text-black font-semibold hover:underline text-sm"
                           onClick={() => setOpenMegaMenu(null)}
                         >
-                          {t('viewAllMenProducts')} →
+                          {t('viewAllMenProducts')}
                         </Link>
                       </div>
                     </div>
