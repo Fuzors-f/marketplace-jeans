@@ -18,7 +18,7 @@ const AdminLayout = () => {
   const location = useLocation();
   const { user } = useSelector((state) => state.auth);
   const { hasPermission, canView, isAdmin } = usePermissions();
-  const [openSubmenus, setOpenSubmenus] = useState(['master', 'inventory']);
+  const [openSubmenus, setOpenSubmenus] = useState(['master', 'orders', 'inventory']);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Close mobile menu on route change
@@ -64,13 +64,20 @@ const AdminLayout = () => {
         { path: '/admin/sizes', icon: FaRuler, label: 'Ukuran', resource: 'sizes' },
         { path: '/admin/banners', icon: FaImages, label: 'Banner', resource: 'banners' },
         { path: '/admin/content', icon: FaGlobe, label: 'Konten Website', resource: 'content' },
+        { path: '/admin/blogs', icon: FaNewspaper, label: 'Blog', resource: 'content' },
         { path: '/admin/city-shipping', icon: FaTruck, label: 'Kota & Ongkir', resource: 'city_shipping' },
       ]
     },
-    { path: '/admin/orders', icon: FaShoppingBag, label: 'Pesanan', resource: 'orders' },
-    { path: '/admin/coupons', icon: FaTicketAlt, label: 'Kupon Diskon', resource: 'coupons' },
-    { path: '/admin/returns', icon: FaUndo, label: 'Retur Barang', resource: 'orders' },
-    { path: '/admin/blogs', icon: FaNewspaper, label: 'Blog', resource: 'content' },
+    { 
+      key: 'orders',
+      icon: FaShoppingBag, 
+      label: 'Penjualan',
+      children: [
+        { path: '/admin/orders', icon: FaShoppingBag, label: 'Pesanan', resource: 'orders' },
+        { path: '/admin/coupons', icon: FaTicketAlt, label: 'Kupon Diskon', resource: 'coupons' },
+        { path: '/admin/returns', icon: FaUndo, label: 'Retur Barang', resource: 'orders' },
+      ]
+    },
     { 
       key: 'inventory',
       icon: FaWarehouse, 

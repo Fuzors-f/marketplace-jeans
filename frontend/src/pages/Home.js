@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchProducts } from '../redux/slices/productSlice';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import apiClient from '../services/api';
+import { blogAPI } from '../services/api';
 import { getProductImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../utils/imageUtils';
 import { useLanguage } from '../utils/i18n';
 
@@ -17,11 +18,13 @@ const Home = () => {
   const [homeLoading, setHomeLoading] = useState(true);
   const [homeError, setHomeError] = useState('');
   const [categories, setCategories] = useState([]);
+  const [blogs, setBlogs] = useState([]);
 
   useEffect(() => {
     dispatch(fetchProducts({ limit: 4, is_featured: true, sort: 'created_at', order: 'DESC' }));
     fetchHomeData();
     fetchCategories();
+    fetchBlogs();
   }, [dispatch]);
 
   const fetchHomeData = async () => {
@@ -45,6 +48,27 @@ const Home = () => {
     } catch (err) {
       console.error('Error fetching categories:', err);
     }
+  };
+
+  const fetchBlogs = async () => {
+    try {
+      const response = await blogAPI.getPublished({ limit: 3, page: 1 });
+      setBlogs(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching blogs:', err);
+    }
+  };
+
+  const getBlogImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    const baseUrl = (process.env.REACT_APP_API_URL || 'https://be-hojdenim.yyyy-zzzzz-online.com/api').replace('/api', '');
+    return `${baseUrl}${url}`;
+  };
+
+  const formatBlogDate = (dateStr) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
   // Hero carousel slides - use backend banners or fallback to defaults
@@ -300,6 +324,70 @@ const Home = () => {
           )}
         </div>
       </section>
+
+      {/* Blog / Article Section */}
+      {blogs.length > 0 && (
+        <section className="py-16">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-between items-center mb-12">
+              <h2 className="text-4xl font-bold uppercase tracking-wide">
+                Blog & Artikel
+              </h2>
+              <Link
+                to="/blog"
+                className="text-sm font-bold uppercase tracking-wider hover:underline"
+              >
+                Lihat Semua &rarr;
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {blogs.map((blog) => (
+                <Link
+                  key={blog.id}
+                  to={`/blog/${blog.slug}`}
+                  className="group"
+                >
+                  <div className="aspect-[16/10] overflow-hidden bg-gray-100 rounded-xl mb-4">
+                    {blog.featured_image ? (
+                      <img
+                        src={getBlogImageUrl(blog.featured_image)}
+                        alt={blog.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'https://images.unsplash.com/photo-1504711434969-e33886168d5c?w=600&h=400&fit=crop';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-300">
+                        <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+                    {blog.category && (
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full font-medium">
+                        {blog.category}
+                      </span>
+                    )}
+                    {(blog.published_at || blog.created_at) && (
+                      <span>{formatBlogDate(blog.published_at || blog.created_at)}</span>
+                    )}
+                  </div>
+                  <h3 className="font-bold text-lg mb-2 group-hover:underline line-clamp-2">
+                    {blog.title}
+                  </h3>
+                  {blog.excerpt && (
+                    <p className="text-sm text-gray-500 line-clamp-2">{blog.excerpt}</p>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Promotional Banners */}
       <section className="py-16 bg-gray-50">
