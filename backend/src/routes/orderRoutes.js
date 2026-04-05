@@ -22,9 +22,9 @@ const { uploadSingle } = require('../middleware/upload');
 // Public routes - order tracking by token
 router.get('/track/:token', getOrderByToken);
 router.post('/track/:token/payment-proof', uploadSingle, uploadPaymentProofByToken);
-router.get('/:id/qrcode', generateQRCode);
-router.get('/:id/qrcode-data', getQRCodeData);
-router.get('/:id/invoice', generateInvoice);
+router.get('/track/:token/qrcode', generateQRCode);
+router.get('/track/:token/qrcode-data', getQRCodeData);
+router.get('/track/:token/invoice', generateInvoice);
 router.get('/:id/shipping-history', getShippingHistory);
 
 // Public/Protected routes

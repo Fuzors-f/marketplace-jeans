@@ -32,6 +32,12 @@ exports.createPayment = async (req, res) => {
 
     const order = orders[0];
 
+    // Verify order ownership
+    const requestUserId = req.user ? req.user.id : null;
+    if (order.user_id && requestUserId && order.user_id !== requestUserId) {
+      return res.status(403).json({ success: false, message: 'Not authorized to create payment for this order' });
+    }
+
     // Check if payment already exists and not failed
     const existingPayment = await query(
       `SELECT * FROM payments WHERE order_id = ? AND status NOT IN ('failed', 'expired')`,
@@ -125,7 +131,7 @@ exports.createPayment = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error creating payment',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -154,6 +160,12 @@ exports.createDirectCharge = async (req, res) => {
     }
 
     const order = orders[0];
+
+    // Verify order ownership
+    const requestUserId = req.user ? req.user.id : null;
+    if (order.user_id && requestUserId && order.user_id !== requestUserId) {
+      return res.status(403).json({ success: false, message: 'Not authorized to create payment for this order' });
+    }
 
     // Check if Midtrans is enabled
     const midtransEnabled = await midtransService.isMidtransEnabled();
@@ -214,7 +226,7 @@ exports.createDirectCharge = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error creating payment',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -408,7 +420,7 @@ exports.cancelPayment = async (req, res) => {
     const { paymentId } = req.params;
 
     const payments = await query(
-      `SELECT p.*, o.order_number 
+      `SELECT p.*, o.order_number, o.user_id as order_user_id
        FROM payments p
        JOIN orders o ON p.order_id = o.id
        WHERE p.id = ?`,
@@ -423,6 +435,11 @@ exports.cancelPayment = async (req, res) => {
     }
 
     const payment = payments[0];
+
+    // Verify ownership: user can only cancel their own payments
+    if (payment.order_user_id && payment.order_user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to cancel this payment' });
+    }
 
     if (payment.status !== 'pending') {
       return res.status(400).json({

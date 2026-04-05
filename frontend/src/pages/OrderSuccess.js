@@ -41,7 +41,7 @@ export default function OrderSuccess() {
 
   const fetchQRCode = async (tokenOrId) => {
     try {
-      const response = await api.get(`/orders/${tokenOrId}/qrcode-data`);
+      const response = await api.get(`/orders/track/${tokenOrId}/qrcode-data`);
       if (response.data.success) {
         setQrCode(response.data.data);
       }
@@ -59,7 +59,7 @@ export default function OrderSuccess() {
 
   const downloadQRCode = async () => {
     try {
-      const response = await api.get(`/orders/${order?.unique_token || orderId}/qrcode`, {
+      const response = await api.get(`/orders/track/${order?.unique_token || orderId}/qrcode`, {
         responseType: 'blob'
       });
       
@@ -79,7 +79,7 @@ export default function OrderSuccess() {
   const downloadInvoice = async () => {
     setDownloadingPdf(true);
     try {
-      const response = await api.get(`/orders/${order?.unique_token || orderId}/invoice`, {
+      const response = await api.get(`/orders/track/${order?.unique_token || orderId}/invoice`, {
         responseType: 'blob'
       });
       

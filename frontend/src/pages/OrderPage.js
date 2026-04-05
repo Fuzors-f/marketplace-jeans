@@ -60,7 +60,7 @@ export default function OrderPage() {
 
   const fetchQRCode = async () => {
     try {
-      const response = await api.get(`/orders/${token}/qrcode-data`);
+      const response = await api.get(`/orders/track/${token}/qrcode-data`);
       if (response.data.success) {
         setQrCodeData(response.data.data);
       }
@@ -71,7 +71,7 @@ export default function OrderPage() {
 
   const downloadQRCode = async () => {
     try {
-      const response = await api.get(`/orders/${token}/qrcode`, {
+      const response = await api.get(`/orders/track/${token}/qrcode`, {
         responseType: 'blob'
       });
       
@@ -92,7 +92,7 @@ export default function OrderPage() {
   const downloadInvoice = async () => {
     setDownloadingPdf(true);
     try {
-      const response = await api.get(`/orders/${token}/invoice`, {
+      const response = await api.get(`/orders/track/${token}/invoice`, {
         responseType: 'blob'
       });
       

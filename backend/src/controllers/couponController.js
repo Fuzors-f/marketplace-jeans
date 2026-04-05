@@ -1,4 +1,4 @@
-const { query, transaction } = require('../config/database');
+﻿const { query, transaction } = require('../config/database');
 
 // @desc    Get all coupons (Admin)
 // @route   GET /api/coupons
@@ -59,7 +59,7 @@ exports.getAllCoupons = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Gagal memuat data kupon',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -114,7 +114,7 @@ exports.getCouponById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Gagal memuat kupon',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -260,7 +260,7 @@ exports.validateCoupon = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Gagal memvalidasi kupon',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -360,7 +360,7 @@ exports.createCoupon = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Gagal membuat kupon',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -463,7 +463,7 @@ exports.updateCoupon = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Gagal mengupdate kupon',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -501,7 +501,7 @@ exports.deleteCoupon = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Gagal menghapus kupon',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -558,7 +558,7 @@ exports.getCouponStats = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Gagal memuat statistik kupon',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };

@@ -1,4 +1,4 @@
-const { query, transaction } = require('../config/database');
+﻿const { query, transaction } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 const moment = require('moment');
 const crypto = require('crypto');
@@ -9,6 +9,14 @@ const fs = require('fs');
 const { logActivity } = require('../middleware/activityLogger');
 const { sendOrderConfirmationEmail, sendOrderStatusEmail, sendAdminOrderNotificationEmail, isUserNotificationEnabled } = require('../services/emailService');
 const { applyCouponToOrder } = require('./couponController');
+
+// Helper: check if negative stock is allowed from settings
+const isNegativeStockAllowed = async () => {
+  const rows = await query(
+    "SELECT setting_value FROM settings WHERE setting_key = 'allow_negative_stock'"
+  );
+  return rows.length > 0 && rows[0].setting_value === 'true';
+};
 
 // Generate unique order number
 const generateOrderNumber = () => {
@@ -100,6 +108,9 @@ exports.createOrder = async (req, res) => {
     }
 
     const orderData = await transaction(async (conn) => {
+      // Check if negative stock is allowed
+      const allowNegativeStock = await isNegativeStockAllowed();
+
       // Calculate subtotal
       let subtotal = 0;
       const orderItems = [];
@@ -122,7 +133,7 @@ exports.createOrder = async (req, res) => {
 
         const variant = variants[0];
 
-        if (variant.stock_quantity < item.quantity) {
+        if (!allowNegativeStock && variant.stock_quantity < item.quantity) {
           throw new Error(`Stok tidak cukup untuk ${variant.name} (tersisa: ${variant.stock_quantity})`);
         }
 
@@ -238,6 +249,10 @@ exports.createOrder = async (req, res) => {
                 }
               } else if (discount.type === 'fixed') {
                 discountAmount = discount.value;
+                // Cap discount so total never goes negative
+                if (discountAmount > subtotal) {
+                  discountAmount = subtotal;
+                }
               }
 
               // Update usage count
@@ -250,7 +265,7 @@ exports.createOrder = async (req, res) => {
         }
       }
 
-      // Calculate shipping cost from frontend-selected option, or use fallback
+      // Calculate shipping cost from frontend-selected option (server-validated only)
       let shippingCost = 0;
       if (shipping_cost_id) {
         // Fetch actual shipping cost from database to prevent client-side tampering
@@ -263,9 +278,9 @@ exports.createOrder = async (req, res) => {
           shippingCost = parseFloat(shippingCosts[0].calculated_cost || shippingCosts[0].cost) || 0;
         }
       }
-      // Fallback: if no shipping cost found, use basic calculation
+      // Security: never trust client-supplied shipping_cost. Use default if no valid shipping_cost_id.
       if (!shippingCost || shippingCost <= 0) {
-        shippingCost = parseFloat(req.body.shipping_cost) || (shipping_address.country === 'Indonesia' ? 20000 : 100000);
+        shippingCost = shipping_address.country === 'Indonesia' ? 20000 : 100000;
       }
 
       // Calculate tax (11% PPN on subtotal after discounts)
@@ -519,23 +534,23 @@ exports.getOrderByToken = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching order',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
 
 // @desc    Generate QR Code for order
-// @route   GET /api/orders/:id/qrcode
-// @access  Private/Public
+// @route   GET /api/orders/track/:token/qrcode
+// @access  Public
 exports.generateQRCode = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { token } = req.params;
     const { format = 'png' } = req.query; // png or svg
 
-    // Get order token
+    // Security: only allow lookup by unique_token to prevent enumeration
     const orders = await query(
-      'SELECT unique_token, order_number FROM orders WHERE id = ? OR unique_token = ?',
-      [id, id]
+      'SELECT unique_token, order_number FROM orders WHERE unique_token = ?',
+      [token]
     );
 
     if (orders.length === 0) {
@@ -569,22 +584,22 @@ exports.generateQRCode = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error generating QR code',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
 
 // @desc    Get QR Code as base64 for display
-// @route   GET /api/orders/:id/qrcode-data
-// @access  Private/Public
+// @route   GET /api/orders/track/:token/qrcode-data
+// @access  Public
 exports.getQRCodeData = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { token } = req.params;
 
-    // Get order token
+    // Security: only allow lookup by unique_token to prevent enumeration
     const orders = await query(
-      'SELECT unique_token, order_number FROM orders WHERE id = ? OR unique_token = ?',
-      [id, id]
+      'SELECT unique_token, order_number FROM orders WHERE unique_token = ?',
+      [token]
     );
 
     if (orders.length === 0) {
@@ -617,19 +632,19 @@ exports.getQRCodeData = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error generating QR code',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
 
 // @desc    Generate PDF Invoice
-// @route   GET /api/orders/:id/invoice
-// @access  Private/Public
+// @route   GET /api/orders/track/:token/invoice
+// @access  Public
 exports.generateInvoice = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { token } = req.params;
 
-    // Get order details
+    // Security: only allow lookup by unique_token to prevent enumeration
     const orders = await query(
       `SELECT 
         o.*, 
@@ -639,8 +654,8 @@ exports.generateInvoice = async (req, res) => {
       FROM orders o
       LEFT JOIN order_shipping os ON o.id = os.order_id
       LEFT JOIN warehouses w ON o.warehouse_id = w.id
-      WHERE o.id = ? OR o.unique_token = ?`,
-      [id, id]
+      WHERE o.unique_token = ?`,
+      [token]
     );
 
     if (orders.length === 0) {
@@ -801,7 +816,7 @@ exports.generateInvoice = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error generating invoice',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -862,7 +877,7 @@ exports.approveOrder = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error approving order',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -931,7 +946,7 @@ exports.addShippingHistory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error adding shipping history',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -978,7 +993,7 @@ exports.getShippingHistory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching shipping history',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -1055,7 +1070,7 @@ exports.getOrders = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching orders',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -1067,6 +1082,21 @@ exports.getOrder = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user ? req.user.id : null;
+    const userRole = req.user ? req.user.role : null;
+
+    // Security: guests (no auth) must not access orders by numeric ID.
+    // They should use the /track/:token endpoint instead.
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Login diperlukan untuk melihat detail pesanan. Gunakan link tracking untuk akses tamu.'
+      });
+    }
+
+    // Build ownership filter: admin can see all, regular users only their own
+    const isAdmin = userRole === 'admin' || userRole === 'admin_stok';
+    const ownershipFilter = isAdmin ? '' : 'AND o.user_id = ?';
+    const queryParams = isAdmin ? [id] : [id, userId];
 
     // Get order
     const orders = await query(
@@ -1079,8 +1109,8 @@ exports.getOrder = async (req, res) => {
         os.shipping_method, os.tracking_number, os.country
       FROM orders o
       LEFT JOIN order_shipping os ON o.id = os.order_id
-      WHERE o.id = ? ${userId ? 'AND (o.user_id = ? OR o.user_id IS NULL)' : ''}`,
-      userId ? [id, userId] : [id]
+      WHERE o.id = ? ${ownershipFilter}`,
+      queryParams
     );
 
     if (orders.length === 0) {
@@ -1139,7 +1169,7 @@ exports.getOrder = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching order',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -1284,7 +1314,7 @@ exports.updateOrderStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error updating order status',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -1335,7 +1365,7 @@ exports.addTracking = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error adding tracking number',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -1409,7 +1439,7 @@ exports.uploadPaymentProof = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error uploading payment proof',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -1471,7 +1501,7 @@ exports.uploadPaymentProofByToken = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error uploading payment proof',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };

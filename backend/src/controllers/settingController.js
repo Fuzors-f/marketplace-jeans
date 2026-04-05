@@ -63,6 +63,7 @@ const defaultSettings = [
 
   // Report settings
   { key: 'margin_calculation_method', value: 'latest', type: 'select', description: 'Metode perhitungan HPP untuk margin (latest = HPP terakhir, average = rata-rata HPP)', is_public: false, group: 'report' },
+  { key: 'allow_negative_stock', value: 'false', type: 'boolean', description: 'Izinkan stok minus saat penjualan (oversell)', is_public: false, group: 'report' },
 ];
 
 // @desc    Get all settings

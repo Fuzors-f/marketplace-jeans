@@ -802,17 +802,17 @@ const AdminOrders = () => {
   };
 
   // Download invoice PDF
-  const handleDownloadInvoice = async (orderId, orderNumber) => {
+  const handleDownloadInvoice = async (uniqueToken, orderNumber) => {
     try {
-      setDownloadingInvoice(orderId);
-      const response = await apiClient.get(`/orders/${orderId}/invoice`, {
+      setDownloadingInvoice(uniqueToken);
+      const response = await apiClient.get(`/orders/track/${uniqueToken}/invoice`, {
         responseType: 'blob'
       });
       
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `invoice-${orderNumber || orderId}.pdf`);
+      link.setAttribute('download', `invoice-${orderNumber || uniqueToken}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -825,16 +825,16 @@ const AdminOrders = () => {
   };
 
   // Download QR code
-  const handleDownloadQRCode = async (orderId, orderNumber) => {
+  const handleDownloadQRCode = async (uniqueToken, orderNumber) => {
     try {
-      const response = await apiClient.get(`/orders/${orderId}/qrcode`, {
+      const response = await apiClient.get(`/orders/track/${uniqueToken}/qrcode`, {
         responseType: 'blob'
       });
       
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `qr-${orderNumber || orderId}.png`);
+      link.setAttribute('download', `qr-${orderNumber || uniqueToken}.png`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -1275,7 +1275,7 @@ const AdminOrders = () => {
                   {/* Action buttons */}
                   <div className="flex flex-wrap gap-2">
                     <button
-                      onClick={() => handleDownloadInvoice(selectedOrder.id, selectedOrder.order_number)}
+                      onClick={() => handleDownloadInvoice(selectedOrder.unique_token, selectedOrder.order_number)}
                       disabled={downloadingInvoice === selectedOrder.id}
                       className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
                     >
@@ -1287,7 +1287,7 @@ const AdminOrders = () => {
                     </button>
                     
                     <button
-                      onClick={() => handleDownloadQRCode(selectedOrder.id, selectedOrder.order_number)}
+                      onClick={() => handleDownloadQRCode(selectedOrder.unique_token, selectedOrder.order_number)}
                       className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
                     >
                       <FaQrcode /> Download QR Code

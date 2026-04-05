@@ -83,10 +83,10 @@ function OrderDetailContent() {
   }, [orderId]);
 
   const fetchQRCode = useCallback(async () => {
-    if (!orderId) return;
+    if (!order?.unique_token) return;
     try {
       setQrLoading(true);
-      const response = await apiClient.get(`/orders/${orderId}/qrcode-data`);
+      const response = await apiClient.get(`/orders/track/${order.unique_token}/qrcode-data`);
       if (response.data.success) {
         setQrData(response.data.data);
       }
@@ -95,7 +95,7 @@ function OrderDetailContent() {
     } finally {
       setQrLoading(false);
     }
-  }, [orderId]);
+  }, [order?.unique_token]);
 
   useEffect(() => {
     if (order) {

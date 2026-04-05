@@ -288,7 +288,7 @@ const AdminLayout = () => {
           </div>
         </header>
 
-        <main>
+        <main className="p-6">
           <Outlet />
         </main>
       </div>

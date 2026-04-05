@@ -112,6 +112,12 @@ const Checkout = () => {
   const paypalButtonsRendered = React.useRef(false);
   const checkoutDataRef = React.useRef({});
 
+  // Coupon state (declared early because checkoutDataRef needs it)
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+
   // Set default payment method based on available options
   useEffect(() => {
     if (isGuest) {
@@ -137,7 +143,7 @@ const Checkout = () => {
   // Keep checkout data ref fresh for PayPal callback
   checkoutDataRef.current = {
     isGuest, guestForm, userForm, user, cartItems, selectedShipping,
-    appliedCoupon, couponDiscount, saveNewAddress, useNewAddress, savedAddresses
+    appliedCoupon, couponDiscount: appliedCoupon?.discount_amount || 0, saveNewAddress, useNewAddress, savedAddresses
   };
 
   // Load PayPal SDK when PayPal is selected
@@ -270,12 +276,6 @@ const Checkout = () => {
       paypalButtonsRendered.current = true;
     });
   }, [paymentMethod, paypalReady]);
-
-  // Coupon state
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [couponLoading, setCouponLoading] = useState(false);
-  const [couponError, setCouponError] = useState('');
 
   // Fetch cart from API on mount
   useEffect(() => {

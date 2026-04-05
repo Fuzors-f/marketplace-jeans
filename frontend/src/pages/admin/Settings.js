@@ -669,6 +669,18 @@ export default function AdminSettings() {
           </div>
         </div>
       </div>
+
+      {/* Allow Negative Stock */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="font-medium mb-3">Pengaturan Stok</h4>
+        {renderSettingInput('allow_negative_stock', 'Izinkan Stok Minus', 'boolean', '', 'Jika diaktifkan, penjualan tetap bisa dilakukan meskipun stok produk sudah habis (stok bisa menjadi minus)')}
+        <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <p className="text-xs text-yellow-700">
+            <strong>Perhatian:</strong> Mengaktifkan stok minus berarti sistem tidak akan menolak pesanan saat stok habis. 
+            Pastikan Anda memantau stok secara berkala untuk menghindari oversell yang tidak terkendali.
+          </p>
+        </div>
+      </div>
     </div>
   );
 

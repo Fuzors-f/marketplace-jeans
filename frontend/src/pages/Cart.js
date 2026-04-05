@@ -24,6 +24,7 @@ export default function Cart() {
   const fetchCart = async () => {
     try {
       setLoading(true);
+      setError('');
       const response = await api.get('/cart');
       if (response.data.success) {
         setCart(response.data.data);

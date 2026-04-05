@@ -1,5 +1,13 @@
 const { query, transaction } = require('../config/database');
 
+// Helper: check if negative stock is allowed from settings
+const isNegativeStockAllowed = async () => {
+  const rows = await query(
+    "SELECT setting_value FROM settings WHERE setting_key = 'allow_negative_stock'"
+  );
+  return rows.length > 0 && rows[0].setting_value === 'true';
+};
+
 // @desc    Get user cart
 // @route   GET /api/cart
 // @access  Private / Public (guest with session)
@@ -75,7 +83,7 @@ exports.getCart = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching cart',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -93,6 +101,14 @@ exports.addToCart = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Product variant ID required'
+      });
+    }
+
+    // Validate quantity is a positive integer
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quantity harus berupa bilangan bulat positif (minimal 1)'
       });
     }
 
@@ -114,15 +130,18 @@ exports.addToCart = async (req, res) => {
 
     const variant = variants[0];
 
-    // Initial stock check
-    if (variant.stock_quantity <= 0) {
+    // Check if negative stock is allowed
+    const allowNegativeStock = await isNegativeStockAllowed();
+
+    // Initial stock check (skip if negative stock allowed)
+    if (!allowNegativeStock && variant.stock_quantity <= 0) {
       return res.status(400).json({
         success: false,
         message: 'Stok habis untuk produk ini'
       });
     }
 
-    if (variant.stock_quantity < quantity) {
+    if (!allowNegativeStock && variant.stock_quantity < quantity) {
       return res.status(400).json({
         success: false,
         message: `Stok tidak mencukupi. Tersisa ${variant.stock_quantity} item`
@@ -185,7 +204,7 @@ exports.addToCart = async (req, res) => {
       if (existingItem.length > 0) {
         // Check total quantity against stock
         const newQuantity = existingItem[0].quantity + quantity;
-        if (newQuantity > variant.stock_quantity) {
+        if (!allowNegativeStock && newQuantity > variant.stock_quantity) {
           throw new Error(`Stok tidak mencukupi. Sudah ada ${existingItem[0].quantity} di keranjang, tersisa stok: ${variant.stock_quantity}`);
         }
         // Update quantity
@@ -211,7 +230,7 @@ exports.addToCart = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error adding to cart',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -223,6 +242,8 @@ exports.updateCartItem = async (req, res) => {
   try {
     const { itemId } = req.params;
     const { quantity } = req.body;
+    const userId = req.user ? req.user.id : null;
+    const sessionId = req.headers['x-session-id'];
 
     if (!quantity || quantity < 1) {
       return res.status(400).json({
@@ -231,11 +252,12 @@ exports.updateCartItem = async (req, res) => {
       });
     }
 
-    // Check stock
+    // Check stock AND verify ownership
     const items = await query(
-      `SELECT ci.*, pv.stock_quantity 
+      `SELECT ci.*, pv.stock_quantity, c.user_id, c.session_id
        FROM cart_items ci
        JOIN product_variants pv ON ci.product_variant_id = pv.id
+       JOIN carts c ON ci.cart_id = c.id
        WHERE ci.id = ?`,
       [itemId]
     );
@@ -247,10 +269,20 @@ exports.updateCartItem = async (req, res) => {
       });
     }
 
-    if (items[0].stock_quantity < quantity) {
+    // Verify cart ownership
+    const cartItem = items[0];
+    if (userId && cartItem.user_id !== userId) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    } else if (!userId && cartItem.session_id !== sessionId) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+
+    const allowNegativeStock = await isNegativeStockAllowed();
+
+    if (!allowNegativeStock && cartItem.stock_quantity < quantity) {
       return res.status(400).json({
         success: false,
-        message: `Stok tidak mencukupi. Tersisa ${items[0].stock_quantity} item`
+        message: `Stok tidak mencukupi. Tersisa ${cartItem.stock_quantity} item`
       });
     }
 
@@ -265,7 +297,7 @@ exports.updateCartItem = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error updating cart',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -276,6 +308,28 @@ exports.updateCartItem = async (req, res) => {
 exports.removeFromCart = async (req, res) => {
   try {
     const { itemId } = req.params;
+    const userId = req.user ? req.user.id : null;
+    const sessionId = req.headers['x-session-id'];
+
+    // Verify ownership before deleting
+    const items = await query(
+      `SELECT ci.id, c.user_id, c.session_id
+       FROM cart_items ci
+       JOIN carts c ON ci.cart_id = c.id
+       WHERE ci.id = ?`,
+      [itemId]
+    );
+
+    if (items.length === 0) {
+      return res.status(404).json({ success: false, message: 'Cart item not found' });
+    }
+
+    const cartItem = items[0];
+    if (userId && cartItem.user_id !== userId) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    } else if (!userId && cartItem.session_id !== sessionId) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
 
     await query('DELETE FROM cart_items WHERE id = ?', [itemId]);
 
@@ -288,7 +342,7 @@ exports.removeFromCart = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error removing from cart',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -316,7 +370,7 @@ exports.clearCart = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error clearing cart',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
