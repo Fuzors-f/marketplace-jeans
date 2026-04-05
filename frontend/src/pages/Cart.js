@@ -38,14 +38,17 @@ export default function Cart() {
   };
 
   const handleUpdateQuantity = async (itemId, newQuantity) => {
-    if (newQuantity < 1) return;
+    const qty = parseInt(newQuantity, 10);
+    if (isNaN(qty) || qty < 1) return;
     
     try {
       setUpdating(itemId);
-      await api.put(`/cart/${itemId}`, { quantity: newQuantity });
+      await api.put(`/cart/${itemId}`, { quantity: qty });
       await fetchCart();
     } catch (err) {
       showError(err.response?.data?.message || t('failedUpdateQuantity'));
+      // Re-fetch to reset displayed quantity on error
+      await fetchCart();
     } finally {
       setUpdating(null);
     }
@@ -152,19 +155,30 @@ export default function Cart() {
                     {/* Quantity Controls */}
                     <div className="flex items-center gap-3 mt-2">
                       <button
-                        onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                        disabled={updating === item.id || item.quantity <= 1}
-                        className="w-8 h-8 border rounded flex items-center justify-center hover:bg-gray-100 disabled:opacity-50"
+                        onClick={() => handleUpdateQuantity(item.id, parseInt(item.quantity, 10) - 1)}
+                        disabled={updating === item.id || parseInt(item.quantity, 10) <= 1}
+                        className="w-8 h-8 border rounded flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 select-none"
                       >
                         -
                       </button>
-                      <span className="w-8 text-center">
-                        {updating === item.id ? '...' : item.quantity}
-                      </span>
+                      <input
+                        type="number"
+                        min="1"
+                        max={item.stock_quantity}
+                        value={updating === item.id ? item.quantity : item.quantity}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (!isNaN(val) && val >= 1 && val <= parseInt(item.stock_quantity, 10)) {
+                            handleUpdateQuantity(item.id, val);
+                          }
+                        }}
+                        disabled={updating === item.id}
+                        className="w-14 h-8 text-center border rounded focus:ring-2 focus:ring-black focus:outline-none disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
                       <button
-                        onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                        disabled={updating === item.id || item.quantity >= item.stock_quantity}
-                        className="w-8 h-8 border rounded flex items-center justify-center hover:bg-gray-100 disabled:opacity-50"
+                        onClick={() => handleUpdateQuantity(item.id, parseInt(item.quantity, 10) + 1)}
+                        disabled={updating === item.id || parseInt(item.quantity, 10) >= parseInt(item.stock_quantity, 10)}
+                        className="w-8 h-8 border rounded flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 select-none"
                       >
                         +
                       </button>

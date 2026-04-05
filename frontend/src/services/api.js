@@ -186,7 +186,10 @@ export const paymentAPI = {
   createCharge: (data) => apiClient.post('/payments/charge', data),
   getStatus: (paymentId) => apiClient.get(`/payments/${paymentId}/status`),
   getByOrder: (orderId) => apiClient.get(`/payments/order/${orderId}`),
-  cancel: (paymentId) => apiClient.post(`/payments/${paymentId}/cancel`)
+  cancel: (paymentId) => apiClient.post(`/payments/${paymentId}/cancel`),
+  // PayPal
+  createPayPalPayment: (data) => apiClient.post('/payments/paypal/create', data),
+  capturePayPalPayment: (data) => apiClient.post('/payments/paypal/capture', data)
 };
 
 // =====================================

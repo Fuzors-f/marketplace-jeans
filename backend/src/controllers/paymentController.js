@@ -1,5 +1,6 @@
 const { query, transaction } = require('../config/database');
 const midtransService = require('../services/midtransService');
+const paypalService = require('../services/paypalService');
 const emailService = require('../services/emailService');
 
 // @desc    Create payment with Midtrans Snap
@@ -495,5 +496,147 @@ exports.getPaymentByOrder = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+// @desc    Create PayPal order
+// @route   POST /api/payments/paypal/create
+// @access  Private / Public (guest)
+exports.createPayPalPayment = async (req, res) => {
+  try {
+    const { order_id } = req.body;
+
+    const isEnabled = await paypalService.isPayPalEnabled();
+    if (!isEnabled) {
+      return res.status(400).json({ success: false, message: 'PayPal payment is not enabled' });
+    }
+
+    const orders = await query(
+      `SELECT o.*, u.email, u.full_name, u.phone
+       FROM orders o LEFT JOIN users u ON o.user_id = u.id
+       WHERE o.id = ?`, [order_id]
+    );
+    if (orders.length === 0) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    const order = orders[0];
+
+    // Check for existing valid payment
+    const existingPayment = await query(
+      `SELECT * FROM payments WHERE order_id = ? AND payment_gateway = 'paypal' AND status NOT IN ('failed', 'expired')`,
+      [order_id]
+    );
+    if (existingPayment.length > 0 && existingPayment[0].transaction_id) {
+      return res.json({
+        success: true,
+        message: 'Existing PayPal payment found',
+        data: {
+          payment_id: existingPayment[0].id,
+          paypal_order_id: existingPayment[0].transaction_id,
+          amount: existingPayment[0].amount
+        }
+      });
+    }
+
+    const items = await query('SELECT * FROM order_items WHERE order_id = ?', [order_id]);
+
+    const paypalResult = await paypalService.createPayPalOrder(order, items);
+    if (!paypalResult.success) {
+      return res.status(400).json({ success: false, message: paypalResult.error });
+    }
+
+    // Insert payment record
+    const result = await query(
+      `INSERT INTO payments 
+      (order_id, payment_method, payment_gateway, transaction_id, amount, status, response_data, expired_at)
+      VALUES (?, 'paypal', 'paypal', ?, ?, 'pending', ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))`,
+      [order_id, paypalResult.paypal_order_id, order.total_amount, JSON.stringify(paypalResult)]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'PayPal order created',
+      data: {
+        payment_id: result.insertId,
+        paypal_order_id: paypalResult.paypal_order_id,
+        amount: order.total_amount
+      }
+    });
+  } catch (error) {
+    console.error('Create PayPal payment error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Capture PayPal order (after buyer approves)
+// @route   POST /api/payments/paypal/capture
+// @access  Private / Public (guest)
+exports.capturePayPalPayment = async (req, res) => {
+  try {
+    const { paypal_order_id } = req.body;
+
+    if (!paypal_order_id) {
+      return res.status(400).json({ success: false, message: 'PayPal order ID required' });
+    }
+
+    const captureResult = await paypalService.capturePayPalOrder(paypal_order_id);
+    if (!captureResult.success) {
+      return res.status(400).json({ success: false, message: captureResult.error });
+    }
+
+    // Update payment record
+    const payment = await query(
+      `SELECT p.*, o.id as order_id, o.order_number, o.user_id, o.guest_email
+       FROM payments p JOIN orders o ON p.order_id = o.id
+       WHERE p.transaction_id = ?`, [paypal_order_id]
+    );
+
+    if (payment.length > 0) {
+      const paymentStatus = captureResult.status === 'COMPLETED' ? 'success' : 'pending';
+      const orderStatus = captureResult.status === 'COMPLETED' ? 'confirmed' : null;
+
+      await query(
+        `UPDATE payments SET status = ?, paid_at = NOW(), response_data = ? WHERE transaction_id = ?`,
+        [paymentStatus, JSON.stringify(captureResult.data), paypal_order_id]
+      );
+
+      if (orderStatus) {
+        await query(
+          `UPDATE orders SET payment_status = 'paid', status = ? WHERE id = ?`,
+          [orderStatus, payment[0].order_id]
+        );
+
+        // Send confirmation email
+        try {
+          const email = payment[0].guest_email || (payment[0].user_id
+            ? (await query('SELECT email FROM users WHERE id = ?', [payment[0].user_id]))[0]?.email
+            : null);
+          if (email) {
+            await emailService.sendPaymentConfirmation(payment[0].order_id, email);
+          }
+        } catch (emailErr) {
+          console.error('Failed to send PayPal confirmation email:', emailErr);
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: 'Payment captured successfully',
+        data: {
+          status: paymentStatus,
+          capture_id: captureResult.capture_id,
+          order_status: orderStatus
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Payment captured',
+      data: captureResult
+    });
+  } catch (error) {
+    console.error('Capture PayPal payment error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };

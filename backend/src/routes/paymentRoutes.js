@@ -6,7 +6,9 @@ const {
   paymentNotification,
   checkPaymentStatus,
   cancelPayment,
-  getPaymentByOrder
+  getPaymentByOrder,
+  createPayPalPayment,
+  capturePayPalPayment
 } = require('../controllers/paymentController');
 const { optionalAuth, protect } = require('../middleware/auth');
 
@@ -16,5 +18,9 @@ router.post('/notification', paymentNotification);
 router.get('/order/:orderId', optionalAuth, getPaymentByOrder);
 router.get('/:paymentId/status', checkPaymentStatus);
 router.post('/:paymentId/cancel', protect, cancelPayment);
+
+// PayPal routes
+router.post('/paypal/create', optionalAuth, createPayPalPayment);
+router.post('/paypal/capture', optionalAuth, capturePayPalPayment);
 
 module.exports = router;

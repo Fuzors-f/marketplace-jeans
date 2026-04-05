@@ -94,6 +94,11 @@ export const SettingsProvider = ({ children }) => {
     midtransClientKey: paymentConfig?.midtrans?.clientKey || '',
     midtransSnapUrl: paymentConfig?.midtrans?.snapUrl || '',
     isMidtransProduction: paymentConfig?.midtrans?.isProduction || false,
+    bankTransferEnabled: paymentConfig?.bank_transfer?.enabled ?? true,
+    codEnabled: paymentConfig?.cod?.enabled || false,
+    paypalEnabled: paymentConfig?.paypal?.enabled || false,
+    paypalClientId: paymentConfig?.paypal?.clientId || '',
+    isPaypalSandbox: paymentConfig?.paypal?.isSandbox ?? true,
   };
 
   return (

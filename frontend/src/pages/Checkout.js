@@ -1,19 +1,52 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { Helmet } from 'react-helmet-async';
-import apiClient from '../services/api';
+import apiClient, { paymentAPI } from '../services/api';
 import { clearCart } from '../redux/slices/cartSlice';
 import { useAlert } from '../utils/AlertContext';
 import { useSettings } from '../utils/SettingsContext';
 import { useLanguage } from '../utils/i18n';
+
+// Load Midtrans Snap script dynamically
+const loadMidtransScript = (clientKey, isProduction) => {
+  return new Promise((resolve, reject) => {
+    if (window.snap) {
+      resolve(window.snap);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = isProduction
+      ? 'https://app.midtrans.com/snap/snap.js'
+      : 'https://app.sandbox.midtrans.com/snap/snap.js';
+    script.setAttribute('data-client-key', clientKey);
+    script.onload = () => resolve(window.snap);
+    script.onerror = () => reject(new Error('Failed to load Midtrans Snap'));
+    document.head.appendChild(script);
+  });
+};
+
+// Load PayPal JS SDK dynamically
+const loadPayPalScript = (clientId) => {
+  return new Promise((resolve, reject) => {
+    if (window.paypal) {
+      resolve(window.paypal);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD`;
+    script.onload = () => resolve(window.paypal);
+    script.onerror = () => reject(new Error('Failed to load PayPal SDK'));
+    document.head.appendChild(script);
+  });
+};
 
 const Checkout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user, isAuthenticated } = useSelector((state) => state.auth);
   const { showError, showSuccess } = useAlert();
-  const { midtransEnabled, getSetting } = useSettings();
+  const { midtransEnabled, midtransClientKey, isMidtransProduction, bankTransferEnabled, codEnabled, paypalEnabled, paypalClientId, isPaypalSandbox, getSetting } = useSettings();
   const { t, formatCurrency } = useLanguage();
 
   // Cart state - fetch from API instead of Redux
@@ -73,19 +106,170 @@ const Checkout = () => {
   const [paymentProofFile, setPaymentProofFile] = useState(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState('');
 
+  // PayPal button state
+  const [paypalReady, setPaypalReady] = useState(false);
+  const paypalButtonRef = React.useRef(null);
+  const paypalButtonsRendered = React.useRef(false);
+  const checkoutDataRef = React.useRef({});
+
   // Set default payment method based on available options
   useEffect(() => {
     if (isGuest) {
-      // Guest only gets bank_transfer
-      setPaymentMethod('bank_transfer');
+      // Guest: prefer bank transfer if enabled, else midtrans redirect
+      if (bankTransferEnabled) {
+        setPaymentMethod('bank_transfer');
+      } else if (midtransEnabled) {
+        setPaymentMethod('midtrans');
+      } else if (paypalEnabled) {
+        setPaymentMethod('paypal');
+      }
     } else if (midtransEnabled) {
       setPaymentMethod('midtrans');
-    } else if (getSetting('payment_bank_transfer_enabled', 'true') === 'true') {
+    } else if (paypalEnabled) {
+      setPaymentMethod('paypal');
+    } else if (bankTransferEnabled) {
       setPaymentMethod('bank_transfer');
-    } else {
+    } else if (codEnabled) {
       setPaymentMethod('cod');
     }
-  }, [midtransEnabled, getSetting, isGuest]);
+  }, [midtransEnabled, bankTransferEnabled, codEnabled, paypalEnabled, isGuest]);
+
+  // Keep checkout data ref fresh for PayPal callback
+  checkoutDataRef.current = {
+    isGuest, guestForm, userForm, user, cartItems, selectedShipping,
+    appliedCoupon, couponDiscount, saveNewAddress, useNewAddress, savedAddresses
+  };
+
+  // Load PayPal SDK when PayPal is selected
+  useEffect(() => {
+    if (paymentMethod === 'paypal' && paypalEnabled && paypalClientId && !window.paypal) {
+      loadPayPalScript(paypalClientId)
+        .then(() => setPaypalReady(true))
+        .catch((err) => console.error('PayPal SDK load error:', err));
+    } else if (window.paypal) {
+      setPaypalReady(true);
+    }
+  }, [paymentMethod, paypalEnabled, paypalClientId]);
+
+  // Render PayPal Buttons when ready
+  useEffect(() => {
+    if (paymentMethod !== 'paypal' || !paypalReady || !paypalButtonRef.current) return;
+    // Clear previous buttons
+    if (paypalButtonRef.current) {
+      paypalButtonRef.current.innerHTML = '';
+    }
+    paypalButtonsRendered.current = false;
+
+    if (!window.paypal) return;
+
+    const createOrderOnServer = async () => {
+      setError('');
+      const d = checkoutDataRef.current;
+      // Validate form first
+      if (d.isGuest && !validateGuestForm()) throw new Error('Validasi gagal');
+      if (!d.isGuest && !validateUserForm()) throw new Error('Validasi gagal');
+
+      // Save address if needed (logged-in user)
+      if (!d.isGuest && d.saveNewAddress && (d.useNewAddress || d.savedAddresses.length === 0)) {
+        await saveAddressToBook();
+      }
+
+      const shippingAddr = d.isGuest
+        ? {
+            recipient_name: d.guestForm.full_name,
+            phone: d.guestForm.phone,
+            address: d.guestForm.address,
+            city: d.guestForm.city,
+            province: d.guestForm.province,
+            postal_code: d.guestForm.postal_code,
+            country: 'Indonesia'
+          }
+        : {
+            recipient_name: d.user?.name || d.user?.full_name || '',
+            phone: d.userForm?.phone || d.user?.phone || '',
+            address: d.userForm.address,
+            city: d.userForm.city,
+            province: d.userForm.province,
+            postal_code: d.userForm.postal_code,
+            country: 'Indonesia'
+          };
+
+      const orderData = {
+        ...(d.isGuest ? { guest_email: d.guestForm.email } : {}),
+        shipping_address: shippingAddr,
+        shipping_cost_id: d.selectedShipping?.id || null,
+        courier: d.selectedShipping?.courier || '',
+        shipping_method: d.selectedShipping ? `${d.selectedShipping.courier} - ${d.selectedShipping.service || 'Regular'}` : 'Standard',
+        payment_method: 'paypal',
+        notes: d.isGuest ? (d.guestForm.notes || null) : (d.userForm.notes || null),
+        coupon_id: d.appliedCoupon?.id || null,
+        coupon_code: d.appliedCoupon?.code || null,
+        coupon_discount: d.couponDiscount,
+        items: d.cartItems.map(item => ({
+          product_variant_id: item.variant_id,
+          quantity: item.quantity,
+          price: item.price
+        }))
+      };
+
+      const response = await apiClient.post('/orders', orderData);
+      const { order_id, unique_token } = response.data.data;
+
+      const paypalRes = await paymentAPI.createPayPalPayment({ order_id, payment_method: 'paypal' });
+      if (!paypalRes.data.success) throw new Error('Gagal membuat PayPal order');
+
+      return { paypalOrderId: paypalRes.data.data.paypal_order_id, orderId: order_id, uniqueToken: unique_token };
+    };
+
+    window.paypal.Buttons({
+      style: { layout: 'vertical', color: 'blue', shape: 'rect', label: 'paypal' },
+      createOrder: async () => {
+        setLoading(true);
+        try {
+          const result = await createOrderOnServer();
+          paypalButtonRef.current._orderMeta = result;
+          return result.paypalOrderId;
+        } catch (err) {
+          setLoading(false);
+          const errMsg = err.response?.data?.message || err.message || 'Gagal membuat order';
+          setError(errMsg);
+          showError(errMsg, 'Error');
+          throw err;
+        }
+      },
+      onApprove: async (data) => {
+        try {
+          const meta = paypalButtonRef.current._orderMeta;
+          await paymentAPI.capturePayPalPayment({ paypal_order_id: data.orderID, order_id: meta.orderId });
+          dispatch(clearCart());
+          showSuccess('Pembayaran PayPal berhasil!', 'Success');
+          if (checkoutDataRef.current.isGuest) {
+            navigate(`/order/${meta.uniqueToken}?payment=success`);
+          } else {
+            navigate('/orders');
+          }
+        } catch (err) {
+          console.error('PayPal capture error:', err);
+          const errMsg = err.response?.data?.message || 'Gagal menyelesaikan pembayaran PayPal';
+          setError(errMsg);
+          showError(errMsg, 'Error');
+        } finally {
+          setLoading(false);
+        }
+      },
+      onCancel: () => {
+        setLoading(false);
+        showError('Pembayaran PayPal dibatalkan', 'Dibatalkan');
+      },
+      onError: (err) => {
+        setLoading(false);
+        console.error('PayPal error:', err);
+        setError('Terjadi kesalahan pada PayPal');
+      }
+    }).render(paypalButtonRef.current).then(() => {
+      paypalButtonsRendered.current = true;
+    });
+  }, [paymentMethod, paypalReady]);
 
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
@@ -546,6 +730,36 @@ const Checkout = () => {
           }
         }
 
+        // Handle Midtrans Snap popup for guest
+        if (paymentMethod === 'midtrans' && midtransEnabled && midtransClientKey) {
+          try {
+            const paymentRes = await paymentAPI.createPayment({ order_id, payment_method: 'snap' });
+            if (paymentRes.data.success && paymentRes.data.data.snap_token) {
+              const snap = await loadMidtransScript(midtransClientKey, isMidtransProduction);
+              dispatch(clearCart());
+              snap.pay(paymentRes.data.data.snap_token, {
+                onSuccess: () => {
+                  showSuccess(t('orderCreatedSuccess'), t('success'));
+                  navigate(`/order/${unique_token}?payment=success`);
+                },
+                onPending: () => {
+                  navigate(`/order/${unique_token}?payment=pending`);
+                },
+                onError: () => {
+                  showError('Pembayaran gagal', 'Error');
+                  navigate(`/order/${unique_token}?payment=error`);
+                },
+                onClose: () => {
+                  navigate(`/order/${unique_token}`);
+                }
+              });
+              return;
+            }
+          } catch (snapErr) {
+            console.error('Midtrans Snap error:', snapErr);
+          }
+        }
+
         setSuccessMessage(t('orderCreatedSuccess'));
         showSuccess(t('orderCreatedRedirectTracking'), t('success'));
         dispatch(clearCart());
@@ -602,6 +816,36 @@ const Checkout = () => {
             });
           } catch (uploadErr) {
             console.error('Failed to upload payment proof:', uploadErr);
+          }
+        }
+
+        // Handle Midtrans Snap popup
+        if (paymentMethod === 'midtrans' && midtransEnabled && midtransClientKey) {
+          try {
+            const paymentRes = await paymentAPI.createPayment({ order_id, payment_method: 'snap' });
+            if (paymentRes.data.success && paymentRes.data.data.snap_token) {
+              const snap = await loadMidtransScript(midtransClientKey, isMidtransProduction);
+              dispatch(clearCart());
+              snap.pay(paymentRes.data.data.snap_token, {
+                onSuccess: () => {
+                  showSuccess(t('orderCreatedSuccess'), t('success'));
+                  navigate('/orders');
+                },
+                onPending: () => {
+                  navigate('/orders');
+                },
+                onError: () => {
+                  showError('Pembayaran gagal', 'Error');
+                  navigate('/orders');
+                },
+                onClose: () => {
+                  navigate('/orders');
+                }
+              });
+              return;
+            }
+          } catch (snapErr) {
+            console.error('Midtrans Snap error:', snapErr);
           }
         }
         
@@ -1110,7 +1354,7 @@ const Checkout = () => {
                   <h2 className="text-xl font-bold mb-4 uppercase">{t('paymentMethod')}</h2>
                   <div className="space-y-3">
                     {/* Midtrans Payment - Online Payment Gateway */}
-                    {midtransEnabled && (
+                    {midtransEnabled && !isGuest && (
                       <label className="flex items-center cursor-pointer p-3 border rounded-lg hover:bg-blue-50 transition">
                         <input
                           type="radio"
@@ -1128,7 +1372,7 @@ const Checkout = () => {
                     )}
                     
                     {/* Bank Transfer */}
-                    {getSetting('payment_bank_transfer_enabled', 'true') === 'true' && (
+                    {bankTransferEnabled && (
                       <label className="flex items-center cursor-pointer p-3 border rounded-lg hover:bg-gray-50 transition">
                         <input
                           type="radio"
@@ -1149,8 +1393,8 @@ const Checkout = () => {
                       </label>
                     )}
                     
-                    {/* COD - only for logged-in users */}
-                    {!isGuest && (
+                    {/* COD - only for logged-in users and if enabled */}
+                    {!isGuest && codEnabled && (
                     <label className="flex items-center cursor-pointer p-3 border rounded-lg hover:bg-gray-50 transition">
                       <input
                         type="radio"
@@ -1165,6 +1409,33 @@ const Checkout = () => {
                         <p className="text-xs text-gray-500">{t('codDesc')}</p>
                       </div>
                     </label>
+                    )}
+
+                    {/* PayPal */}
+                    {paypalEnabled && !isGuest && (
+                      <label className="flex items-center cursor-pointer p-3 border rounded-lg hover:bg-blue-50 transition">
+                        <input
+                          type="radio"
+                          name="payment"
+                          value="paypal"
+                          checked={paymentMethod === 'paypal'}
+                          onChange={(e) => setPaymentMethod(e.target.value)}
+                          className="mr-3"
+                        />
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <span className="font-semibold">PayPal</span>
+                            <p className="text-xs text-gray-500">Bayar dengan PayPal, kartu kredit/debit internasional</p>
+                          </div>
+                        </div>
+                      </label>
+                    )}
+
+                    {/* No payment methods available */}
+                    {!midtransEnabled && !bankTransferEnabled && !codEnabled && !paypalEnabled && (
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-700">Tidak ada metode pembayaran yang tersedia saat ini. Silakan hubungi admin.</p>
+                      </div>
                     )}
                   </div>
 
@@ -1241,13 +1512,31 @@ const Checkout = () => {
                   )}
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-black text-white py-3 font-bold uppercase tracking-wider hover:bg-gray-900 disabled:opacity-50 transition"
-                >
-                  {loading ? t('processingPayment') : t('continueToPayment')}
-                </button>
+                {/* PayPal Payment Button */}
+                {paymentMethod === 'paypal' && paypalEnabled && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded">
+                    <p className="text-sm text-blue-800 mb-3">
+                      Pembayaran akan diproses melalui PayPal dalam mata uang USD. Harga akan dikonversi dari IDR ke USD secara otomatis.
+                    </p>
+                    {!paypalReady && (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                        <span className="text-sm text-blue-600">Memuat PayPal...</span>
+                      </div>
+                    )}
+                    <div ref={paypalButtonRef} className={paypalReady ? '' : 'hidden'}></div>
+                  </div>
+                )}
+
+                {paymentMethod !== 'paypal' && (
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-black text-white py-3 font-bold uppercase tracking-wider hover:bg-gray-900 disabled:opacity-50 transition"
+                  >
+                    {loading ? t('processingPayment') : t('continueToPayment')}
+                  </button>
+                )}
               </form>
             </div>
 

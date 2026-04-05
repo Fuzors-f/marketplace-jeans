@@ -429,6 +429,47 @@ export default function AdminSettings() {
         <CreditCard size={20} />
         Payment Gateway
       </h3>
+
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+        <p className="text-sm text-yellow-701">
+          Kelola metode pembayaran yang tersedia untuk pelanggan. Aktifkan atau nonaktifkan metode sesuai kebutuhan.
+        </p>
+      </div>
+
+      {/* Payment Methods Overview */}
+      <div className="bg-white border rounded-lg p-4">
+        <h4 className="font-medium mb-3">Metode Pembayaran Aktif</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className={`p-3 rounded-lg border-2 ${settings['payment_bank_transfer_enabled'] === 'true' ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+            <div className="flex items-center gap-2">
+              <Building size={18} className={settings['payment_bank_transfer_enabled'] === 'true' ? 'text-green-600' : 'text-gray-400'} />
+              <span className="font-medium text-sm">Transfer Bank</span>
+            </div>
+            <p className="text-xs mt-1 text-gray-500">{settings['payment_bank_transfer_enabled'] === 'true' ? 'Aktif' : 'Nonaktif'}</p>
+          </div>
+          <div className={`p-3 rounded-lg border-2 ${settings['payment_midtrans_enabled'] === 'true' ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+            <div className="flex items-center gap-2">
+              <CreditCard size={18} className={settings['payment_midtrans_enabled'] === 'true' ? 'text-green-600' : 'text-gray-400'} />
+              <span className="font-medium text-sm">Midtrans</span>
+            </div>
+            <p className="text-xs mt-1 text-gray-500">{settings['payment_midtrans_enabled'] === 'true' ? 'Aktif' : 'Nonaktif'}</p>
+          </div>
+          <div className={`p-3 rounded-lg border-2 ${settings['payment_paypal_enabled'] === 'true' ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+            <div className="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={settings['payment_paypal_enabled'] === 'true' ? 'text-green-600' : 'text-gray-400'}><path d="M7 11l-1 8H2L4 3h6.5a4.5 4.5 0 0 1 1 8.9"/><path d="M13 3h4.74a4.5 4.5 0 0 1 .5 8.96L17 19h-4"/></svg>
+              <span className="font-medium text-sm">PayPal</span>
+            </div>
+            <p className="text-xs mt-1 text-gray-500">{settings['payment_paypal_enabled'] === 'true' ? 'Aktif' : 'Nonaktif'}</p>
+          </div>
+          <div className={`p-3 rounded-lg border-2 ${settings['payment_cod_enabled'] === 'true' ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+            <div className="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={settings['payment_cod_enabled'] === 'true' ? 'text-green-600' : 'text-gray-400'}><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+              <span className="font-medium text-sm">COD</span>
+            </div>
+            <p className="text-xs mt-1 text-gray-500">{settings['payment_cod_enabled'] === 'true' ? 'Aktif' : 'Nonaktif'}</p>
+          </div>
+        </div>
+      </div>
       
       {/* Bank Transfer */}
       <div className="bg-gray-50 rounded-lg p-4">
@@ -436,10 +477,14 @@ export default function AdminSettings() {
           <Building size={18} />
           Transfer Bank Manual
         </h4>
-        {renderSettingInput('payment_bank_transfer_enabled', 'Aktifkan Transfer Bank', 'boolean')}
-        {renderSettingInput('payment_bank_name', 'Nama Bank', 'text', 'BCA / Mandiri / BNI')}
-        {renderSettingInput('payment_bank_account', 'Nomor Rekening', 'text', '1234567890')}
-        {renderSettingInput('payment_bank_holder', 'Atas Nama', 'text', 'Nama Pemilik Rekening')}
+        {renderSettingInput('payment_bank_transfer_enabled', 'Aktifkan Transfer Bank', 'boolean', '', 'Pelanggan dapat melakukan pembayaran via transfer bank dan upload bukti pembayaran')}
+        {settings['payment_bank_transfer_enabled'] === 'true' && (
+          <div className="mt-3 pl-4 border-l-2 border-blue-300">
+            {renderSettingInput('payment_bank_name', 'Nama Bank', 'text', 'BCA / Mandiri / BNI')}
+            {renderSettingInput('payment_bank_account', 'Nomor Rekening', 'text', '1234567890')}
+            {renderSettingInput('payment_bank_holder', 'Atas Nama', 'text', 'Nama Pemilik Rekening')}
+          </div>
+        )}
       </div>
 
       {/* Midtrans */}
@@ -448,13 +493,70 @@ export default function AdminSettings() {
           <CreditCard size={18} />
           Midtrans Payment Gateway
         </h4>
-        {renderSettingInput('payment_midtrans_enabled', 'Aktifkan Midtrans', 'boolean')}
-        {renderSettingInput('payment_midtrans_sandbox', 'Mode Sandbox (Testing)', 'boolean', '', 'Nonaktifkan untuk production')}
-        {renderSettingInput('payment_midtrans_server_key', 'Server Key', 'password', 'SB-Mid-server-xxx')}
-        {renderSettingInput('payment_midtrans_client_key', 'Client Key', 'text', 'SB-Mid-client-xxx')}
-        <div className="mt-3 text-sm text-gray-500">
-          <p>Dapatkan API Key di <a href="https://dashboard.midtrans.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Dashboard Midtrans</a></p>
-        </div>
+        {renderSettingInput('payment_midtrans_enabled', 'Aktifkan Midtrans', 'boolean', '', 'Pembayaran online otomatis via Midtrans (QRIS, VA, GoPay, dll)')}
+        {settings['payment_midtrans_enabled'] === 'true' && (
+          <div className="mt-3 pl-4 border-l-2 border-blue-300">
+            {renderSettingInput('payment_midtrans_sandbox', 'Mode Sandbox (Testing)', 'boolean', '', 'Aktifkan untuk testing. Nonaktifkan untuk transaksi production/live.')}
+            {renderSettingInput('payment_midtrans_server_key', 'Server Key', 'password', settings['payment_midtrans_sandbox'] === 'true' ? 'SB-Mid-server-xxxx' : 'Mid-server-xxxx')}
+            {renderSettingInput('payment_midtrans_client_key', 'Client Key', 'text', settings['payment_midtrans_sandbox'] === 'true' ? 'SB-Mid-client-xxxx' : 'Mid-client-xxxx')}
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                <strong>Cara mendapatkan API Key:</strong>
+              </p>
+              <ol className="text-sm text-blue-600 list-decimal list-inside mt-1 space-y-1">
+                <li>Login ke <a href="https://dashboard.midtrans.com" target="_blank" rel="noopener noreferrer" className="underline font-medium">Dashboard Midtrans</a></li>
+                <li>Pergi ke Settings → Access Keys</li>
+                <li>Copy Server Key dan Client Key</li>
+                <li>Untuk testing, gunakan Sandbox environment</li>
+              </ol>
+              <p className="text-xs text-blue-500 mt-2">
+                Mode saat ini: <span className="font-bold">{settings['payment_midtrans_sandbox'] === 'true' ? '🧪 Sandbox (Testing)' : '🟢 Production (Live)'}</span>
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* PayPal */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="font-medium mb-3 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 11l-1 8H2L4 3h6.5a4.5 4.5 0 0 1 1 8.9"/><path d="M13 3h4.74a4.5 4.5 0 0 1 .5 8.96L17 19h-4"/></svg>
+          PayPal Payment Gateway
+        </h4>
+        {renderSettingInput('payment_paypal_enabled', 'Aktifkan PayPal', 'boolean', '', 'Pembayaran internasional via PayPal (mendukung kartu kredit, debit, dan saldo PayPal)')}
+        {settings['payment_paypal_enabled'] === 'true' && (
+          <div className="mt-3 pl-4 border-l-2 border-blue-300">
+            {renderSettingInput('payment_paypal_sandbox', 'Mode Sandbox (Testing)', 'boolean', '', 'Aktifkan untuk testing. Nonaktifkan untuk transaksi production/live.')}
+            {renderSettingInput('payment_paypal_client_id', 'Client ID', 'text', settings['payment_paypal_sandbox'] === 'true' ? 'AYxxxxxx-sandbox-client-id' : 'AYxxxxxx-live-client-id')}
+            {renderSettingInput('payment_paypal_client_secret', 'Client Secret', 'password', 'ELxxxxxx-secret')}
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                <strong>Cara mendapatkan API Key PayPal:</strong>
+              </p>
+              <ol className="text-sm text-blue-600 list-decimal list-inside mt-1 space-y-1">
+                <li>Login ke <a href="https://developer.paypal.com" target="_blank" rel="noopener noreferrer" className="underline font-medium">PayPal Developer Dashboard</a></li>
+                <li>Buat atau pilih App di Apps & Credentials</li>
+                <li>Copy Client ID dan Client Secret</li>
+                <li>Untuk testing, gunakan Sandbox environment</li>
+              </ol>
+              <p className="text-xs text-blue-500 mt-2">
+                Mode saat ini: <span className="font-bold">{settings['payment_paypal_sandbox'] === 'true' ? '🧪 Sandbox (Testing)' : '🟢 Production (Live)'}</span>
+              </p>
+              <p className="text-xs text-orange-500 mt-1">
+                Catatan: PayPal menggunakan mata uang USD. Konversi otomatis dari IDR ke USD dilakukan dengan kurs perkiraan.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* COD */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="font-medium mb-3 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+          Cash on Delivery (COD)
+        </h4>
+        {renderSettingInput('payment_cod_enabled', 'Aktifkan COD', 'boolean', '', 'Pelanggan membayar saat barang diterima. Hanya tersedia untuk user yang login.')}
       </div>
     </div>
   );

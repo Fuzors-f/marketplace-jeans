@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { testEmailConfig, clearEmailSettingsCache } = require('../services/emailService');
 const { clearMidtransSettingsCache } = require('../services/midtransService');
+const { clearPayPalSettingsCache } = require('../services/paypalService');
 
 // Default settings to initialize
 const defaultSettings = [
@@ -39,6 +40,11 @@ const defaultSettings = [
   { key: 'payment_bank_name', value: '', type: 'text', description: 'Nama Bank', is_public: true, group: 'payment' },
   { key: 'payment_bank_account', value: '', type: 'text', description: 'Nomor Rekening', is_public: true, group: 'payment' },
   { key: 'payment_bank_holder', value: '', type: 'text', description: 'Nama Pemilik Rekening', is_public: true, group: 'payment' },
+  { key: 'payment_cod_enabled', value: 'false', type: 'boolean', description: 'Aktifkan Cash on Delivery (COD)', is_public: true, group: 'payment' },
+  { key: 'payment_paypal_enabled', value: 'false', type: 'boolean', description: 'Aktifkan PayPal', is_public: false, group: 'payment' },
+  { key: 'payment_paypal_client_id', value: '', type: 'text', description: 'PayPal Client ID', is_public: true, group: 'payment' },
+  { key: 'payment_paypal_client_secret', value: '', type: 'password', description: 'PayPal Client Secret', is_public: false, group: 'payment' },
+  { key: 'payment_paypal_sandbox', value: 'true', type: 'boolean', description: 'Gunakan Sandbox Mode (PayPal)', is_public: false, group: 'payment' },
   
   // Social media
   { key: 'social_facebook', value: '', type: 'text', description: 'Facebook URL', is_public: true, group: 'social' },
@@ -233,6 +239,7 @@ exports.bulkUpdateSettings = async (req, res) => {
     // Clear caches after bulk update
     clearEmailSettingsCache();
     clearMidtransSettingsCache();
+    clearPayPalSettingsCache();
 
     res.json({ 
       success: true, 
@@ -416,6 +423,7 @@ exports.clearSettingsCache = async (req, res) => {
   try {
     clearEmailSettingsCache();
     clearMidtransSettingsCache();
+    clearPayPalSettingsCache();
     
     res.json({ 
       success: true, 
@@ -435,30 +443,44 @@ exports.clearSettingsCache = async (req, res) => {
 exports.getPaymentConfig = async (req, res) => {
   try {
     const { getClientKey, isMidtransEnabled } = require('../services/midtransService');
-    
-    const enabled = await isMidtransEnabled();
-    
-    if (!enabled) {
-      return res.json({
-        success: true,
-        data: {
-          midtrans: {
-            enabled: false
-          }
-        }
-      });
-    }
 
-    const config = await getClientKey();
+    // Fetch all payment-related settings
+    const paymentSettings = await query(
+      `SELECT setting_key, setting_value FROM settings WHERE setting_group = 'payment'`
+    );
+    const ps = {};
+    paymentSettings.forEach(s => { ps[s.setting_key] = s.setting_value; });
+
+    const midtransEnabled = ps.payment_midtrans_enabled === 'true';
+    let midtransConfig = { enabled: false };
+
+    if (midtransEnabled) {
+      const config = await getClientKey();
+      midtransConfig = {
+        enabled: true,
+        clientKey: config.clientKey,
+        isProduction: config.isProduction,
+        snapUrl: config.snapUrl
+      };
+    }
 
     res.json({
       success: true,
       data: {
-        midtrans: {
-          enabled: true,
-          clientKey: config.clientKey,
-          isProduction: config.isProduction,
-          snapUrl: config.snapUrl
+        midtrans: midtransConfig,
+        bank_transfer: {
+          enabled: ps.payment_bank_transfer_enabled === 'true',
+          bank_name: ps.payment_bank_name || '',
+          bank_account: ps.payment_bank_account || '',
+          bank_holder: ps.payment_bank_holder || ''
+        },
+        cod: {
+          enabled: ps.payment_cod_enabled === 'true'
+        },
+        paypal: {
+          enabled: ps.payment_paypal_enabled === 'true',
+          clientId: ps.payment_paypal_client_id || '',
+          isSandbox: ps.payment_paypal_sandbox !== 'false'
         }
       }
     });

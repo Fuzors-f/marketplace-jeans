@@ -114,10 +114,18 @@ exports.addToCart = async (req, res) => {
 
     const variant = variants[0];
 
+    // Initial stock check
+    if (variant.stock_quantity <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Stok habis untuk produk ini'
+      });
+    }
+
     if (variant.stock_quantity < quantity) {
       return res.status(400).json({
         success: false,
-        message: 'Insufficient stock'
+        message: `Stok tidak mencukupi. Tersisa ${variant.stock_quantity} item`
       });
     }
 
@@ -175,8 +183,12 @@ exports.addToCart = async (req, res) => {
       );
 
       if (existingItem.length > 0) {
-        // Update quantity
+        // Check total quantity against stock
         const newQuantity = existingItem[0].quantity + quantity;
+        if (newQuantity > variant.stock_quantity) {
+          throw new Error(`Stok tidak mencukupi. Sudah ada ${existingItem[0].quantity} di keranjang, tersisa stok: ${variant.stock_quantity}`);
+        }
+        // Update quantity
         await conn.execute(
           'UPDATE cart_items SET quantity = ?, price = ? WHERE id = ?',
           [newQuantity, price, existingItem[0].id]
@@ -238,7 +250,7 @@ exports.updateCartItem = async (req, res) => {
     if (items[0].stock_quantity < quantity) {
       return res.status(400).json({
         success: false,
-        message: 'Insufficient stock'
+        message: `Stok tidak mencukupi. Tersisa ${items[0].stock_quantity} item`
       });
     }
 
