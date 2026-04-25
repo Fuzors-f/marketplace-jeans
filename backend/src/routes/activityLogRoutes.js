@@ -6,7 +6,9 @@ const {
   getActivitySummary,
   getUserActivity,
   exportActivityLogs,
-  cleanupOldLogs
+  cleanupOldLogs,
+  getActivityReport,
+  getSessionTimeline
 } = require('../controllers/activityLogController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -16,7 +18,9 @@ router.use(authorize('admin'));
 
 router.get('/summary', getActivitySummary);
 router.get('/export', exportActivityLogs);
+router.get('/report', getActivityReport);
 router.get('/user/:userId', getUserActivity);
+router.get('/session/:sessionId', getSessionTimeline);
 router.delete('/cleanup', cleanupOldLogs);
 router.get('/:id', getActivityLogById);
 router.get('/', getActivityLogs);

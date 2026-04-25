@@ -1,4 +1,5 @@
 const { query, transaction } = require('../config/database');
+const { logActivity } = require('../middleware/activityLogger');
 
 // @desc    Get user wishlist
 // @route   GET /api/wishlist
@@ -83,6 +84,9 @@ exports.addToWishlist = async (req, res) => {
       [userId, product_id]
     );
 
+    logActivity(userId, 'add_to_wishlist', 'product', product_id,
+      `Tambah ke wishlist: produk #${product_id}`, req);
+
     res.status(201).json({
       success: true,
       message: 'Product added to wishlist'
@@ -116,6 +120,9 @@ exports.removeFromWishlist = async (req, res) => {
         message: 'Product not found in wishlist'
       });
     }
+
+    logActivity(userId, 'remove_from_wishlist', 'product', productId,
+      `Hapus dari wishlist: produk #${productId}`, req);
 
     res.json({
       success: true,

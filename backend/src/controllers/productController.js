@@ -159,6 +159,13 @@ exports.getProducts = async (req, res) => {
         pages: Math.ceil(total / limit)
       }
     });
+
+    // Log search keyword (fire-and-forget, only when search term is used by public)
+    if (search && !req.query.show_all) {
+      const searcherId = req.user ? req.user.id : null;
+      logActivity(searcherId, 'search', 'product', null,
+        `Pencarian produk: "${search}"`, req, { keyword: search });
+    }
   } catch (error) {
     console.error('Get products error:', error);
     res.status(500).json({
@@ -226,6 +233,11 @@ exports.getProduct = async (req, res) => {
 
     // Update view count
     await query('UPDATE products SET view_count = view_count + 1 WHERE id = ?', [product.id]);
+
+    // Log product view (fire-and-forget, include guest session)
+    const viewerUserId = req.user ? req.user.id : null;
+    logActivity(viewerUserId, 'view_product', 'product', product.id,
+      `Lihat produk: ${product.name}`, req, { product_slug: slug });
 
     res.json({
       success: true,

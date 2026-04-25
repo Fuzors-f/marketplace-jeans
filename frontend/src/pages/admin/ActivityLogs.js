@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { Link } from 'react-router-dom';
 import apiClient from '../../services/api';
 import { 
   FaHistory, FaSearch, FaFilter, FaDownload, FaUser, FaSpinner,
-  FaChartBar, FaCalendarAlt, FaEye, FaGlobe, FaDesktop
+  FaChartBar, FaCalendarAlt, FaEye, FaGlobe, FaDesktop, FaChartLine, FaUserSecret
 } from 'react-icons/fa';
 import { useLanguage } from '../../utils/i18n';
 import Modal from '../../components/admin/Modal';
@@ -191,6 +192,13 @@ const ActivityLogs = () => {
                 </p>
               </div>
               <div className="flex gap-2">
+                <Link
+                  to="/admin/reports/user-activity"
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                >
+                  <FaChartLine />
+                  Laporan Analitik
+                </Link>
                 <button
                   onClick={() => setShowFilters(!showFilters)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${
@@ -373,7 +381,8 @@ const ActivityLogs = () => {
                   <thead className="bg-gray-50 border-b">
                     <tr>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Waktu</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">User</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">User / Tamu</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Tipe</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Action</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Entity</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Deskripsi</th>
@@ -388,8 +397,32 @@ const ActivityLogs = () => {
                           {formatDateTime(log.created_at)}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-sm font-medium">{log.user_name || 'Guest'}</div>
-                          <div className="text-xs text-gray-500">{log.user_email}</div>
+                          {log.user_name ? (
+                            <>
+                              <div className="text-sm font-medium">{log.user_name}</div>
+                              <div className="text-xs text-gray-500">{log.user_email}</div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm text-gray-500 flex items-center gap-1">
+                                <FaUserSecret className="text-gray-400" /> Tamu
+                              </div>
+                              {log.session_id && (
+                                <div className="text-xs font-mono text-gray-400 truncate max-w-[120px]" title={log.session_id}>
+                                  {log.session_id.substring(0, 12)}…
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {log.user_type && (
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                              log.user_type === 'admin' ? 'bg-red-100 text-red-700' :
+                              log.user_type === 'member' ? 'bg-blue-100 text-blue-700' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>{log.user_type}</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${getActionBadgeColor(log.action)}`}>
@@ -473,8 +506,22 @@ const ActivityLogs = () => {
                 </div>
                 <div>
                   <label className="text-sm text-gray-500">User</label>
-                  <p className="font-medium">{selectedLog.user_name || 'Guest'}</p>
+                  <p className="font-medium">{selectedLog.user_name || 'Tamu'}</p>
                   <p className="text-sm text-gray-500">{selectedLog.user_email}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Tipe User</label>
+                  <p>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      selectedLog.user_type === 'admin' ? 'bg-red-100 text-red-700' :
+                      selectedLog.user_type === 'member' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>{selectedLog.user_type || 'guest'}</span>
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Session ID</label>
+                  <p className="font-mono text-xs break-all text-gray-600">{selectedLog.session_id || '-'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-500">Action</label>

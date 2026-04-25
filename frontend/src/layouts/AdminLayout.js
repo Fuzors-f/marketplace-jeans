@@ -98,7 +98,8 @@ const AdminLayout = () => {
         { path: '/admin/reports/sales', icon: FaMoneyBillWave, label: 'Laporan Penjualan', resource: 'reports' },
         { path: '/admin/reports/orders-incoming', icon: FaClipboardList, label: 'Orderan Masuk', resource: 'reports' },
         { path: '/admin/reports/orders-shipped', icon: FaTruck, label: 'Orderan Terkirim', resource: 'reports' },
-        { path: '/admin/activity-logs', icon: FaHistory, label: 'Activity Logs', resource: 'activity_logs' },
+        { path: '/admin/reports/user-activity', icon: FaHistory, label: 'Aktivitas User & Tamu', resource: 'activity_logs' },
+        { path: '/admin/activity-logs', icon: FaHistory, label: 'Activity Logs (Detail)', resource: 'activity_logs' },
       ]
     },
     { 

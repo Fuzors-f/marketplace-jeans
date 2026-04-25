@@ -1,4 +1,5 @@
 const { query, transaction } = require('../config/database');
+const { logActivity } = require('../middleware/activityLogger');
 
 // Helper: check if negative stock is allowed from settings
 const isNegativeStockAllowed = async () => {
@@ -221,6 +222,11 @@ exports.addToCart = async (req, res) => {
       }
     });
 
+    // Log activity (fire-and-forget)
+    logActivity(userId, 'add_to_cart', 'product_variant', product_variant_id,
+      `Tambah ke keranjang: variant #${product_variant_id} qty ${quantity}`, req,
+      { product_variant_id, quantity });
+
     res.status(201).json({
       success: true,
       message: 'Item added to cart'
@@ -288,6 +294,9 @@ exports.updateCartItem = async (req, res) => {
 
     await query('UPDATE cart_items SET quantity = ? WHERE id = ?', [quantity, itemId]);
 
+    logActivity(userId, 'update_cart', 'cart_item', itemId,
+      `Update keranjang: item #${itemId} qty ${quantity}`, req);
+
     res.json({
       success: true,
       message: 'Cart updated'
@@ -333,6 +342,9 @@ exports.removeFromCart = async (req, res) => {
 
     await query('DELETE FROM cart_items WHERE id = ?', [itemId]);
 
+    logActivity(userId, 'remove_from_cart', 'cart_item', itemId,
+      `Hapus dari keranjang: item #${itemId}`, req);
+
     res.json({
       success: true,
       message: 'Item removed from cart'
@@ -360,6 +372,9 @@ exports.clearCart = async (req, res) => {
     } else if (sessionId) {
       await query('DELETE ci FROM cart_items ci JOIN carts c ON ci.cart_id = c.id WHERE c.session_id = ?', [sessionId]);
     }
+
+    logActivity(userId, 'clear_cart', 'cart', null,
+      'Keranjang dikosongkan', req);
 
     res.json({
       success: true,

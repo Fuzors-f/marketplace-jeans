@@ -2,6 +2,16 @@ const { query } = require('../config/database');
 const ExcelJS = require('exceljs');
 const moment = require('moment');
 
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+const buildDateCondition = (start_date, end_date, tableAlias = '') => {
+  const col = tableAlias ? `${tableAlias}.created_at` : 'created_at';
+  if (start_date && end_date) return { clause: `${col} BETWEEN ? AND ?`, params: [start_date, `${end_date} 23:59:59`] };
+  if (start_date) return { clause: `${col} >= ?`, params: [start_date] };
+  if (end_date) return { clause: `${col} <= ?`, params: [`${end_date} 23:59:59`] };
+  return { clause: null, params: [] };
+};
+
 // @desc    Get activity logs with filters
 // @route   GET /api/activity-logs
 // @access  Private (Admin)
@@ -68,9 +78,10 @@ exports.getActivityLogs = async (req, res) => {
     // Get logs - using explicit columns for better control
     const logs = await query(
       `SELECT 
-        al.id, al.user_id, al.action, al.entity_type, al.entity_id,
+        al.id, al.user_id, al.session_id, al.user_type,
+        al.action, al.entity_type, al.entity_id,
         al.description, al.ip_address, al.user_agent, al.request_url, al.request_method,
-        al.metadata, al.created_at,
+        al.metadata, al.page_path, al.created_at,
         u.full_name as user_name, u.email as user_email, u.role as user_role
       FROM activity_logs al
       LEFT JOIN users u ON al.user_id = u.id
@@ -406,3 +417,216 @@ exports.cleanupOldLogs = async (req, res) => {
     });
   }
 };
+
+// ─── NEW: Comprehensive User & Guest Activity Report ─────────────────────────
+
+// @desc    Get full user activity report with guest tracking
+// @route   GET /api/activity-logs/report
+// @access  Private (Admin)
+exports.getActivityReport = async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    const dateFilter = buildDateCondition(start_date, end_date, 'al');
+    const whereClause = dateFilter.clause ? `WHERE ${dateFilter.clause}` : '';
+    const params = dateFilter.params;
+
+    // ── Summary totals ────────────────────────────────────────────────────────
+    const [totals] = await query(
+      `SELECT
+         COUNT(*) AS total_events,
+         COUNT(DISTINCT al.user_id) AS unique_registered_users,
+         COUNT(DISTINCT CASE WHEN al.user_id IS NULL THEN al.session_id END) AS unique_guests,
+         COUNT(DISTINCT al.ip_address) AS unique_ips,
+         COUNT(DISTINCT al.session_id) AS total_sessions,
+         SUM(al.action = 'login') AS total_logins,
+         SUM(al.action = 'register') AS total_registers,
+         SUM(al.action = 'create_order') AS total_orders,
+         SUM(al.action = 'add_to_cart') AS total_add_to_cart,
+         SUM(al.action = 'view_product') AS total_product_views,
+         SUM(al.action = 'search') AS total_searches
+       FROM activity_logs al
+       ${whereClause}`,
+      params
+    );
+
+    // ── Activity by user type ─────────────────────────────────────────────────
+    const byUserType = await query(
+      `SELECT
+         COALESCE(al.user_type, 'guest') AS user_type,
+         COUNT(*) AS event_count,
+         COUNT(DISTINCT CASE WHEN al.user_id IS NOT NULL THEN al.user_id ELSE al.session_id END) AS unique_users
+       FROM activity_logs al
+       ${whereClause}
+       GROUP BY COALESCE(al.user_type, 'guest')
+       ORDER BY event_count DESC`,
+      params
+    );
+
+    // ── Daily activity trend (last 30 days or filtered range) ─────────────────
+    const trendWhere = dateFilter.clause ? `WHERE ${dateFilter.clause}` : "WHERE al.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+    const trendParams = dateFilter.params.length ? dateFilter.params : [];
+    const dailyTrend = await query(
+      `SELECT
+         DATE(al.created_at) AS date,
+         COUNT(*) AS total_events,
+         SUM(al.action = 'login') AS logins,
+         SUM(al.action = 'create_order') AS orders,
+         SUM(al.action = 'view_product') AS product_views,
+         SUM(al.action = 'add_to_cart') AS add_to_carts,
+         COUNT(DISTINCT CASE WHEN al.user_id IS NULL THEN al.session_id END) AS guest_sessions,
+         COUNT(DISTINCT al.user_id) AS registered_users
+       FROM activity_logs al
+       ${trendWhere}
+       GROUP BY DATE(al.created_at)
+       ORDER BY date ASC`,
+      trendParams
+    );
+
+    // ── Top actions ───────────────────────────────────────────────────────────
+    const topActions = await query(
+      `SELECT action, COUNT(*) AS count
+       FROM activity_logs al
+       ${whereClause}
+       GROUP BY action
+       ORDER BY count DESC
+       LIMIT 15`,
+      params
+    );
+
+    // ── Top active registered users ───────────────────────────────────────────
+    const topUsers = await query(
+      `SELECT
+         u.id, u.full_name, u.email, u.role,
+         COUNT(*) AS event_count,
+         MAX(al.created_at) AS last_seen,
+         SUM(al.action = 'login') AS login_count,
+         SUM(al.action = 'create_order') AS order_count
+       FROM activity_logs al
+       JOIN users u ON al.user_id = u.id
+       ${whereClause}
+       GROUP BY u.id, u.full_name, u.email, u.role
+       ORDER BY event_count DESC
+       LIMIT 20`,
+      params
+    );
+
+    // ── Guest session list ────────────────────────────────────────────────────
+    const guestSessions = await query(
+      `SELECT
+         al.session_id,
+         al.ip_address,
+         COUNT(*) AS event_count,
+         MIN(al.created_at) AS first_seen,
+         MAX(al.created_at) AS last_seen,
+         SUM(al.action = 'view_product') AS product_views,
+         SUM(al.action = 'add_to_cart') AS add_to_carts,
+         SUM(al.action = 'create_order') AS orders,
+         SUM(al.action = 'search') AS searches,
+         GROUP_CONCAT(DISTINCT al.action ORDER BY al.created_at SEPARATOR ', ') AS actions_summary
+       FROM activity_logs al
+       WHERE al.user_id IS NULL
+         AND al.session_id IS NOT NULL
+         ${dateFilter.clause ? `AND ${dateFilter.clause}` : ''}
+       GROUP BY al.session_id, al.ip_address
+       ORDER BY last_seen DESC
+       LIMIT 100`,
+      params
+    );
+
+    // ── Hour of day distribution ──────────────────────────────────────────────
+    const hourlyDistribution = await query(
+      `SELECT
+         HOUR(al.created_at) AS hour,
+         COUNT(*) AS count
+       FROM activity_logs al
+       ${whereClause}
+       GROUP BY HOUR(al.created_at)
+       ORDER BY hour`,
+      params
+    );
+
+    // ── Top searched keywords ─────────────────────────────────────────────────
+    const topSearches = await query(
+      `SELECT
+         JSON_UNQUOTE(JSON_EXTRACT(al.metadata, '$.keyword')) AS keyword,
+         COUNT(*) AS count
+       FROM activity_logs al
+       WHERE al.action = 'search'
+         AND al.metadata IS NOT NULL
+         ${dateFilter.clause ? `AND ${dateFilter.clause}` : ''}
+       GROUP BY keyword
+       ORDER BY count DESC
+       LIMIT 20`,
+      params
+    );
+
+    // ── Top viewed products ───────────────────────────────────────────────────
+    const topProducts = await query(
+      `SELECT
+         al.entity_id AS product_id,
+         p.name AS product_name,
+         p.slug,
+         COUNT(*) AS view_count,
+         COUNT(DISTINCT CASE WHEN al.user_id IS NOT NULL THEN al.user_id ELSE al.session_id END) AS unique_viewers
+       FROM activity_logs al
+       LEFT JOIN products p ON al.entity_id = p.id
+       WHERE al.action = 'view_product'
+         ${dateFilter.clause ? `AND ${dateFilter.clause}` : ''}
+       GROUP BY al.entity_id, p.name, p.slug
+       ORDER BY view_count DESC
+       LIMIT 20`,
+      params
+    );
+
+    res.json({
+      success: true,
+      data: {
+        period: { start_date: start_date || null, end_date: end_date || null },
+        totals: totals,
+        byUserType,
+        dailyTrend,
+        topActions,
+        topUsers,
+        guestSessions,
+        hourlyDistribution,
+        topSearches,
+        topProducts
+      }
+    });
+  } catch (error) {
+    console.error('Get activity report error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch activity report',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get session timeline (all events for one session_id or user_id)
+// @route   GET /api/activity-logs/session/:sessionId
+// @access  Private (Admin)
+exports.getSessionTimeline = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const events = await query(
+      `SELECT
+         al.id, al.action, al.entity_type, al.entity_id,
+         al.description, al.ip_address, al.request_url, al.request_method,
+         al.user_type, al.created_at,
+         u.full_name AS user_name, u.email AS user_email
+       FROM activity_logs al
+       LEFT JOIN users u ON al.user_id = u.id
+       WHERE al.session_id = ?
+       ORDER BY al.created_at ASC`,
+      [sessionId]
+    );
+
+    res.json({ success: true, data: events, session_id: sessionId });
+  } catch (error) {
+    console.error('Get session timeline error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch session timeline', error: error.message });
+  }
+};
+
