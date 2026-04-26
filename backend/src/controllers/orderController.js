@@ -399,6 +399,17 @@ exports.createOrder = async (req, res) => {
       `Created order ${orderData.orderNumber}`, req, 
       { order_number: orderData.orderNumber, tracking_url: trackingUrl });
 
+    // Create admin notification for new order
+    query(
+      `INSERT INTO notifications (user_id, type, title, message, reference_id, reference_type, for_admin)
+       VALUES (NULL, 'new_order', ?, ?, ?, 'order', 1)`,
+      [
+        `Pesanan Baru: ${orderData.orderNumber}`,
+        `Pesanan baru telah masuk. Segera diproses.`,
+        orderData.orderId
+      ]
+    ).catch(err => console.error('Failed to create admin notification:', err));
+
     // Send order confirmation emails (async, don't wait)
     const orderForEmail = await query(
       `SELECT o.*, u.email, u.full_name
@@ -1304,6 +1315,20 @@ exports.updateOrderStatus = async (req, res) => {
     // Log activity
     await logActivity(adminId, 'update_order', 'order', id, 
       `Updated order status to ${status}`, req, { status, notes });
+
+    // Create user notification for order status change
+    query(
+      `INSERT INTO notifications (user_id, type, title, message, reference_id, reference_type, for_admin)
+       SELECT o.user_id, 'order_status_update', ?, ?, ?, 'order', 0
+       FROM orders o
+       WHERE o.id = ? AND o.user_id IS NOT NULL`,
+      [
+        `Status Pesanan Diperbarui`,
+        `Pesanan ${id} kini berstatus: ${statusTitles[status] || status}. ${notes ? notes : ''}`.trim(),
+        id,
+        id
+      ]
+    ).catch(err => console.error('Failed to create user notification:', err));
 
     res.json({
       success: true,

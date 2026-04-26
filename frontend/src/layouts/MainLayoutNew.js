@@ -6,6 +6,7 @@ import { logout } from '../redux/slices/authSlice';
 import { useLanguage, LanguageSwitcher } from '../utils/i18n';
 import { useSettings } from '../utils/SettingsContext';
 import apiClient from '../services/api';
+import NotificationBell from '../components/NotificationBell';
 
 const MainLayoutNew = () => {
   const dispatch = useDispatch();
@@ -432,6 +433,11 @@ const MainLayoutNew = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
               </Link>
+
+              {/* Notification Bell (authenticated users only) */}
+              {isAuthenticated && (
+                <NotificationBell isAdmin={false} />
+              )}
 
               {/* Cart */}
               <Link to="/cart" className="relative hover:text-gray-600 p-2 group">

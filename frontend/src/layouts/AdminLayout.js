@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa';
 import { logout } from '../redux/slices/authSlice';
 import { usePermissions } from '../utils/PermissionContext';
+import NotificationBell from '../components/NotificationBell';
 
 const AdminLayout = () => {
   const dispatch = useDispatch();
@@ -279,12 +280,15 @@ const AdminLayout = () => {
               <h1 className="text-2xl font-semibold text-gray-800 truncate">
                 {getCurrentLabel()}
               </h1>
-              <Link
-                to="/"
-                className="text-sm text-blue-600 hover:text-blue-700"
-              >
-                ← Kembali ke Toko
-              </Link>
+              <div className="flex items-center gap-3">
+                <NotificationBell isAdmin={true} />
+                <Link
+                  to="/"
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  ← Kembali ke Toko
+                </Link>
+              </div>
             </div>
           </div>
         </header>

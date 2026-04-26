@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { setCredentials } from '../redux/slices/authSlice';
 import apiClient from '../services/api';
 import { useLanguage } from '../utils/i18n';
@@ -18,6 +19,26 @@ export default function Register() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const dispatch = useDispatch();
+
+  // reCAPTCHA state
+  const recaptchaRef = useRef(null);
+  const [captchaEnabled, setCaptchaEnabled] = useState(false);
+  const [siteKey, setSiteKey] = useState('');
+  const [captchaToken, setCaptchaToken] = useState(null);
+
+  // Fetch public settings to check if reCAPTCHA is enabled
+  useEffect(() => {
+    apiClient.get('/settings').then(res => {
+      if (res.data.success) {
+        const s = res.data.data;
+        const enabled = s['recaptcha_enabled'] === 'true';
+        setCaptchaEnabled(enabled);
+        if (enabled && s['recaptcha_site_key']) {
+          setSiteKey(s['recaptcha_site_key']);
+        }
+      }
+    }).catch(() => {});
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -47,6 +68,12 @@ export default function Register() {
       return;
     }
 
+    // reCAPTCHA check
+    if (captchaEnabled && !captchaToken) {
+      setError('Harap selesaikan verifikasi reCAPTCHA terlebih dahulu.');
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await apiClient.post('/auth/register', {
@@ -54,7 +81,8 @@ export default function Register() {
         password: formData.password,
         full_name: formData.full_name,
         phone: formData.phone || null,
-        role: 'member'
+        role: 'member',
+        recaptcha_token: captchaToken || undefined
       });
 
       if (response.data.success) {
@@ -70,6 +98,11 @@ export default function Register() {
     } catch (err) {
       console.error('Registration error:', err);
       setError(err.response?.data?.message || t('registrationFailed'));
+      // Reset reCAPTCHA on error so user can try again
+      if (captchaEnabled && recaptchaRef.current) {
+        recaptchaRef.current.reset();
+        setCaptchaToken(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -161,6 +194,18 @@ export default function Register() {
               onChange={handleChange}
             />
           </div>
+
+          {/* Google reCAPTCHA */}
+          {captchaEnabled && siteKey && (
+            <div className="mb-6 flex justify-center">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={siteKey}
+                onChange={(token) => setCaptchaToken(token)}
+                onExpired={() => setCaptchaToken(null)}
+              />
+            </div>
+          )}
           
           <button
             type="submit"

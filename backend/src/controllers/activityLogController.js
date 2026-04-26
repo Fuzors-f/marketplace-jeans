@@ -454,7 +454,7 @@ exports.getActivityReport = async (req, res) => {
       `SELECT
          COALESCE(al.user_type, 'guest') AS user_type,
          COUNT(*) AS event_count,
-         COUNT(DISTINCT CASE WHEN al.user_id IS NOT NULL THEN al.user_id ELSE al.session_id END) AS unique_users
+         COUNT(DISTINCT CASE WHEN al.user_id IS NOT NULL THEN CAST(al.user_id AS CHAR) ELSE al.session_id END) AS unique_users
        FROM activity_logs al
        ${whereClause}
        GROUP BY COALESCE(al.user_type, 'guest')
@@ -522,7 +522,7 @@ exports.getActivityReport = async (req, res) => {
          SUM(al.action = 'add_to_cart') AS add_to_carts,
          SUM(al.action = 'create_order') AS orders,
          SUM(al.action = 'search') AS searches,
-         GROUP_CONCAT(DISTINCT al.action ORDER BY al.created_at SEPARATOR ', ') AS actions_summary
+         GROUP_CONCAT(al.action ORDER BY al.created_at SEPARATOR ', ') AS actions_summary
        FROM activity_logs al
        WHERE al.user_id IS NULL
          AND al.session_id IS NOT NULL
@@ -567,7 +567,7 @@ exports.getActivityReport = async (req, res) => {
          p.name AS product_name,
          p.slug,
          COUNT(*) AS view_count,
-         COUNT(DISTINCT CASE WHEN al.user_id IS NOT NULL THEN al.user_id ELSE al.session_id END) AS unique_viewers
+         COUNT(DISTINCT CASE WHEN al.user_id IS NOT NULL THEN CAST(al.user_id AS CHAR) ELSE al.session_id END) AS unique_viewers
        FROM activity_logs al
        LEFT JOIN products p ON al.entity_id = p.id
        WHERE al.action = 'view_product'

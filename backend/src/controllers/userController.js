@@ -272,3 +272,63 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// @desc    Lock a user account
+// @route   PATCH /api/users/:id/lock
+// @access  Private (Admin)
+exports.lockUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const users = await query('SELECT id, email, is_locked FROM users WHERE id = ?', [id]);
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: 'User tidak ditemukan' });
+    }
+
+    if (users[0].is_locked) {
+      return res.status(400).json({ success: false, message: 'User sudah dikunci' });
+    }
+
+    await query(
+      'UPDATE users SET is_locked = 1, locked_at = NOW(), locked_reason = ? WHERE id = ?',
+      [reason || null, id]
+    );
+
+    await logActivity(req.user.id, 'lock_user', 'user', id,
+      `User dikunci${reason ? ': ' + reason : ''}`, req);
+
+    res.json({ success: true, message: 'User berhasil dikunci' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Unlock a user account
+// @route   PATCH /api/users/:id/unlock
+// @access  Private (Admin)
+exports.unlockUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const users = await query('SELECT id, is_locked FROM users WHERE id = ?', [id]);
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, message: 'User tidak ditemukan' });
+    }
+
+    if (!users[0].is_locked) {
+      return res.status(400).json({ success: false, message: 'User tidak dalam kondisi terkunci' });
+    }
+
+    await query(
+      'UPDATE users SET is_locked = 0, locked_at = NULL, locked_reason = NULL WHERE id = ?',
+      [id]
+    );
+
+    await logActivity(req.user.id, 'unlock_user', 'user', id, 'User dibuka kuncinya', req);
+
+    res.json({ success: true, message: 'User berhasil dibuka kuncinya' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

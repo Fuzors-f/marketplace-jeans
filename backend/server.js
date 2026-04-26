@@ -46,6 +46,7 @@ const wishlistRoutes = require('./src/routes/wishlistRoutes');
 const couponRoutes = require('./src/routes/couponRoutes');
 const blogRoutes = require('./src/routes/blogRoutes');
 const returnRoutes = require('./src/routes/returnRoutes');
+const notificationRoutes = require('./src/routes/notificationRoutes');
 
 // Import middleware
 const errorHandler = require('./src/middleware/errorHandler');
@@ -148,6 +149,7 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/returns', returnRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

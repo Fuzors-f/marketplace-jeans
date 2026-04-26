@@ -64,6 +64,11 @@ const defaultSettings = [
   // Report settings
   { key: 'margin_calculation_method', value: 'latest', type: 'select', description: 'Metode perhitungan HPP untuk margin (latest = HPP terakhir, average = rata-rata HPP)', is_public: false, group: 'report' },
   { key: 'allow_negative_stock', value: 'false', type: 'boolean', description: 'Izinkan stok minus saat penjualan (oversell)', is_public: false, group: 'report' },
+
+  // Security settings
+  { key: 'recaptcha_enabled', value: 'false', type: 'boolean', description: 'Aktifkan Google reCAPTCHA v2 pada halaman registrasi', is_public: true, group: 'security' },
+  { key: 'recaptcha_site_key', value: '', type: 'text', description: 'Google reCAPTCHA Site Key (public)', is_public: true, group: 'security' },
+  { key: 'recaptcha_secret_key', value: '', type: 'password', description: 'Google reCAPTCHA Secret Key (private)', is_public: false, group: 'security' },
 ];
 
 // @desc    Get all settings

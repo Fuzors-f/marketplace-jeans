@@ -633,9 +633,86 @@ const testEmailConfig = async (testEmail) => {
   }
 };
 
+/**
+ * Send password reset email
+ */
+const sendPasswordResetEmail = async (user, resetUrl) => {
+  try {
+    const settings = await getEmailSettings();
+    const siteName = settings.site_name || 'Marketplace Jeans';
+
+    const content = `
+      <h2>Reset Password</h2>
+      <p>Halo, <strong>${user.full_name}</strong>!</p>
+      <p>Kami menerima permintaan untuk mereset password akun Anda di <strong>${siteName}</strong>.</p>
+
+      <div class="info-box">
+        <p style="margin: 0;">Klik tombol di bawah untuk membuat password baru. Link ini hanya berlaku selama <strong>1 jam</strong>.</p>
+      </div>
+
+      <center>
+        <a href="${resetUrl}" class="button">Reset Password Saya</a>
+      </center>
+
+      <p style="font-size: 13px; color: #666;">Atau salin link berikut ke browser Anda:</p>
+      <p style="font-size: 13px; word-break: break-all; color: #1e40af;">${resetUrl}</p>
+
+      <p><strong>Jika Anda tidak meminta reset password, abaikan email ini.</strong> Password Anda tidak akan berubah.</p>
+      <p style="font-size: 12px; color: #999;">Link ini akan kadaluarsa dalam 1 jam.</p>
+    `;
+
+    const html = await getEmailTemplate(content, `Reset Password - ${siteName}`);
+    return await sendEmail(user.email, `Reset Password Akun ${siteName}`, html);
+  } catch (error) {
+    console.error('Send password reset email error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Send 2FA OTP email
+ */
+const send2FAEmail = async (user, otp) => {
+  try {
+    const settings = await getEmailSettings();
+    const siteName = settings.site_name || 'Marketplace Jeans';
+
+    const content = `
+      <h2 style="color:#1e40af;margin-bottom:8px;">Kode Verifikasi 2FA</h2>
+      <p>Halo <strong>${user.full_name || user.email}</strong>,</p>
+      <p>Anda baru saja mencoba masuk ke akun <strong>${siteName}</strong>. 
+         Gunakan kode verifikasi berikut untuk melanjutkan:</p>
+      <div style="text-align:center;margin:30px 0;">
+        <div style="display:inline-block;background:#f0f9ff;border:2px dashed #1e40af;
+                    border-radius:12px;padding:20px 40px;">
+          <span style="font-size:38px;font-weight:bold;letter-spacing:10px;color:#1e40af;">
+            ${otp}
+          </span>
+        </div>
+      </div>
+      <div class="info-box">
+        <p style="margin:0;"><strong>Catatan:</strong></p>
+        <ul style="margin:8px 0 0 0;padding-left:20px;">
+          <li>Kode berlaku selama <strong>10 menit</strong></li>
+          <li>Jangan bagikan kode ini kepada siapapun</li>
+          <li>Jika Anda tidak melakukan login ini, abaikan email ini dan segera ganti password Anda</li>
+        </ul>
+      </div>
+    `;
+
+    const html = await getEmailTemplate(content, `Kode Verifikasi - ${siteName}`);
+    return await sendEmail(user.email, `Kode Verifikasi Login - ${siteName}`, html);
+  } catch (error) {
+    console.error('Send 2FA email error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendEmail,
   sendWelcomeEmail,
+  sendPasswordResetEmail,
+  send2FAEmail,
   sendOrderConfirmationEmail,
   sendOrderStatusEmail,
   sendPaymentConfirmationEmail,

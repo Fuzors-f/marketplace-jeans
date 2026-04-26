@@ -18,6 +18,7 @@ const settingGroups = [
   { id: 'social', label: 'Media Sosial', icon: Share2 },
   { id: 'legal', label: 'EULA & Cookie', icon: Shield },
   { id: 'report', label: 'Pengaturan Laporan', icon: BarChart3 },
+  { id: 'security', label: 'Keamanan', icon: Shield },
 ];
 
 export default function AdminSettings() {
@@ -623,10 +624,59 @@ export default function AdminSettings() {
         return renderLegalSettings();
       case 'report':
         return renderReportSettings();
+      case 'security':
+        return renderSecuritySettings();
       default:
         return renderSiteSettings();
     }
   };
+
+  const renderSecuritySettings = () => (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold flex items-center gap-2">
+        <Shield size={20} />
+        Keamanan
+      </h3>
+
+      {/* reCAPTCHA Section */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="font-medium mb-1 flex items-center gap-2">
+          Google reCAPTCHA v2
+        </h4>
+        <p className="text-sm text-gray-500 mb-4">
+          Aktifkan Google reCAPTCHA untuk melindungi halaman registrasi dari bot.
+          Dapatkan kunci di{' '}
+          <a
+            href="https://www.google.com/recaptcha/admin/create"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline"
+          >
+            Google reCAPTCHA Admin Console
+          </a>{' '}
+          (pilih tipe <strong>reCAPTCHA v2 — "I'm not a robot" Checkbox</strong>).
+        </p>
+
+        {renderSettingInput('recaptcha_enabled', 'Aktifkan Google reCAPTCHA', 'boolean', '', 'Jika aktif, form registrasi wajib melewati verifikasi reCAPTCHA')}
+
+        {settings['recaptcha_enabled'] === 'true' && (
+          <div className="mt-4 space-y-3 border-t pt-4">
+            {renderSettingInput('recaptcha_site_key', 'Site Key (Public)', 'text', '6Le...', 'Kunci publik yang digunakan di frontend')}
+            {renderSettingInput('recaptcha_secret_key', 'Secret Key (Private)', 'password', '6Le...', 'Kunci rahasia untuk verifikasi di server — jangan dibagikan')}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+              <strong>Cara mendapatkan kunci:</strong>
+              <ol className="mt-1 ml-4 list-decimal space-y-1">
+                <li>Buka <a href="https://www.google.com/recaptcha/admin/create" target="_blank" rel="noopener noreferrer" className="underline">Google reCAPTCHA Admin Console</a></li>
+                <li>Pilih tipe: <strong>reCAPTCHA v2</strong> → "I'm not a robot" Checkbox</li>
+                <li>Tambahkan domain website Anda</li>
+                <li>Salin <strong>Site Key</strong> dan <strong>Secret Key</strong> ke field di atas</li>
+              </ol>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   const renderReportSettings = () => (
     <div className="space-y-6">

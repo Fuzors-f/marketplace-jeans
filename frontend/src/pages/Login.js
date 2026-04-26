@@ -1,18 +1,21 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { toast } from 'react-toastify';
-import { login, clearError } from '../redux/slices/authSlice';
+import { login, verify2FALogin, clearError, clear2FA } from '../redux/slices/authSlice';
 import { useLanguage } from '../utils/i18n';
 
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const { isAuthenticated, isLoading, error } = useSelector((state) => state.auth);
+  const { isAuthenticated, isLoading, error, twoFARequired, twoFATempToken } = useSelector((state) => state.auth);
   const { register, handleSubmit, formState: { errors } } = useForm();
+
+  const [otp, setOtp] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -31,6 +34,84 @@ const Login = () => {
     await dispatch(login(data));
   };
 
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    if (!otp || otp.length !== 6) {
+      toast.error('Masukkan kode OTP 6 digit');
+      return;
+    }
+    setOtpLoading(true);
+    const result = await dispatch(verify2FALogin({ temp_token: twoFATempToken, otp }));
+    if (verify2FALogin.rejected.match(result)) {
+      toast.error(result.payload || 'Kode OTP tidak valid');
+    }
+    setOtpLoading(false);
+  };
+
+  const handleCancelTwoFA = () => {
+    dispatch(clear2FA());
+    setOtp('');
+  };
+
+  // --- 2FA Verification Step ---
+  if (twoFARequired) {
+    return (
+      <>
+        <Helmet>
+          <title>Verifikasi 2FA - Marketplace Jeans</title>
+        </Helmet>
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Verifikasi Dua Langkah</h2>
+              <p className="mt-2 text-sm text-gray-600">
+                Kode verifikasi telah dikirim ke email Anda. Berlaku 10 menit.
+              </p>
+            </div>
+
+            <form onSubmit={handleVerify2FA} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kode OTP (6 digit)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                  placeholder="000000"
+                  className="block w-full px-4 py-3 text-center text-2xl tracking-widest border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={otpLoading || otp.length !== 6}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                {otpLoading ? 'Memverifikasi...' : 'Verifikasi'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelTwoFA}
+                className="w-full text-sm text-gray-500 hover:text-gray-700 underline"
+              >
+                Kembali ke halaman login
+              </button>
+            </form>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // --- Normal Login Step ---
   return (
     <>
       <Helmet>
@@ -103,6 +184,11 @@ const Login = () => {
                 {t('dontHaveAccount')}{' '}
                 <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500">
                   {t('signUp')}
+                </Link>
+              </p>
+              <p className="mt-2 text-sm text-gray-600">
+                <Link to="/forgot-password" className="font-medium text-primary-600 hover:text-primary-500">
+                  Lupa Password?
                 </Link>
               </p>
             </div>

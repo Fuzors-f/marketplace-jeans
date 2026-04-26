@@ -157,7 +157,21 @@ export const userAPI = {
   createAddress: (data) => apiClient.post('/addresses', data),
   updateAddress: (id, data) => apiClient.put(`/addresses/${id}`, data),
   deleteAddress: (id) => apiClient.delete(`/addresses/${id}`),
-  setDefaultAddress: (id) => apiClient.put(`/addresses/${id}/default`)
+  setDefaultAddress: (id) => apiClient.put(`/addresses/${id}/default`),
+  // Lock/Unlock (admin)
+  lockUser: (id, data) => apiClient.patch(`/users/${id}/lock`, data),
+  unlockUser: (id) => apiClient.patch(`/users/${id}/unlock`)
+};
+
+// =====================================
+// AUTH / 2FA API
+// =====================================
+
+export const twoFAAPI = {
+  getStatus: () => apiClient.get('/auth/2fa/status'),
+  setup: () => apiClient.post('/auth/2fa/setup'),
+  enable: (otp) => apiClient.post('/auth/2fa/enable', { otp }),
+  disable: (password) => apiClient.post('/auth/2fa/disable', { password })
 };
 
 // =====================================

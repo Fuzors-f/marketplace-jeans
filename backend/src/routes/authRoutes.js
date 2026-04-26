@@ -9,7 +9,14 @@ const {
   getMe,
   updateProfile,
   changePassword,
-  uploadProfilePicture
+  uploadProfilePicture,
+  forgotPassword,
+  resetPassword,
+  verify2FALogin,
+  setup2FA,
+  enable2FA,
+  disable2FA,
+  get2FAStatus
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimiter');
@@ -46,11 +53,20 @@ const upload = multer({
 // Public routes
 router.post('/register', authLimiter, register);
 router.post('/login', authLimiter, login);
+router.post('/forgot-password', authLimiter, forgotPassword);
+router.post('/reset-password/:token', authLimiter, resetPassword);
+router.post('/verify-2fa-login', authLimiter, verify2FALogin);
 
 // Protected routes
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.put('/change-password', protect, changePassword);
 router.post('/profile-picture', protect, upload.single('profile_picture'), uploadProfilePicture);
+
+// 2FA routes (protected)
+router.get('/2fa/status', protect, get2FAStatus);
+router.post('/2fa/setup', protect, setup2FA);
+router.post('/2fa/enable', protect, enable2FA);
+router.post('/2fa/disable', protect, disable2FA);
 
 module.exports = router;

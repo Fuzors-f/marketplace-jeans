@@ -7,7 +7,9 @@ const {
   searchUsers, 
   createUser,
   updateUser, 
-  deleteUser 
+  deleteUser,
+  lockUser,
+  unlockUser
 } = require('../controllers/userController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -18,5 +20,7 @@ router.get('/:id/orders', protect, authorize('admin'), getUserOrders);
 router.post('/', protect, authorize('admin'), createUser);
 router.put('/:id', protect, authorize('admin'), updateUser);
 router.delete('/:id', protect, authorize('admin'), deleteUser);
+router.patch('/:id/lock', protect, authorize('admin'), lockUser);
+router.patch('/:id/unlock', protect, authorize('admin'), unlockUser);
 
 module.exports = router;
