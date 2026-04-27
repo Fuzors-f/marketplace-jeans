@@ -182,10 +182,11 @@ exports.updateSetting = async (req, res) => {
     );
 
     if (existing.length === 0) {
-      // Create new setting
+      // Create new setting — look up group/type from defaultSettings
+      const def = defaultSettings.find(d => d.key === key);
       await query(
-        'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)',
-        [key, value]
+        'INSERT INTO settings (setting_key, setting_value, setting_type, description, is_public, setting_group) VALUES (?, ?, ?, ?, ?, ?)',
+        [key, value, def?.type || 'text', def?.description || '', def?.is_public ?? true, def?.group || 'general']
       );
     } else {
       // Update existing setting
@@ -221,6 +222,12 @@ exports.bulkUpdateSettings = async (req, res) => {
     let updated = 0;
     let created = 0;
 
+    // Build lookup map from defaultSettings for group/type info
+    const defaultSettingsMap = {};
+    for (const ds of defaultSettings) {
+      defaultSettingsMap[ds.key] = ds;
+    }
+
     for (const [key, value] of Object.entries(settings)) {
       const existing = await query(
         'SELECT id FROM settings WHERE setting_key = ?',
@@ -228,9 +235,10 @@ exports.bulkUpdateSettings = async (req, res) => {
       );
 
       if (existing.length === 0) {
+        const def = defaultSettingsMap[key];
         await query(
-          'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)',
-          [key, value]
+          'INSERT INTO settings (setting_key, setting_value, setting_type, description, is_public, setting_group) VALUES (?, ?, ?, ?, ?, ?)',
+          [key, value, def?.type || 'text', def?.description || '', def?.is_public ?? true, def?.group || 'general']
         );
         created++;
       } else {
@@ -450,9 +458,9 @@ exports.getPaymentConfig = async (req, res) => {
   try {
     const { getClientKey, isMidtransEnabled } = require('../services/midtransService');
 
-    // Fetch all payment-related settings
+    // Fetch all payment-related settings by explicit key names (robust against missing setting_group)
     const paymentSettings = await query(
-      `SELECT setting_key, setting_value FROM settings WHERE setting_group = 'payment'`
+      `SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'payment_%'`
     );
     const ps = {};
     paymentSettings.forEach(s => { ps[s.setting_key] = s.setting_value; });

@@ -27,14 +27,16 @@ const loadMidtransScript = (clientKey, isProduction) => {
 };
 
 // Load PayPal JS SDK dynamically
-const loadPayPalScript = (clientId) => {
+const loadPayPalScript = (clientId, isSandbox = true) => {
   return new Promise((resolve, reject) => {
     if (window.paypal) {
       resolve(window.paypal);
       return;
     }
     const script = document.createElement('script');
-    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD`;
+    const env = isSandbox ? '&debug=true' : '';
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD${env}`;
+    script.setAttribute('data-sandbox', isSandbox ? 'true' : 'false');
     script.onload = () => resolve(window.paypal);
     script.onerror = () => reject(new Error('Failed to load PayPal SDK'));
     document.head.appendChild(script);
@@ -149,7 +151,7 @@ const Checkout = () => {
   // Load PayPal SDK when PayPal is selected
   useEffect(() => {
     if (paymentMethod === 'paypal' && paypalEnabled && paypalClientId && !window.paypal) {
-      loadPayPalScript(paypalClientId)
+      loadPayPalScript(paypalClientId, isPaypalSandbox)
         .then(() => setPaypalReady(true))
         .catch((err) => console.error('PayPal SDK load error:', err));
     } else if (window.paypal) {
@@ -1515,6 +1517,11 @@ const Checkout = () => {
                 {/* PayPal Payment Button */}
                 {paymentMethod === 'paypal' && paypalEnabled && (
                   <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded">
+                    {isPaypalSandbox && (
+                      <div className="mb-2 inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 border border-yellow-300 rounded text-xs font-semibold text-yellow-800">
+                        🧪 Sandbox / Testing Mode
+                      </div>
+                    )}
                     <p className="text-sm text-blue-800 mb-3">
                       Pembayaran akan diproses melalui PayPal dalam mata uang USD. Harga akan dikonversi dari IDR ke USD secara otomatis.
                     </p>
