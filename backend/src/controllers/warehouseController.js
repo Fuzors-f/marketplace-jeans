@@ -20,8 +20,6 @@ exports.getAllWarehouses = async (req, res) => {
     
     const warehouses = await db.query(sql);
     
-    console.log('Warehouses found:', warehouses.length);
-   
     res.json({
       success: true,
       data: warehouses

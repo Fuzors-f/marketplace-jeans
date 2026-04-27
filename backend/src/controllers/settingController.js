@@ -351,7 +351,7 @@ exports.uploadAndUpdateSettingImage = async (req, res) => {
         try {
           fs.unlinkSync(oldImagePath);
         } catch (e) {
-          console.log('Could not delete old image:', e.message);
+          console.warn('Could not delete old image:', e.message);
         }
       }
     }

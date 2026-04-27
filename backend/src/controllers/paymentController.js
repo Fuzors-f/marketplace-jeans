@@ -238,7 +238,7 @@ exports.paymentNotification = async (req, res) => {
   try {
     const notification = req.body;
 
-    console.log('Received Midtrans notification:', notification);
+    console.log('Received Midtrans notification for order:', notification?.order_id, '| status:', notification?.transaction_status);
 
     // Verify and process notification
     const processResult = await midtransService.processNotification(notification);
@@ -265,7 +265,7 @@ exports.paymentNotification = async (req, res) => {
     );
 
     if (payments.length === 0) {
-      console.log('Payment not found for order:', orderId);
+      console.warn('Payment not found for order:', orderId);
       return res.status(404).json({
         success: false,
         message: 'Payment not found'
@@ -391,7 +391,7 @@ exports.checkPaymentStatus = async (req, res) => {
           }
         }
       } catch (err) {
-        console.log('Could not check Midtrans status:', err.message);
+        console.warn('Could not check Midtrans status:', err.message);
       }
     }
 

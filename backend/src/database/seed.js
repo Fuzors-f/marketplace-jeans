@@ -30,7 +30,7 @@ async function seedDatabase() {
        ON DUPLICATE KEY UPDATE id=id`,
       ['admin@marketplacejeans.com', hashedPassword, 'Admin User', '08123456789', 'admin', 0]
     );
-    console.log('✅ Admin user created (email: admin@marketplacejeans.com, pass: admin123)');
+    console.log('✅ Admin user created (email: admin@marketplacejeans.com)  — change password immediately!');
 
     // 2. Create member user
     const memberPassword = await bcrypt.hash('member123', 10);
@@ -40,7 +40,7 @@ async function seedDatabase() {
        ON DUPLICATE KEY UPDATE id=id`,
       ['member@test.com', memberPassword, 'Member Test', '08123456788', 'member', 10]
     );
-    console.log('✅ Member user created (email: member@test.com, pass: member123)');
+    console.log('✅ Member user created (email: member@test.com)  — change password immediately!');
 
     // 3. Create categories
     const categories = [
