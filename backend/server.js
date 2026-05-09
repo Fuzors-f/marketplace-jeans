@@ -1,3 +1,6 @@
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first'); // Force IPv4 to prevent ::1 MySQL errors
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -6,11 +9,16 @@ const compression = require('compression');
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Load environment-specific config
-const envFile = process.env.NODE_ENV ? `.env.${process.env.NODE_ENV}` : '.env';
-dotenv.config({ path: envFile });
-// Fallback to .env if environment file doesn't exist
-dotenv.config();
+// Load environment variables using absolute path to avoid cwd issues
+const envFile = process.env.NODE_ENV
+  ? path.resolve(__dirname, `.env.${process.env.NODE_ENV}`)
+  : path.resolve(__dirname, '.env');
+
+const envResult = dotenv.config({ path: envFile });
+// Fallback to default .env if env-specific file not found
+if (envResult.error) {
+  dotenv.config({ path: path.resolve(__dirname, '.env') });
+}
 
 // Import routes
 const homeRoutes = require('./src/routes/homeRoutes');

@@ -19,6 +19,8 @@ const settingGroups = [
   { id: 'legal', label: 'EULA & Cookie', icon: Shield },
   { id: 'report', label: 'Pengaturan Laporan', icon: BarChart3 },
   { id: 'security', label: 'Keamanan', icon: Shield },
+  { id: 'upload', label: 'Upload & Media', icon: Upload },
+  { id: 'system', label: 'Sistem & Maintenance', icon: Settings },
 ];
 
 export default function AdminSettings() {
@@ -32,6 +34,11 @@ export default function AdminSettings() {
   const [initializing, setInitializing] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailAddress, setTestEmailAddress] = useState('');
+  const [cleaningImages, setCleaningImages] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [resetting, setResetting] = useState(false);
   
   // Dynamic refs for image inputs
   const imageInputRefs = useRef({});
@@ -626,6 +633,10 @@ export default function AdminSettings() {
         return renderReportSettings();
       case 'security':
         return renderSecuritySettings();
+      case 'upload':
+        return renderUploadSettings();
+      case 'system':
+        return renderSystemSettings();
       default:
         return renderSiteSettings();
     }
@@ -677,6 +688,152 @@ export default function AdminSettings() {
       </div>
     </div>
   );
+
+  const renderUploadSettings = () => (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold flex items-center gap-2">
+        <Upload size={20} />
+        Upload & Media
+      </h3>
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h4 className="font-medium mb-3">Batas Ukuran Upload</h4>
+        {renderSettingInput('max_upload_size_mb', 'Ukuran Maksimal Upload Gambar (MB)', 'number', '5', 'Batas maksimal ukuran file gambar yang dapat diunggah (dalam MB). Default: 5 MB.')}
+        {renderSettingInput('max_product_images', 'Maksimal Gambar per Produk', 'number', '5', 'Jumlah maksimal gambar galeri yang dapat ditambahkan per produk. Default: 5.')}
+      </div>
+    </div>
+  );
+
+  const renderSystemSettings = () => {
+    const handleCleanupImages = async () => {
+      try {
+        setCleaningImages(true);
+        setCleanupResult(null);
+        const response = await settingsAPI.cleanupImages();
+        if (response.data.success) {
+          setCleanupResult({ type: 'success', text: response.data.message || `Selesai. ${response.data.data?.deleted || 0} file dihapus.` });
+        }
+      } catch (error) {
+        setCleanupResult({ type: 'error', text: error.response?.data?.message || 'Gagal membersihkan gambar.' });
+      } finally {
+        setCleaningImages(false);
+      }
+    };
+
+    const handleResetDatabase = async () => {
+      if (resetConfirmText !== 'RESET_ALL_DATA') {
+        return;
+      }
+      try {
+        setResetting(true);
+        const response = await settingsAPI.resetDatabase('RESET_ALL_DATA');
+        if (response.data.success) {
+          setMessage({ type: 'success', text: response.data.message || 'Database berhasil direset.' });
+          setShowResetModal(false);
+          setResetConfirmText('');
+        }
+      } catch (error) {
+        setMessage({ type: 'error', text: error.response?.data?.message || 'Gagal mereset database.' });
+        setShowResetModal(false);
+      } finally {
+        setResetting(false);
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Settings size={20} />
+          Sistem & Maintenance
+        </h3>
+
+        {/* Cleanup unused images */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h4 className="font-medium mb-2">Hapus Foto Galeri Tidak Terpakai</h4>
+          <p className="text-sm text-gray-500 mb-3">
+            Memindai folder upload produk dan menghapus file gambar yang tidak terdaftar di database.
+            Berguna untuk membersihkan file sisa setelah penghapusan produk.
+          </p>
+          {cleanupResult && (
+            <div className={`mb-3 p-3 rounded-lg text-sm ${
+              cleanupResult.type === 'success'
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              {cleanupResult.text}
+            </div>
+          )}
+          <button
+            onClick={handleCleanupImages}
+            disabled={cleaningImages}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
+          >
+            <RefreshCw size={18} className={cleaningImages ? 'animate-spin' : ''} />
+            {cleaningImages ? 'Memindai...' : 'Hapus Foto Tidak Terpakai'}
+          </button>
+        </div>
+
+        {/* Reset Database */}
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h4 className="font-medium text-red-700 mb-2 flex items-center gap-2">
+            <AlertCircle size={18} />
+            Reset Semua Data Transaksi
+          </h4>
+          <p className="text-sm text-red-600 mb-2">
+            Menghapus <strong>semua</strong> data transaksi: pesanan, pembayaran, keranjang, pemakaian kupon,
+            pergerakan inventori, retur, wishlist, dan log aktivitas. <strong>Tindakan ini tidak dapat dibatalkan.</strong>
+          </p>
+          <p className="text-sm text-gray-500 mb-3">
+            Data produk, kategori, pengaturan, dan pengguna <strong>tidak</strong> akan dihapus.
+          </p>
+          <button
+            onClick={() => { setShowResetModal(true); setResetConfirmText(''); }}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+          >
+            <AlertCircle size={18} />
+            Reset Semua Data
+          </button>
+        </div>
+
+        {/* Reset Confirmation Modal */}
+        {showResetModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-bold text-red-700 mb-2 flex items-center gap-2">
+                <AlertCircle size={20} />
+                Konfirmasi Reset Database
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Anda akan menghapus semua data transaksi secara permanen. Untuk melanjutkan,
+                ketik <strong className="font-mono">RESET_ALL_DATA</strong> di bawah ini:
+              </p>
+              <input
+                type="text"
+                value={resetConfirmText}
+                onChange={(e) => setResetConfirmText(e.target.value)}
+                placeholder="RESET_ALL_DATA"
+                className="w-full px-3 py-2 border-2 border-red-300 rounded-lg font-mono mb-4 focus:outline-none focus:border-red-500"
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowResetModal(false)}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleResetDatabase}
+                  disabled={resetConfirmText !== 'RESET_ALL_DATA' || resetting}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-40 transition"
+                >
+                  {resetting ? 'Mereset...' : 'Ya, Reset Sekarang'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderReportSettings = () => (
     <div className="space-y-6">

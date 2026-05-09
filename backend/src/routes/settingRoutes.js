@@ -13,7 +13,9 @@ const {
   uploadAndUpdateSettingImage,
   testEmail,
   clearSettingsCache,
-  getPaymentConfig
+  getPaymentConfig,
+  cleanupUnusedImages,
+  resetDatabase
 } = require('../controllers/settingController');
 const { protect, authorize, optionalAuth } = require('../middleware/auth');
 
@@ -59,5 +61,7 @@ router.post('/upload', protect, authorize('admin'), upload.single('image'), uplo
 router.post('/upload/:key', protect, authorize('admin'), upload.single('image'), uploadAndUpdateSettingImage);
 router.post('/test-email', protect, authorize('admin'), testEmail);
 router.post('/clear-cache', protect, authorize('admin'), clearSettingsCache);
+router.post('/cleanup-images', protect, authorize('admin'), cleanupUnusedImages);
+router.post('/reset-database', protect, authorize('admin'), resetDatabase);
 
 module.exports = router;

@@ -188,7 +188,9 @@ export const settingsAPI = {
   uploadImageForKey: (key, formData) => apiClient.post(`/settings/upload/${key}`, formData),
   testEmail: (email) => apiClient.post('/settings/test-email', { email }),
   clearCache: () => apiClient.post('/settings/clear-cache'),
-  getPaymentConfig: () => apiClient.get('/settings/payment-config')
+  getPaymentConfig: () => apiClient.get('/settings/payment-config'),
+  cleanupImages: () => apiClient.post('/settings/cleanup-images'),
+  resetDatabase: (confirmation) => apiClient.post('/settings/reset-database', { confirmation })
 };
 
 // =====================================

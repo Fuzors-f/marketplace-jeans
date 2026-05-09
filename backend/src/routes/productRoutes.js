@@ -13,7 +13,9 @@ const {
   deleteProductVariant,
   addProductImages,
   getProductImages,
-  deleteProductImage
+  deleteProductImage,
+  reorderProductImages,
+  setPrimaryProductImage
 } = require('../controllers/productController');
 const { downloadImportTemplate, importProducts, uploadMiddleware } = require('../controllers/productImportController');
 const { protect, authorize, optionalAuth } = require('../middleware/auth');
@@ -37,6 +39,8 @@ router.post('/bulk-upload', protect, authorize('admin', 'admin_stok'), bulkUploa
 
 // Image routes
 router.post('/:productId/images', protect, authorize('admin', 'admin_stok'), upload.array('images', 5), addProductImages);
+router.put('/:productId/images/reorder', protect, authorize('admin', 'admin_stok'), reorderProductImages);
+router.put('/:productId/images/:imageId/set-primary', protect, authorize('admin', 'admin_stok'), setPrimaryProductImage);
 router.delete('/:productId/images/:imageId', protect, authorize('admin'), deleteProductImage);
 
 // Variant routes

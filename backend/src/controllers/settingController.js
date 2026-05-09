@@ -69,6 +69,10 @@ const defaultSettings = [
   { key: 'recaptcha_enabled', value: 'false', type: 'boolean', description: 'Aktifkan Google reCAPTCHA v2 pada halaman registrasi', is_public: true, group: 'security' },
   { key: 'recaptcha_site_key', value: '', type: 'text', description: 'Google reCAPTCHA Site Key (public)', is_public: true, group: 'security' },
   { key: 'recaptcha_secret_key', value: '', type: 'password', description: 'Google reCAPTCHA Secret Key (private)', is_public: false, group: 'security' },
+
+  // Upload settings
+  { key: 'max_upload_size_mb', value: '5', type: 'number', description: 'Ukuran maksimal upload gambar (MB)', is_public: true, group: 'upload' },
+  { key: 'max_product_images', value: '5', type: 'number', description: 'Maksimal jumlah gambar per produk', is_public: true, group: 'upload' },
 ];
 
 // @desc    Get all settings
@@ -505,3 +509,111 @@ exports.getPaymentConfig = async (req, res) => {
     });
   }
 };
+
+// @desc    Clean up unused product gallery images
+// @route   POST /api/settings/cleanup-images
+// @access  Private (Admin)
+exports.cleanupUnusedImages = async (req, res) => {
+  try {
+    const uploadsDir = path.join(__dirname, '../../uploads/products');
+
+    if (!fs.existsSync(uploadsDir)) {
+      return res.json({ success: true, message: 'Folder uploads/products tidak ditemukan', deleted: 0 });
+    }
+
+    // Get all image URLs referenced in the database
+    const dbImages = await query('SELECT image_url FROM product_images');
+    const referencedFiles = new Set(
+      dbImages.map(img => path.basename(img.image_url))
+    );
+
+    // Read all files in uploads/products
+    const allFiles = fs.readdirSync(uploadsDir);
+    const deleted = [];
+    const skipped = [];
+
+    for (const filename of allFiles) {
+      if (!referencedFiles.has(filename)) {
+        const filePath = path.join(uploadsDir, filename);
+        try {
+          const stat = fs.statSync(filePath);
+          if (stat.isFile()) {
+            fs.unlinkSync(filePath);
+            deleted.push(filename);
+          }
+        } catch (e) {
+          skipped.push(filename);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Selesai. ${deleted.length} file dihapus, ${skipped.length} file dilewati.`,
+      data: { deleted_count: deleted.length, skipped_count: skipped.length, deleted_files: deleted }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Reset all application data (DANGEROUS)
+// @route   POST /api/settings/reset-database
+// @access  Private (Admin only)
+exports.resetDatabase = async (req, res) => {
+  try {
+    const { confirmation } = req.body;
+
+    // Require explicit confirmation phrase
+    if (confirmation !== 'RESET_ALL_DATA') {
+      return res.status(400).json({
+        success: false,
+        message: 'Konfirmasi tidak valid. Kirim confirmation: "RESET_ALL_DATA"'
+      });
+    }
+
+    // Tables to truncate (order matters for FK constraints)
+    const tablesToReset = [
+      'coupon_usages',
+      'order_items',
+      'order_status_history',
+      'order_taxes',
+      'order_discounts',
+      'payments',
+      'orders',
+      'cart_items',
+      'inventory_movements',
+      'wishlists',
+      'returns',
+      'activity_logs',
+    ];
+
+    for (const table of tablesToReset) {
+      try {
+        await query(`DELETE FROM ${table}`);
+        await query(`ALTER TABLE ${table} AUTO_INCREMENT = 1`);
+      } catch (e) {
+        // Table might not exist or have no AUTO_INCREMENT — skip silently
+        console.warn(`Reset table ${table}:`, e.message);
+      }
+    }
+
+    // Delete uploaded payment proofs (keep products, settings images)
+    const paymentsDir = path.join(__dirname, '../../uploads/payments');
+    if (fs.existsSync(paymentsDir)) {
+      const files = fs.readdirSync(paymentsDir);
+      files.forEach(file => {
+        try { fs.unlinkSync(path.join(paymentsDir, file)); } catch (_) {}
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Database berhasil direset. ${tablesToReset.length} tabel telah dikosongkan.`
+    });
+  } catch (error) {
+    console.error('Reset database error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

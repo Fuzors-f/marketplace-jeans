@@ -1,4 +1,5 @@
 ﻿const { query, transaction } = require('../config/database');
+const { sendEmail, getEmailTemplate } = require('../services/emailService');
 
 // @desc    Get all coupons (Admin)
 // @route   GET /api/coupons
@@ -614,5 +615,118 @@ exports.getPublicCoupons = async (req, res) => {
       success: false,
       message: 'Gagal memuat kupon'
     });
+  }
+};
+
+// @desc    Send coupon/voucher code via email to user(s)
+// @route   POST /api/coupons/:id/send-email
+// @access  Private (Admin)
+exports.sendCouponEmail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { emails, user_ids, custom_message } = req.body;
+
+    if (!emails && !user_ids) {
+      return res.status(400).json({
+        success: false,
+        message: 'Harus menyertakan daftar email atau user_ids'
+      });
+    }
+
+    // Get coupon
+    const coupons = await query('SELECT * FROM coupons WHERE id = ?', [id]);
+    if (coupons.length === 0) {
+      return res.status(404).json({ success: false, message: 'Kupon tidak ditemukan' });
+    }
+    const coupon = coupons[0];
+
+    // Resolve email list
+    let recipientEmails = [];
+
+    if (emails && Array.isArray(emails)) {
+      recipientEmails = emails.filter(e => e && e.includes('@'));
+    }
+
+    if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
+      const placeholders = user_ids.map(() => '?').join(',');
+      const users = await query(
+        `SELECT email, full_name FROM users WHERE id IN (${placeholders}) AND email IS NOT NULL`,
+        user_ids
+      );
+      users.forEach(u => {
+        if (!recipientEmails.includes(u.email)) {
+          recipientEmails.push(u.email);
+        }
+      });
+    }
+
+    if (recipientEmails.length === 0) {
+      return res.status(400).json({ success: false, message: 'Tidak ada email valid yang ditemukan' });
+    }
+
+    // Format coupon value
+    const discountText = coupon.discount_type === 'percentage'
+      ? `${coupon.discount_value}%`
+      : new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(coupon.discount_value);
+
+    const expiryText = coupon.end_date
+      ? new Date(coupon.end_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+      : 'Tidak ada batas waktu';
+
+    const minPurchaseText = coupon.min_purchase > 0
+      ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(coupon.min_purchase)
+      : 'Tidak ada';
+
+    const results = { success: 0, failed: 0, errors: [] };
+
+    for (const email of recipientEmails) {
+      try {
+        const content = `
+          <h2>🎁 Anda Mendapat Kupon Spesial!</h2>
+          ${custom_message ? `<p>${custom_message}</p>` : '<p>Kami memberikan kupon eksklusif untuk Anda. Gunakan kode di bawah ini saat checkout:</p>'}
+
+          <div style="text-align: center; margin: 30px 0;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #1e40af, #3b82f6); color: white; padding: 20px 40px; border-radius: 12px; font-size: 32px; font-weight: bold; letter-spacing: 4px; font-family: monospace;">
+              ${coupon.code}
+            </div>
+          </div>
+
+          <div class="info-box">
+            <h3 style="margin-top: 0;">Detail Kupon: ${coupon.name}</h3>
+            ${coupon.description ? `<p>${coupon.description}</p>` : ''}
+            <p><strong>Diskon:</strong> ${discountText}${coupon.max_discount ? ` (maks. ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(coupon.max_discount)})` : ''}</p>
+            <p><strong>Minimum Pembelian:</strong> ${minPurchaseText}</p>
+            <p><strong>Berlaku Hingga:</strong> ${expiryText}</p>
+            ${coupon.requirements_text ? `<p><strong>Syarat:</strong> ${coupon.requirements_text}</p>` : ''}
+          </div>
+
+          <p style="color: #6b7280; font-size: 14px;">
+            Kupon ini hanya berlaku 1 kali per pengguna. Tidak dapat digabungkan dengan promo lain.
+          </p>
+        `;
+
+        const html = await getEmailTemplate(content, `Kupon Spesial: ${coupon.code}`);
+        const result = await sendEmail(email, `🎁 Kupon Spesial ${coupon.code} - Diskon ${discountText}`, html);
+
+        if (result.success) {
+          results.success++;
+        } else {
+          results.failed++;
+          results.errors.push({ email, error: result.error });
+        }
+      } catch (e) {
+        results.failed++;
+        results.errors.push({ email, error: e.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Email terkirim ke ${results.success} dari ${recipientEmails.length} penerima`,
+      data: results
+    });
+  } catch (error) {
+    console.error('Send coupon email error:', error);
+    res.status(500).json({ success: false, message: 'Gagal mengirim email kupon', error: error.message });
   }
 };

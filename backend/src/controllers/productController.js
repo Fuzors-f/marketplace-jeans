@@ -1,5 +1,6 @@
 const { query, transaction } = require('../config/database');
 const { logActivity } = require('../middleware/activityLogger');
+const fs = require('fs');
 
 // Check if gender column exists (cached)
 let _hasGenderCol = undefined;
@@ -751,7 +752,10 @@ exports.deleteProductVariant = async (req, res) => {
   }
 };
 
-// @desc    Add product images
+// Max gallery images per product
+const MAX_PRODUCT_IMAGES = 5;
+
+// @desc    Add product images (max 5 per product)
 // @route   POST /api/products/:productId/images
 // @access  Private/Admin
 exports.addProductImages = async (req, res) => {
@@ -761,59 +765,134 @@ exports.addProductImages = async (req, res) => {
     // Check if product exists
     const checkProduct = await query('SELECT id FROM products WHERE id = ?', [productId]);
     if (checkProduct.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
+      // Clean up uploaded files
+      if (req.files) req.files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
+      return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
     if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: 'No images provided' });
+    }
+
+    // Check current image count
+    const existingImages = await query('SELECT COUNT(*) as count FROM product_images WHERE product_id = ?', [productId]);
+    const currentCount = existingImages[0].count;
+
+    if (currentCount >= MAX_PRODUCT_IMAGES) {
+      // Clean up uploaded files
+      req.files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
       return res.status(400).json({
         success: false,
-        message: 'No images provided'
+        message: `Maksimal ${MAX_PRODUCT_IMAGES} gambar per produk. Hapus gambar lama terlebih dahulu.`
       });
     }
 
-    // Check if product already has images to determine primary
-    const existingImages = await query('SELECT COUNT(*) as count FROM product_images WHERE product_id = ?', [productId]);
-    const hasExistingImages = existingImages[0].count > 0;
+    const slotsAvailable = MAX_PRODUCT_IMAGES - currentCount;
+    const filesToProcess = req.files.slice(0, slotsAvailable);
 
+    // Clean up excess files that won't be saved
+    req.files.slice(slotsAvailable).forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
+
+    const hasExistingImages = currentCount > 0;
     const savedImages = [];
-    for (let i = 0; i < req.files.length; i++) {
-      const file = req.files[i];
+
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const file = filesToProcess[i];
       const imagePath = `/uploads/products/${file.filename}`;
-      
-      // First image is primary only if no existing images
       const isPrimary = (!hasExistingImages && i === 0) ? 1 : 0;
       
-      // Save to database (without filename column which doesn't exist)
       const result = await query(
         'INSERT INTO product_images (product_id, image_url, is_primary, sort_order) VALUES (?, ?, ?, ?)',
-        [productId, imagePath, isPrimary, existingImages[0].count + i]
+        [productId, imagePath, isPrimary, currentCount + i]
       );
       
       savedImages.push({
         id: result.insertId,
-        filename: file.filename,
         url: imagePath,
-        is_primary: isPrimary
+        is_primary: isPrimary,
+        sort_order: currentCount + i
       });
     }
 
-    await logActivity(req.user?.id, 'ADD_PRODUCT_IMAGES', `Added ${savedImages.length} images to product ${productId}`);
+    await logActivity(req.user?.id, 'ADD_PRODUCT_IMAGES', 'product', productId, `Added ${savedImages.length} images to product ${productId}`, req);
 
     res.json({
       success: true,
-      message: 'Images uploaded successfully',
-      data: savedImages
+      message: `${savedImages.length} gambar berhasil diunggah`,
+      data: savedImages,
+      ...(filesToProcess.length < req.files.length && {
+        warning: `Hanya ${slotsAvailable} gambar yang disimpan (batas maksimal ${MAX_PRODUCT_IMAGES})`
+      })
     });
   } catch (error) {
     console.error('Add product images error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error uploading images',
-      error: error.message
-    });
+    if (req.files) req.files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
+    res.status(500).json({ success: false, message: 'Error uploading images', error: error.message });
+  }
+};
+
+// @desc    Reorder product images
+// @route   PUT /api/products/:productId/images/reorder
+// @access  Private/Admin
+exports.reorderProductImages = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { order } = req.body; // array of { id, sort_order, is_primary }
+
+    if (!Array.isArray(order) || order.length === 0) {
+      return res.status(400).json({ success: false, message: 'order array diperlukan' });
+    }
+
+    // Verify all images belong to this product
+    const imageIds = order.map(o => o.id);
+    const existingImages = await query(
+      `SELECT id FROM product_images WHERE product_id = ? AND id IN (${imageIds.map(() => '?').join(',')})`,
+      [productId, ...imageIds]
+    );
+
+    if (existingImages.length !== imageIds.length) {
+      return res.status(400).json({ success: false, message: 'Beberapa gambar tidak ditemukan' });
+    }
+
+    // Reset all is_primary first
+    await query('UPDATE product_images SET is_primary = 0 WHERE product_id = ?', [productId]);
+
+    // Update each image's sort_order and is_primary
+    for (const item of order) {
+      await query(
+        'UPDATE product_images SET sort_order = ?, is_primary = ? WHERE id = ? AND product_id = ?',
+        [item.sort_order, item.is_primary ? 1 : 0, item.id, productId]
+      );
+    }
+
+    await logActivity(req.user?.id, 'REORDER_PRODUCT_IMAGES', 'product', productId, `Reordered images for product ${productId}`, req);
+
+    res.json({ success: true, message: 'Urutan gambar berhasil diperbarui' });
+  } catch (error) {
+    console.error('Reorder product images error:', error);
+    res.status(500).json({ success: false, message: 'Error reordering images', error: error.message });
+  }
+};
+
+// @desc    Set primary product image
+// @route   PUT /api/products/:productId/images/:imageId/set-primary
+// @access  Private/Admin
+exports.setPrimaryProductImage = async (req, res) => {
+  try {
+    const { productId, imageId } = req.params;
+
+    const image = await query('SELECT id FROM product_images WHERE id = ? AND product_id = ?', [imageId, productId]);
+    if (image.length === 0) {
+      return res.status(404).json({ success: false, message: 'Gambar tidak ditemukan' });
+    }
+
+    await query('UPDATE product_images SET is_primary = 0 WHERE product_id = ?', [productId]);
+    await query('UPDATE product_images SET is_primary = 1 WHERE id = ?', [imageId]);
+
+    res.json({ success: true, message: 'Gambar utama berhasil diperbarui' });
+  } catch (error) {
+    console.error('Set primary image error:', error);
+    res.status(500).json({ success: false, message: 'Error updating primary image', error: error.message });
   }
 };
 

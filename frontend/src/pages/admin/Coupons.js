@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   FaTicketAlt, FaPlus, FaEdit, FaTrash, FaTimes,
   FaPercent, FaMoneyBill, FaCalendarAlt, FaUsers,
-  FaCheckCircle, FaTimesCircle, FaClock, FaChartBar
+  FaCheckCircle, FaTimesCircle, FaClock, FaChartBar, FaEnvelope
 } from 'react-icons/fa';
 import apiClient from '../../services/api';
 import Modal, { ModalFooter } from '../../components/admin/Modal';
@@ -27,6 +27,12 @@ const AdminCoupons = () => {
   
   // Stats
   const [stats, setStats] = useState(null);
+
+  // Send email modal state
+  const [showSendEmailModal, setShowSendEmailModal] = useState(false);
+  const [sendEmailCoupon, setSendEmailCoupon] = useState(null);
+  const [sendEmailData, setSendEmailData] = useState({ emails: '', custom_message: '' });
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -197,6 +203,42 @@ const AdminCoupons = () => {
     }
   };
 
+  const handleOpenSendEmail = (coupon) => {
+    setSendEmailCoupon(coupon);
+    setSendEmailData({ emails: '', custom_message: '' });
+    setShowSendEmailModal(true);
+  };
+
+  const handleSendCouponEmail = async () => {
+    if (!sendEmailData.emails.trim()) {
+      showAlertError('Masukkan setidaknya satu alamat email');
+      return;
+    }
+    const emailList = sendEmailData.emails
+      .split(/[,\n]/)
+      .map(e => e.trim())
+      .filter(e => e.includes('@'));
+
+    if (emailList.length === 0) {
+      showAlertError('Tidak ada email valid ditemukan');
+      return;
+    }
+
+    try {
+      setSendingEmail(true);
+      const res = await apiClient.post(`/coupons/${sendEmailCoupon.id}/send-email`, {
+        emails: emailList,
+        custom_message: sendEmailData.custom_message || undefined
+      });
+      showSuccess(`Email berhasil dikirim ke ${res.data.data?.success || 0} penerima`);
+      setShowSendEmailModal(false);
+    } catch (err) {
+      showAlertError(err.response?.data?.message || 'Gagal mengirim email');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -310,6 +352,13 @@ const AdminCoupons = () => {
             title="Detail"
           >
             <FaChartBar size={16} />
+          </button>
+          <button
+            onClick={() => handleOpenSendEmail(coupon)}
+            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+            title="Kirim via Email"
+          >
+            <FaEnvelope size={16} />
           </button>
           <button
             onClick={() => handleOpenModal(coupon)}
@@ -841,6 +890,77 @@ const AdminCoupons = () => {
                   </div>
                 </div>
               )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Send Coupon Email Modal */}
+      <Modal
+        isOpen={showSendEmailModal && !!sendEmailCoupon}
+        onClose={() => setShowSendEmailModal(false)}
+        title={`Kirim Kupon "${sendEmailCoupon?.code}" via Email`}
+        size="lg"
+      >
+        {sendEmailCoupon && (
+          <div className="space-y-4">
+            {/* Coupon preview */}
+            <div className="bg-blue-50 rounded-lg p-4 text-center">
+              <p className="text-2xl font-mono font-bold text-blue-700">{sendEmailCoupon.code}</p>
+              <p className="text-sm text-gray-600 mt-1">{sendEmailCoupon.name}</p>
+              <p className="text-sm font-semibold text-blue-600 mt-1">
+                {sendEmailCoupon.discount_type === 'percentage'
+                  ? `${sendEmailCoupon.discount_value}% OFF`
+                  : formatCurrency(sendEmailCoupon.discount_value) + ' OFF'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Alamat Email Penerima <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={sendEmailData.emails}
+                onChange={(e) => setSendEmailData(prev => ({ ...prev, emails: e.target.value }))}
+                rows={4}
+                placeholder="Masukkan email (pisahkan dengan koma atau enter)&#10;contoh@email.com&#10;user2@email.com"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {sendEmailData.emails
+                  ? `${sendEmailData.emails.split(/[,\n]/).filter(e => e.trim().includes('@')).length} email terdeteksi`
+                  : 'Pisahkan beberapa email dengan koma atau baris baru'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Pesan Kustom (Opsional)</label>
+              <textarea
+                value={sendEmailData.custom_message}
+                onChange={(e) => setSendEmailData(prev => ({ ...prev, custom_message: e.target.value }))}
+                rows={2}
+                placeholder="Pesan tambahan yang akan disertakan dalam email..."
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+
+            <ModalFooter>
+              <button
+                type="button"
+                onClick={() => setShowSendEmailModal(false)}
+                className="px-5 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSendCouponEmail}
+                disabled={sendingEmail}
+                className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+              >
+                <FaEnvelope />
+                {sendingEmail ? 'Mengirim...' : 'Kirim Email'}
+              </button>
+            </ModalFooter>
           </div>
         )}
       </Modal>

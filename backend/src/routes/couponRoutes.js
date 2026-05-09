@@ -8,7 +8,8 @@ const {
   updateCoupon,
   deleteCoupon,
   getCouponStats,
-  getPublicCoupons
+  getPublicCoupons,
+  sendCouponEmail
 } = require('../controllers/couponController');
 const { protect, authorize, optionalAuth } = require('../middleware/auth');
 
@@ -23,5 +24,6 @@ router.get('/:id', protect, authorize('admin'), getCouponById);
 router.post('/', protect, authorize('admin'), createCoupon);
 router.put('/:id', protect, authorize('admin'), updateCoupon);
 router.delete('/:id', protect, authorize('admin'), deleteCoupon);
+router.post('/:id/send-email', protect, authorize('admin'), sendCouponEmail);
 
 module.exports = router;

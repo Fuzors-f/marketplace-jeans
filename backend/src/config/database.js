@@ -1,7 +1,9 @@
 const mysql = require('mysql2/promise');
 const dotenv = require('dotenv');
+const path = require('path');
 
-dotenv.config();
+// Use absolute path so it works regardless of cwd
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // Database configuration
 const dbConfig = {

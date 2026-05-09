@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import apiClient from '../../services/api';
 import { getImageUrl, handleImageError, PLACEHOLDER_IMAGES } from '../../utils/imageUtils';
@@ -35,6 +35,9 @@ const AdminProducts = () => {
   
   // Warehouse selection for variants
   const [selectedWarehouses, setSelectedWarehouses] = useState([]);
+
+  // Drag-to-reorder state for gallery
+  const [dragIndex, setDragIndex] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -237,17 +240,26 @@ const AdminProducts = () => {
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
-    setSelectedImages(prev => [...prev, ...files]);
+    const totalExisting = existingImages.length;
+    const totalNew = imagePreviews.length;
+    const slotsLeft = MAX_GALLERY_IMAGES - totalExisting - totalNew;
+
+    if (slotsLeft <= 0) {
+      showError(`Maksimal ${MAX_GALLERY_IMAGES} gambar per produk`);
+      return;
+    }
+
+    const filesToAdd = files.slice(0, slotsLeft);
+    if (files.length > slotsLeft) {
+      showError(`Hanya ${slotsLeft} slot tersisa, ${files.length - slotsLeft} gambar diabaikan`);
+    }
+
+    setSelectedImages(prev => [...prev, ...filesToAdd]);
     
-    // Create previews
-    files.forEach(file => {
+    filesToAdd.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setImagePreviews(prev => [...prev, {
-          file: file,
-          url: e.target.result,
-          isNew: true
-        }]);
+        setImagePreviews(prev => [...prev, { file: file, url: e.target.result, isNew: true }]);
       };
       reader.readAsDataURL(file);
     });
@@ -274,6 +286,49 @@ const AdminProducts = () => {
       }
     } catch (err) {
       console.error('Error fetching product images:', err);
+    }
+  };
+
+  const MAX_GALLERY_IMAGES = 5;
+
+  const handleGalleryDragStart = (index) => setDragIndex(index);
+
+  const handleGalleryDragOver = useCallback((e, overIndex) => {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === overIndex) return;
+    setExistingImages(prev => {
+      const updated = [...prev];
+      const [moved] = updated.splice(dragIndex, 1);
+      updated.splice(overIndex, 0, moved);
+      return updated;
+    });
+    setDragIndex(overIndex);
+  }, [dragIndex]);
+
+  const handleGalleryDragEnd = async (productId) => {
+    setDragIndex(null);
+    if (!productId) return;
+    const order = existingImages.map((img, i) => ({
+      id: img.id,
+      sort_order: i,
+      is_primary: i === 0 ? 1 : 0
+    }));
+    try {
+      await apiClient.put(`/products/${productId}/images/reorder`, { order });
+    } catch (err) {
+      console.error('Reorder failed:', err);
+    }
+  };
+
+  const handleSetPrimary = async (productId, imageId) => {
+    try {
+      await apiClient.put(`/products/${productId}/images/${imageId}/set-primary`);
+      setExistingImages(prev =>
+        prev.map(img => ({ ...img, is_primary: img.id === imageId ? 1 : 0 }))
+      );
+      showSuccess('Gambar utama diperbarui');
+    } catch (err) {
+      showError('Gagal mengatur gambar utama');
     }
   };
 
@@ -693,47 +748,85 @@ const AdminProducts = () => {
                   />
                 </div>
 
-                {/* Image Upload Section */}
+                {/* Image Gallery Section */}
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Gambar Produk *</label>
-                  
-                  {/* Existing Images */}
+                  <label className="block text-sm font-semibold mb-1">
+                    Galeri Produk <span className="text-gray-400 font-normal">(maks. {MAX_GALLERY_IMAGES} gambar)</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Drag gambar untuk mengubah urutan. Gambar pertama otomatis menjadi gambar utama.
+                    <span className="ml-1 font-medium text-blue-600">
+                      {existingImages.length + imagePreviews.length}/{MAX_GALLERY_IMAGES} digunakan
+                    </span>
+                  </p>
+
+                  {/* Existing Images with drag-to-reorder */}
                   {existingImages.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium mb-2 text-gray-600">Gambar yang sudah ada:</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div className="mb-3">
+                      <h4 className="text-xs font-medium mb-2 text-gray-500 uppercase tracking-wide">Gambar tersimpan (drag untuk urut ulang)</h4>
+                      <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
                         {existingImages.map((image, index) => (
-                          <div key={index} className="relative">
+                          <div
+                            key={image.id || index}
+                            draggable
+                            onDragStart={() => handleGalleryDragStart(index)}
+                            onDragOver={(e) => handleGalleryDragOver(e, index)}
+                            onDragEnd={() => handleGalleryDragEnd(editingProduct?.id)}
+                            className={`relative group cursor-grab active:cursor-grabbing rounded-lg border-2 overflow-hidden ${
+                              index === 0 ? 'border-blue-500' : 'border-gray-200'
+                            } ${dragIndex === index ? 'opacity-50' : ''}`}
+                          >
                             <img
                               src={getImageUrl(image.url || image.filename, 'products')}
-                              alt={`Product ${index + 1}`}
-                              className="w-full h-24 object-cover rounded border"
+                              alt={`Gallery ${index + 1}`}
+                              className="w-full h-20 object-cover"
                               onError={(e) => handleImageError(e, 'product')}
                             />
-                            <button
-                              type="button"
-                              onClick={() => removeImage(index, true)}
-                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
-                            >
-                              ×
-                            </button>
+                            {/* Primary badge */}
+                            {index === 0 && (
+                              <span className="absolute top-1 left-1 bg-blue-500 text-white text-xs px-1 rounded font-bold">Utama</span>
+                            )}
+                            {/* Action overlay */}
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
+                              {index !== 0 && editingProduct && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetPrimary(editingProduct.id, image.id)}
+                                  className="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded hover:bg-blue-600"
+                                  title="Jadikan gambar utama"
+                                >
+                                  ★
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => removeImage(index, true)}
+                                className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded hover:bg-red-600"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            {/* Order number */}
+                            <span className="absolute bottom-1 right-1 bg-black bg-opacity-50 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
+                              {index + 1}
+                            </span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-                  
+
                   {/* New Images Preview */}
                   {imagePreviews.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium mb-2 text-gray-600">Gambar baru:</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div className="mb-3">
+                      <h4 className="text-xs font-medium mb-2 text-gray-500 uppercase tracking-wide">Gambar baru (belum disimpan)</h4>
+                      <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
                         {imagePreviews.map((preview, index) => (
-                          <div key={index} className="relative">
+                          <div key={index} className="relative rounded-lg border-2 border-dashed border-green-400 overflow-hidden">
                             <img
                               src={preview.url}
                               alt={`Preview ${index + 1}`}
-                              className="w-full h-24 object-cover rounded border"
+                              className="w-full h-20 object-cover"
                             />
                             <button
                               type="button"
@@ -747,18 +840,31 @@ const AdminProducts = () => {
                       </div>
                     </div>
                   )}
-                  
-                  {/* File Input */}
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black"
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Pilih beberapa gambar sekaligus. Format: JPG, PNG, JPEG (Max 5MB per gambar)
-                  </p>
+
+                  {/* File Input - only show if slots available */}
+                  {(existingImages.length + imagePreviews.length) < MAX_GALLERY_IMAGES && (
+                    <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                      <span className="text-2xl">📷</span>
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">Klik untuk tambah gambar</p>
+                        <p className="text-xs text-gray-400">
+                          JPG, PNG (maks. 5MB) · Sisa slot: {MAX_GALLERY_IMAGES - existingImages.length - imagePreviews.length}
+                        </p>
+                      </div>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                  {(existingImages.length + imagePreviews.length) >= MAX_GALLERY_IMAGES && (
+                    <p className="text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded border border-amber-200">
+                      ⚠ Batas maksimal {MAX_GALLERY_IMAGES} gambar tercapai. Hapus gambar untuk menambah yang baru.
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex gap-6">
